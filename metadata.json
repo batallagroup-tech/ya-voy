@@ -1,0 +1,5 @@
+{
+  "name": "YA VOY REPARTIDOR",
+  "description": "Aplicación para repartidores de la plataforma YA VOY, permitiendo la gestión de pedidos, navegación y comunicación en tiempo real.",
+  "requestFramePermissions": ["geolocation", "camera"]
+}

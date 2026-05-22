@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-purple: #6D28D9;
+  --color-brand-orange: #F97316;
+  --color-brand-purple-light: #8B5CF6;
+  --color-brand-orange-light: #FB923C;
+}
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+.btn-primary {
+  @apply bg-brand-purple hover:bg-brand-purple-light text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg active:scale-95;
+}
+
+.btn-secondary {
+  @apply bg-brand-orange hover:bg-brand-orange-light text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg active:scale-95;
+}
+
+.card {
+  @apply bg-white rounded-2xl shadow-md p-4 border border-gray-100;
+}
