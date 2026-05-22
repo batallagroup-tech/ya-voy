@@ -1,0 +1,290 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (Auth UID)
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - email: string (required, email format) - User email
+    //   - displayName: string (optional) - User display name
+    //   - photoURL: string (optional) - User profile photo URL
+    //   - phoneNumber: string (optional) - User phone number
+    //   - settings: map (optional) - User settings (notifications, darkMode, language)
+    //   - emailVerified: boolean (optional) - Email verification status
+    //   - phoneVerified: boolean (optional) - Phone verification status
+    //   - emailVerificationCode: string (optional) - Code for email verification
+    //   - emailVerificationSentAt: timestamp (optional) - When code was sent
+    //   - driverProfile: map (optional) - Driver specific data and document status
+    //   - createdAt: timestamp (optional) - Account creation timestamp
+    //   - updatedAt: timestamp (optional) - Last update timestamp
+    // Collection: users/{userId}/addresses
+    // Document ID: {addressId}
+    // Fields:
+    //   - userId: string (required) - Owner's UID
+    //   - label: string (required) - Address label
+    //   - address: string (required) - Full address string
+    //   - references: string (optional) - Additional references
+    //   - type: string (required, enum: ['home', 'work']) - Address type
+    //   - primary: boolean (required) - Is primary address
+    //   - createdAt: timestamp (optional) - Creation timestamp
+    //
+    // Collection: orders
+    // Document ID: {orderId}
+    // Fields:
+    //   - userId: string (required) - Owner's UID
+    //   - items: list (required) - Ordered items
+    //   - total: number (required) - Order total price
+    //   - status: string (required, enum: ['pending', 'processing', 'delivered', 'cancelled']) - Order status
+    //   - address: string (required) - Delivery address
+    //   - createdAt: timestamp (optional) - Order timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && (('userId' in resource.data && request.auth.uid == resource.data.userId) || ('uid' in resource.data && request.auth.uid == resource.data.uid));
+    }
+
+    function isDriver() {
+      return isAuthenticated() &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'repartidor' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver'));
+    }
+
+    function isSocio() {
+      return isAuthenticated() &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'socio' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'restaurant'));
+    }
+
+    function isStoreOwner(storeId) {
+      return isAuthenticated() &&
+        ((exists(/databases/$(database)/documents/stores/$(storeId)) && get(/databases/$(database)/documents/stores/$(storeId)).data.ownerId == request.auth.uid) ||
+         (exists(/databases/$(database)/documents/viveres/$(storeId)) && get(/databases/$(database)/documents/viveres/$(storeId)).data.ownerId == request.auth.uid));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUserSchema(data, userId) {
+      return (!('uid' in data) || data.uid == userId) &&
+             (!('email' in data) || data.email == null || isValidEmail(data.email)) &&
+             (!('displayName' in data) || data.displayName == null || data.displayName is string) &&
+             (!('photoURL' in data) || data.photoURL == null || data.photoURL is string) &&
+             (!('phoneNumber' in data) || data.phoneNumber == null || data.phoneNumber is string) &&
+             (!('role' in data) || data.role == null || data.role is string) &&
+             (!('emailVerified' in data) || data.emailVerified is bool || data.emailVerified == null) &&
+             (!('phoneVerified' in data) || data.phoneVerified is bool || data.phoneVerified == null) &&
+             (!('verificado' in data) || data.verificado is bool || data.verificado == null) &&
+             (!('onboardingCompleted' in data) || data.onboardingCompleted is bool || data.onboardingCompleted == null) &&
+             (!('pushToken' in data) || data.pushToken is string || data.pushToken == null) &&
+             (!('preferences' in data) || data.preferences is list || data.preferences == null) &&
+             (!('settings' in data) || data.settings is map || data.settings == null) &&
+             (!('isOnline' in data) || data.isOnline is bool || data.isOnline == null) &&
+             (!('balance' in data) || data.balance is number || data.balance == null) &&
+             (!('debt' in data) || data.debt is number || data.debt == null) &&
+             (!('points' in data) || data.points is number || data.points == null) &&
+             (!('favoritos' in data) || data.favoritos is list || data.favoritos == null) &&
+             (!('tarjetas' in data) || data.tarjetas is list || data.tarjetas == null) &&
+             (!('referralCode' in data) || data.referralCode is string || data.referralCode == null) &&
+             (!('referredBy' in data) || data.referredBy is string || data.referredBy == null) &&
+             (!('hasUsedReferral' in data) || data.hasUsedReferral is bool || data.hasUsedReferral == null) &&
+             (!('referralCount' in data) || data.referralCount is number || data.referralCount == null) &&
+             (!('referralRewards' in data) || data.referralRewards is number || data.referralRewards == null) &&
+             (!('driverProfile' in data) || data.driverProfile is map || data.driverProfile == null) &&
+             (!('createdAt' in data) || data.createdAt is timestamp || data.createdAt == null) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp || data.updatedAt == null) &&
+             (!('lastLogin' in data) || data.lastLogin is string || data.lastLogin is timestamp || data.lastLogin == null) &&
+             (!('lastActive' in data) || data.lastActive is string || data.lastActive is timestamp || data.lastActive == null);
+    }
+
+    function isValidAddress(data) {
+      return hasOnlyAllowedFields(['id', 'userId', 'label', 'address', 'references', 'type', 'primary', 'createdAt', 'location', 'lat', 'lng']) &&
+             data.userId == request.auth.uid &&
+             data.label is string && data.label.size() > 0 && data.label.size() < 50 &&
+             data.address is string && data.address.size() > 0 && data.address.size() < 255 &&
+             (!('references' in data) || data.references == null || (data.references is string && data.references.size() < 255)) &&
+             (!('lat' in data) || data.lat is number) &&
+             (!('lng' in data) || data.lng is number) &&
+             data.type in ['home', 'work', 'other'] &&
+             data.primary is bool &&
+             (!('location' in data) || (data.location is map && data.location.lat is number && data.location.lng is number));
+    }
+
+     function isValidStore(data) {
+      return hasOnlyAllowedFields(['ownerId', 'name', 'description', 'img', 'type', 'rating', 'time', 'isOpen', 'address', 'location', 'createdAt', 'updatedAt', 'openingTime', 'closingTime', 'schedule', 'isAutoOpenEnabled', 'isPartner', 'status', 'phone', 'email', 'legal', 'notification', 'rejectReason']) &&
+             (data.ownerId == request.auth.uid) &&
+             data.name is string && data.name.size() > 0 &&
+             (!('status' in data) || data.status in ['pendiente', 'aprobado', 'rechazado', 'verified', 'rejected']) &&
+             (!('phone' in data) || data.phone is string) &&
+             (!('email' in data) || data.email is string) &&
+             (!('legal' in data) || data.legal is map) &&
+             (!('address' in data) || data.address is map || data.address is string) &&
+             (!('schedule' in data) || data.schedule is map) &&
+             (!('rating' in data) || data.rating is number) &&
+             (!('type' in data) || data.type is string) &&
+             (!('isOpen' in data) || data.isOpen is bool);
+    }
+
+    function isValidProduct(data) {
+      return hasOnlyAllowedFields(['id', 'storeId', 'name', 'price', 'desc', 'img', 'type', 'sub', 'extras', 'personalizar', 'isAvailable', 'options', 'createdAt', 'updatedAt']) &&
+             data.storeId is string &&
+             data.name is string && data.name.size() > 0 &&
+             data.price is number;
+    }
+
+    function isValidOrder(data) {
+      return hasOnlyAllowedFields(['id', 'userId', 'userName', 'userPhone', 'items', 'total', 'status', 'address', 'createdAt', 'name', 'img', 'date', 'step', 'driver', 'details', 'paymentMethod', 'price', 'driverId', 'penalty', 'storeId', 'storeName', 'lastMessage', 'lastMessageAt', 'shippingFee', 'appFee', 'deliveryKeyword', 'restaurantRating', 'restaurantReview', 'driverRating', 'driverReview', 'subtotal', 'deliveryFee', 'deliveryLat', 'deliveryLng']) &&
+             (!('userId' in data) || data.userId is string) &&
+             (!('status' in data) || data.status in ['pending', 'processing', 'ready_for_pickup', 'out_for_delivery', 'delivered', 'cancelled']) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidRegistrationRequest(data) {
+      return hasOnlyAllowedFields(['type', 'status', 'data', 'documents', 'userId', 'createdAt', 'updatedAt', 'rejectReason']) &&
+             data.type in ['store', 'restaurant', 'user', 'driver'] &&
+             data.status in ['pending', 'approved', 'rejected'] &&
+             data.data is map &&
+             (!('documents' in data) || data.documents is map) &&
+             (!('userId' in data) || data.userId is string) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /_internal_/connectivity_test {
+      allow read: if true;
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && 
+                      hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'phoneNumber', 'settings', 'emailVerified', 'phoneVerified', 'verificado', 'onboardingCompleted', 'pushToken', 'preferences', 'role', 'balance', 'debt', 'points', 'favoritos', 'tarjetas', 'referralCode', 'referralCount', 'referralRewards', 'hasUsedReferral', 'createdAt', 'updatedAt']) &&
+                      isValidUserSchema(request.resource.data, userId) && 
+                      (request.resource.data.role == 'client' || request.resource.data.role == 'user' || request.resource.data.role == null);
+      allow update: if (isOwner(userId) && isValidUserSchema(request.resource.data, userId)) || 
+                    (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['referralCount', 'referralRewards', 'balance', 'updatedAt', 'pushToken']) && isValidUserSchema(request.resource.data, userId));
+    }
+
+    match /users/{userId}/addresses/{addressId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidAddress(request.resource.data);
+      allow update: if isOwner(userId) && isValidAddress(request.resource.data);
+      allow delete: if isOwner(userId);
+    }
+
+    match /stores/{storeId} {
+      allow read: if true;
+      allow create: if isSocio() && isValidStore(request.resource.data);
+      allow update: if (isStoreOwner(storeId)) && isValidStore(request.resource.data);
+      allow delete: if false;
+
+      match /products/{productId} {
+        allow read: if true;
+        allow create: if (isStoreOwner(storeId)) && isValidProduct(request.resource.data);
+        allow update: if (isStoreOwner(storeId)) && isValidProduct(request.resource.data);
+        allow delete: if isStoreOwner(storeId);
+      }
+    }
+
+    match /viveres/{storeId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidStore(request.resource.data);
+      allow update: if (isStoreOwner(storeId)) && isValidStore(request.resource.data);
+      allow delete: if false;
+
+      match /products/{productId} {
+        allow read: if true;
+        allow create: if (isStoreOwner(storeId)) && isValidProduct(request.resource.data);
+        allow update: if (isStoreOwner(storeId)) && isValidProduct(request.resource.data);
+        allow delete: if isStoreOwner(storeId);
+      }
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (isDocOwner() || isDriver() || (isSocio() && resource.data.storeId != null && isStoreOwner(resource.data.storeId)));
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow update: if isAuthenticated() && (
+                    (isDriver() && (
+                      (resource.data.driverId == null || resource.data.driverId == request.auth.uid) &&
+                      (request.resource.data.status == resource.data.status || 
+                       (request.resource.data.status == 'out_for_delivery' && resource.data.status == 'ready_for_pickup') ||
+                       (request.resource.data.status == 'delivered' && resource.data.status == 'out_for_delivery'))
+                    )) ||
+                    (isSocio() && resource.data.storeId != null && isStoreOwner(resource.data.storeId) && (
+                      (request.resource.data.status == 'processing' && resource.data.status == 'pending') ||
+                      (request.resource.data.status == 'ready_for_pickup' && resource.data.status == 'processing') ||
+                      (request.resource.data.status == 'out_for_delivery' && resource.data.status == 'ready_for_pickup') ||
+                      (request.resource.data.status == resource.data.status)
+                    )) ||
+                    (isDocOwner() && (
+                      (request.resource.data.status == 'cancelled' && resource.data.status == 'pending') ||
+                      (request.resource.data.status == 'delivered' && resource.data.status == 'out_for_delivery') ||
+                      (request.resource.data.status == resource.data.status)
+                    ))) &&
+                    isValidOrder(request.resource.data);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (
+          isDocOwner() || 
+          isDriver() || 
+          (isSocio() && get(/databases/$(database)/documents/orders/$(orderId)).data.storeId != null && isStoreOwner(get(/databases/$(database)/documents/orders/$(orderId)).data.storeId))
+        );
+        allow create: if isAuthenticated() && (
+          isDocOwner() || 
+          isDriver() || 
+          (isSocio() && get(/databases/$(database)/documents/orders/$(orderId)).data.storeId != null && isStoreOwner(get(/databases/$(database)/documents/orders/$(orderId)).data.storeId))
+        );
+      }
+    }
+
+    match /claims/{claimId} {
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /registration_requests/{requestId} {
+      allow read: if false;
+      allow create: if isAuthenticated() && isValidRegistrationRequest(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+    
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

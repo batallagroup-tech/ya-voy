@@ -1,0 +1,220 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "User email" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "photoURL": { "type": "string", "description": "User profile photo URL" },
+        "phoneNumber": { "type": "string", "description": "User phone number" },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "notifications": { "type": "boolean", "description": "Enable push notifications" },
+            "darkMode": { "type": "boolean", "description": "Enable dark mode" },
+            "language": { "type": "string", "enum": ["es", "en"], "description": "Preferred language" }
+          }
+        },
+        "emailVerified": { "type": "boolean", "description": "Is email verified" },
+        "phoneVerified": { "type": "boolean", "description": "Is phone verified" },
+        "verificado": { "type": "boolean", "description": "Is account verified" },
+        "isOnline": { "type": "boolean", "description": "Is driver currently online" },
+        "balance": { "type": "number", "description": "Driver current balance" },
+        "debt": { "type": "number", "description": "Driver pending debt" },
+        "referralCode": { "type": "string", "description": "User's unique referral code" },
+        "referredBy": { "type": "string", "description": "Referral code used by the user" },
+        "hasUsedReferral": { "type": "boolean", "description": "Has the user already used a referral code" },
+        "referralCount": { "type": "number", "description": "Number of successful referrals" },
+        "referralRewards": { "type": "number", "description": "Total rewards earned from referrals" },
+        "vehicle": { "type": "string", "description": "Driver vehicle type" },
+        "plate": { "type": "string", "description": "Driver vehicle plate" },
+        "role": { "type": "string", "enum": ["user", "repartidor", "socio"], "description": "User role" },
+        "onboardingCompleted": { "type": "boolean", "description": "Has completed onboarding" },
+        "pushToken": { "type": "string", "description": "Expo Push Token for notifications" },
+        "preferences": { "type": "array", "items": { "type": "string" }, "description": "User food preferences" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Store": {
+      "title": "Store",
+      "description": "Restaurant or store details",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "UID of the socio" },
+        "name": { "type": "string", "description": "Store name" },
+        "description": { "type": "string", "description": "Store description" },
+        "img": { "type": "string", "description": "Store image URL" },
+        "type": { "type": "string", "description": "Store type (e.g., Comida, Tienda)" },
+        "rating": { "type": "number", "description": "Store rating" },
+        "time": { "type": "string", "description": "Estimated delivery time" },
+        "isOpen": { "type": "boolean", "description": "Is store currently open" },
+        "isAutoOpenEnabled": { "type": "boolean", "description": "Is auto-open enabled" },
+        "status": { "type": "string", "enum": ["pendiente", "verified", "rejected"], "description": "Verification status" },
+        "phone": { "type": "string", "description": "Business phone" },
+        "email": { "type": "string", "description": "Contact email" },
+        "address": {
+          "type": "object",
+          "properties": {
+            "street": { "type": "string" },
+            "number": { "type": "string" },
+            "neighborhood": { "type": "string" },
+            "references": { "type": "string" },
+            "full": { "type": "string" }
+          }
+        },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "legal": {
+          "type": "object",
+          "properties": {
+            "officialIdUrl": { "type": "string" },
+            "rfc": { "type": "string" }
+          }
+        },
+        "schedule": {
+          "type": "object",
+          "description": "Weekly schedule"
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "status"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Store product",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "description": "ID of the parent store" },
+        "name": { "type": "string", "description": "Product name" },
+        "price": { "type": "number", "description": "Product price" },
+        "desc": { "type": "string", "description": "Product description" },
+        "img": { "type": "string", "description": "Product image URL" },
+        "type": { "type": "string", "enum": ["comida", "tienda", "paquete"] },
+        "sub": { "type": "string", "description": "Subcategory" },
+        "extras": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "personalizar": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["storeId", "name", "price"]
+    },
+    "Address": {
+      "title": "Address",
+      "description": "User saved address",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner's UID" },
+        "label": { "type": "string", "description": "Address label (e.g., Home, Work)" },
+        "address": { "type": "string", "description": "Full address string" },
+        "references": { "type": "string", "description": "Additional references" },
+        "lat": { "type": "number", "description": "Latitude" },
+        "lng": { "type": "number", "description": "Longitude" },
+        "type": { "type": "string", "enum": ["home", "work", "other"], "description": "Address type" },
+        "primary": { "type": "boolean", "description": "Is primary address" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["userId", "address", "label"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "User order history",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner's UID" },
+        "items": { "type": "array", "items": { "type": "object" }, "description": "Ordered items" },
+        "total": { "type": "number", "description": "Order total price" },
+        "status": { "type": "string", "enum": ["pending", "processing", "ready_for_pickup", "out_for_delivery", "delivered", "cancelled"], "description": "Order status" },
+        "subtotal": { "type": "number", "description": "Order subtotal price" },
+        "deliveryFee": { "type": "number", "description": "Delivery fee" },
+        "appFee": { "type": "number", "description": "Platform service fee" },
+        "total": { "type": "number", "description": "Order total price" },
+        "penalty": { "type": "number", "description": "Cancellation penalty" },
+        "driverId": { "type": "string", "description": "UID of the assigned driver" },
+        "storeId": { "type": "string", "description": "ID of the store" },
+        "storeName": { "type": "string", "description": "Name of the store" },
+        "address": { "type": "string", "description": "Delivery address" },
+        "deliveryLat": { "type": "number", "description": "Delivery destination latitude" },
+        "deliveryLng": { "type": "number", "description": "Delivery destination longitude" },
+        "paymentMethod": { "type": "string", "enum": ["cash", "card"], "description": "Order payment method" },
+        "deliveryKeyword": { "type": "string", "description": "Security keyword for delivery" },
+        "restaurantRating": { "type": "number" },
+        "restaurantReview": { "type": "string" },
+        "driverRating": { "type": "number" },
+        "driverReview": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Order timestamp" }
+      },
+      "required": ["userId", "items", "total", "status"]
+    },
+    "RegistrationRequest": {
+      "title": "Registration Request",
+      "description": "Incoming registration requests from external apps",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["store", "restaurant", "user", "driver"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "data": { "type": "object", "description": "Registration data" },
+        "documents": { 
+          "type": "object", 
+          "properties": {
+            "front": { "type": "string" },
+            "back": { "type": "string" },
+            "selfie": { "type": "string" }
+          }
+        },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "rejectReason": { "type": "string" }
+      },
+      "required": ["type", "status", "data"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/users/{userId}/addresses/{addressId}": {
+      "schema": "Address",
+      "description": "User saved addresses"
+    },
+    "/users/{userId}/favorites/{productId}": {
+      "schema": "Product",
+      "description": "User favorite products"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "All orders in the system"
+    },
+    "/viveres/{storeId}": {
+      "schema": "Store",
+      "description": "Store details"
+    },
+    "/viveres/{storeId}/products/{productId}": {
+      "schema": "Product",
+      "description": "Store products"
+    },
+    "/registration_requests/{requestId}": {
+      "schema": "RegistrationRequest",
+      "description": "Registration requests from external apps"
+    }
+  }
+}

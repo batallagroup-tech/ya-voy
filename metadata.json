@@ -1,0 +1,8 @@
+{
+  "name": "Ya Voy!",
+  "description": "A high-speed delivery app for food, groceries, and packages.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
