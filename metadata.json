@@ -1,0 +1,5 @@
+{
+  "name": "Ya Voy Restaurante",
+  "description": "Plataforma exclusiva para dueños de restaurantes para gestionar sus servicios de manera eficiente.",
+  "requestFramePermissions": ["geolocation", "camera"]
+}

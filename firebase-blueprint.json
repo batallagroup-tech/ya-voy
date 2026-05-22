@@ -1,0 +1,144 @@
+{
+  "entities": {
+    "Viveres": {
+      "title": "Viveres",
+      "description": "A restaurant registered on the platform, stored in the 'viveres' collection for admin review.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "UID of the restaurant owner." },
+        "email": { "type": "string", "description": "Contact email for the restaurant." },
+        "nombre": { "type": "string", "description": "Name of the restaurant." },
+        "direccion": { "type": "string", "description": "Physical address of the restaurant." },
+        "streetNumber": { "type": "string", "description": "Street number (Ext/Int)." },
+        "zipCode": { "type": "string", "description": "ZIP code." },
+        "location": { "type": "object", "description": "Geographic coordinates (GeoPoint)." },
+        "telefono": { "type": "string", "description": "Phone number of the restaurant." },
+        "phoneVerified": { "type": "boolean", "description": "Whether the phone number is verified." },
+        "rfc": { "type": "string", "description": "RFC of the restaurant (optional)." },
+        "ineFrontUrl": { "type": "string", "description": "URL of the INE front image." },
+        "ineBackUrl": { "type": "string", "description": "URL of the INE back image." },
+        "selfieUrl": { "type": "string", "description": "URL of the selfie verification image." },
+        "photoUrl": { "type": "string", "description": "URL of the restaurant's main photo." },
+        "estado": { 
+          "type": "string", 
+          "enum": ["pendiente", "verificado", "rechazado"],
+          "description": "Verification status of the restaurant."
+        },
+        "status": { 
+          "type": "string", 
+          "enum": ["pendiente", "verificado", "rechazado"],
+          "description": "Alias for estado, used by external admin panel."
+        },
+        "rejectionReason": { "type": "string", "description": "Reason for rejection if applicable." },
+        "schedule": { "type": "object", "description": "Weekly schedule (day: {open, close, closed})." },
+        "bankAccountInfo": { "type": "object", "description": "Bank account details for payments." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of registration." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp of last update." },
+        "rating": { "type": "number", "description": "Calificación del restaurante" },
+        "isOpen": { "type": "boolean", "description": "Si el restaurante está abierto actualmente" }
+      },
+      "required": ["ownerId", "email", "nombre", "direccion", "location", "telefono", "ineFrontUrl", "ineBackUrl", "selfieUrl", "estado", "createdAt", "rating", "isOpen"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A food item offered by a restaurant.",
+      "type": "object",
+      "properties": {
+        "restaurantId": { "type": "string", "description": "ID of the parent restaurant (doc ID in viveres)." },
+        "name": { "type": "string", "description": "Name of the product." },
+        "description": { "type": "string", "description": "Description of the product." },
+        "price": { "type": "number", "description": "Price of the product." },
+        "category": { "type": "string", "description": "Category of the food item." },
+        "photoUrl": { "type": "string", "description": "URL of the product image (legacy/primary)." },
+        "images": { "type": "array", "items": { "type": "string" }, "description": "List of URLs for product images." },
+        "available": { "type": "boolean", "description": "Whether the product is currently available." },
+        "isFeatured": { "type": "boolean", "description": "Si el producto está destacado en la app del usuario." },
+        "originalPrice": { "type": "number", "description": "Precio original antes de descuentos (opcional)." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["restaurantId", "name", "price", "category", "available"]
+    },
+    "Promotion": {
+      "title": "Promotion",
+      "description": "A coupon or discount created by the restaurant.",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "description": "UID of the restaurant." },
+        "code": { "type": "string", "description": "Coupon code (e.g., PIZZA2X1)." },
+        "type": { 
+          "type": "string", 
+          "enum": ["percent", "fixed", "free_shipping", "first_order"],
+          "description": "Type of promotion."
+        },
+        "value": { "type": "number", "description": "Discount value (percentage or amount)." },
+        "minOrder": { "type": "number", "description": "Minimum order amount to apply." },
+        "validUntil": { "type": "string", "format": "date-time", "description": "Expiration date." },
+        "isActive": { "type": "boolean", "description": "Whether the coupon is active." },
+        "description": { "type": "string", "description": "Description for the user." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["storeId", "code", "type", "value", "minOrder", "isActive"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A customer order.",
+      "type": "object",
+      "properties": {
+        "restaurantId": { "type": "string", "description": "ID of the restaurant." },
+        "customerId": { "type": "string", "description": "UID of the customer." },
+        "customerName": { "type": "string", "description": "Name of the customer." },
+        "items": { "type": "array", "description": "List of items ordered." },
+        "total": { "type": "number", "description": "Total amount of the order." },
+        "status": { 
+          "type": "string", 
+          "enum": ["new", "preparing", "ready", "picked_up", "delivered", "cancelled"],
+          "description": "Current status of the order."
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["restaurantId", "customerId", "items", "total", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A review left by a customer for a restaurant.",
+      "type": "object",
+      "properties": {
+        "restaurantId": { "type": "string", "description": "ID of the restaurant reviewed." },
+        "customerId": { "type": "string", "description": "UID of the customer." },
+        "customerName": { "type": "string", "description": "Name of the customer." },
+        "rating": { "type": "number", "description": "Rating given (1-5)." },
+        "comment": { "type": "string", "description": "Review comment." },
+        "orderId": { "type": "string", "description": "ID of the order related to the review." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["restaurantId", "customerId", "rating", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/viveres/{restaurantId}": {
+      "schema": "Viveres",
+      "description": "Collection of registered restaurants (viveres)."
+    },
+    "/solicitudes_de_registro/{requestId}": {
+      "schema": { "type": "object" },
+      "description": "Collection of registration requests."
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection of food items."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of customer orders."
+    },
+    "/promotions/{promoId}": {
+      "schema": "Promotion",
+      "description": "Collection of coupons and discounts."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Collection of customer reviews."
+    }
+  }
+}
