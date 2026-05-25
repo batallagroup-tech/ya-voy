@@ -1,0 +1,6 @@
+﻿node_modules/
+dist/
+.env
+ya-voy/
+ya-voy-restaurante/
+ya-voy-repartidor/
