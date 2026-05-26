@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useClerk } from "@clerk/clerk-react"
 import { motion, AnimatePresence } from "motion/react"
 import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet"
@@ -118,7 +118,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
         return calcDist(userLat, userLng, p.lat_restaurante, p.lng_restaurante) <= radioKm
       })
       setDisponibles(filtrados)
-    } catch {}
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
   }
 
   const cargarHistorial = async () => {
@@ -127,7 +127,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
       const activo = data.find((p: any) => p.status === "en_camino" && p.repartidor_id === userId)
       if (activo && !pedidoActivo) { setPedidoActivo(activo); setTab("activo") }
       setHistorial(data)
-    } catch {}
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
   }
 
   useEffect(() => {
@@ -181,22 +181,22 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   }
 
   const verificarRest = async () => {
-    const codigo = (pedidoActivo?.codigo_restaurante || "1234").toUpperCase()
+    const codigo = (pedidoActivo?.codigo_restaurante || "").toUpperCase()
     if (codRest.trim().toUpperCase() === codigo) {
       setRestOk(true); setCodRest(""); toast.success("✅ Recolección verificada")
-      try { await actualizarEstadoPedido(pedidoActivo.id, "en_camino") } catch {}
+      try { await actualizarEstadoPedido(pedidoActivo.id, "en_camino") } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
     } else { toast.error("Código incorrecto") }
   }
 
   const verificarClienteDirecto = (codigo: string) => {
-    const correcto = (pedidoActivo?.codigo_entrega || "LUNA").toUpperCase()
+    const correcto = (pedidoActivo?.codigo_entrega || "").toUpperCase()
     if (codigo.toUpperCase() === correcto) {
       setClienteOk(true); toast.success("✅ Entrega verificada")
     } else { toast.error("Código incorrecto — el cliente dijo otro") }
   }
 
   const verificarCliente = () => {
-    const codigo = (pedidoActivo?.codigo_entrega || "LUNA").toUpperCase()
+    const codigo = (pedidoActivo?.codigo_entrega || "").toUpperCase()
     if (codCliente.trim().toUpperCase() === codigo) {
       setClienteOk(true); setCodCliente(""); toast.success("✅ Entrega verificada")
     } else { toast.error("Código incorrecto") }
@@ -274,7 +274,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                     <Clock size={36} className="text-slate-300" />
                   </div>
                   <p className="font-medium text-slate-400">Esperando pedidos...</p>
-                  <p className="text-xs text-slate-300 mt-1">Se actualizan cada 5 segundos</p>
+                  <p className="text-xs text-slate-300 mt-1">Se actualizan cada 2 segundos</p>
                 </div>
               ) : disponibles.map(p => (
                 <motion.div key={p.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -385,14 +385,29 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                             <p className="text-xs text-amber-600 mt-0.5">Si no llega en 10 min el pedido se cierra automáticamente</p>
                           </div>
                         )}
-                        <p className="text-xs text-slate-500 mb-3">Pide el código de confirmación al cliente</p>
-                        <div className="flex gap-2">
-                          <input value={codCliente} onChange={e => setCodCliente(e.target.value)}
-                            placeholder="Código del cliente"
-                            className="flex-1 px-3 py-2.5 bg-white border rounded-xl text-sm outline-none"
-                            style={{ borderColor: "rgba(0,150,136,0.3)" }} />
-                          <button onClick={verificarCliente} className="px-4 py-2.5 text-white rounded-xl font-black text-xs" style={{ background: TEAL }}>OK</button>
-                        </div>
+                        <p className="text-xs text-slate-500 mb-3">Selecciona la palabra que muestra el cliente</p>
+                        {opcionesCliente.length > 0 ? (
+                          <div className="flex flex-col gap-2">
+                            {opcionesCliente.map((op: string, i: number) => (
+                              <button key={i} onClick={() => setCodCliente(op)}
+                                className={`w-full py-3 rounded-xl font-bold text-sm border-2 transition-all ${codCliente === op ? "bg-teal-50 text-teal-700" : "border-gray-200 bg-white text-gray-700"}`}
+                                style={codCliente === op ? { borderColor: TEAL } : {}}>
+                                {op}
+                              </button>
+                            ))}
+                            <button onClick={verificarCliente} disabled={!codCliente}
+                              className="w-full py-2.5 text-white rounded-xl font-black text-sm mt-1 disabled:opacity-40"
+                              style={{ background: TEAL }}>Confirmar entrega</button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <input value={codCliente} onChange={e => setCodCliente(e.target.value)}
+                              placeholder="Código del cliente"
+                              className="flex-1 px-3 py-2.5 bg-white border rounded-xl text-sm outline-none"
+                              style={{ borderColor: "rgba(0,150,136,0.3)" }} />
+                            <button onClick={verificarCliente} className="px-4 py-2.5 text-white rounded-xl font-black text-xs" style={{ background: TEAL }}>OK</button>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -463,7 +478,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                     <p className="text-[10px] text-slate-500 font-bold uppercase">Hoy</p>
                   </div>
                   <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                    <p className="font-black text-xl text-yellow-500">⭐ 5.0</p>
+                    <p className="font-black text-xl text-yellow-500">⭐ {repartidor?.rating?.toFixed(1) || "5.0"}</p>
                     <p className="text-[10px] text-slate-500 font-bold uppercase">Rating</p>
                   </div>
                 </div>

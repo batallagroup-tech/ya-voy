@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAuth, useUser, useClerk, AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -138,7 +138,14 @@ export default function App() {
     }
   }, [isLoaded, isSignedIn, userId]);
 
-  useEffect(() => { if (tab === "pedidos") loadPedidos(); }, [tab]);
+
+  // BUG-02: countdown interval para repartidor esperando
+  useEffect(() => {
+    if (esperandoTimer === null || esperandoTimer <= 0) return;
+    const iv = setInterval(() => setEsperandoTimer(t => t !== null && t > 0 ? t - 1 : 0), 1000);
+    return () => clearInterval(iv);
+  }, [esperandoTimer !== null]);
+    useEffect(() => { if (tab === "pedidos") loadPedidos(); }, [tab]);
   useEffect(() => {
     if (categoria === "comida" && productosFeed.length === 0) loadProductosFeed();
     if (categoria === "tienda") loadNegocios();
@@ -159,7 +166,18 @@ export default function App() {
 
   const loadPedidos = async () => {
     if (!userId) return;
-    try { setPedidos(await getPedidos(userId) as any[]); } catch {}
+    try {
+      const data = await getPedidos(userId) as any[];
+      setPedidos(data);
+      const esp = data.find((p: any) => p.status === 'esperando_cliente');
+      if (esp) {
+        const desde = esp.esperando_desde ? new Date(esp.esperando_desde).getTime() : Date.now();
+        const secs = Math.max(0, 600 - Math.floor((Date.now() - desde) / 1000));
+        setEsperandoTimer(secs);
+      } else {
+        setEsperandoTimer(null);
+      }
+    } catch {}
   };
 
   const handleOnboardingDone = ({ location, pago }: { location: [number, number] | null; pago: string }) => {

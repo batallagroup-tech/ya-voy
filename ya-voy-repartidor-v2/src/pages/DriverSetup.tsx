@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from "react"
+import { useState, useRef } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import Webcam from "react-webcam"
 import { ChevronRight, ChevronLeft, Loader2, Camera, Check, AlertCircle, Lock, Image as ImageIcon, RefreshCw, User, Save, XCircle } from "lucide-react"
@@ -419,7 +419,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
             </motion.div>
           )}
 {step === 5 && (
-            <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
+            <motion.div key="s5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
               <div><h1 className="text-2xl font-black text-slate-900 mb-1">Confirmar solicitud</h1><p className="text-sm text-slate-500">Revisa todo antes de enviar.</p></div>
               <div className="bg-slate-50 rounded-3xl p-5 space-y-3">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-100">

@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -18,7 +18,7 @@ const pinIcon = L.icon({
 });
 
 const GRAD = "linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%)";
-const CENTER: [number, number] = [19.4326, -99.1332];
+const CENTER: [number, number] = [19.9342, -97.9612];
 
 function DraggablePin({ position, setPosition }: { position: [number,number]; setPosition: (p:[number,number]) => void }) {
   const markerRef = useRef<any>(null);

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { MapPin, Home, Briefcase, Star, Plus, Pencil, Trash2, X, Check, ArrowLeft, Loader2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
@@ -161,7 +161,7 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
         })}
         <button onClick={() => { setEditando(null); setForm({ label: "Casa", icono: "casa", direccion: "", lat: DEFAULT_LAT, lng: DEFAULT_LNG }); setShowForm(true); }}
           className="w-full border-2 border-dashed border-slate-200 rounded-2xl p-4 flex items-center justify-center gap-2 text-slate-400 hover:border-purple-400 hover:text-purple-600 transition-all">
-          <Plus size={18} /> Nueva direccion
+          <Plus size={18} /> Nueva direcciu00f3n
         </button>
       </div>
 
@@ -172,7 +172,7 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
             <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
               className="bg-white w-full rounded-t-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-black text-slate-900">{editando ? "Editar direccion" : "Nueva direccion"}</h3>
+                <h3 className="text-lg font-black text-slate-900">{editando ? "Editar direcciu00f3n" : "Nueva direcciu00f3n"}</h3>
                 <button onClick={() => setShowForm(false)}><X size={22} className="text-slate-400" /></button>
               </div>
 
@@ -252,7 +252,7 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trash2 size={28} className="text-red-500" />
               </div>
-              <h3 className="text-lg font-black text-slate-900 mb-2">Eliminar direccion?</h3>
+              <h3 className="text-lg font-black text-slate-900 mb-2">u00bfEliminar direcciu00f3n?</h3>
               <p className="text-sm text-slate-500 mb-6">Esta accion no se puede deshacer.</p>
               <div className="flex gap-3">
                 <button onClick={() => setShowDeleteConfirm(null)}
