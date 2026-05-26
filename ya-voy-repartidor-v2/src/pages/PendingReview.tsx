@@ -7,7 +7,7 @@ const GRAD = "linear-gradient(135deg, #7B2FF7 0%, #F107A3 50%, #FF6B00 100%)"
 export default function PendingReview() {
   const { signOut } = useClerk()
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8 text-white text-center"
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-8 text-white text-center"
       style={{ background: GRAD }}>
       <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         className="w-28 h-28 bg-white/20 rounded-full flex items-center justify-center mb-8">
@@ -26,4 +26,5 @@ export default function PendingReview() {
     </div>
   )
 }
+
 

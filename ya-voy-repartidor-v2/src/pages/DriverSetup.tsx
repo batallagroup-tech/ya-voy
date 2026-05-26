@@ -132,7 +132,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-0 sm:p-4">
+    <div className="min-h-[100dvh] bg-slate-50 flex items-center justify-center p-0 sm:p-4">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
         className="w-full h-full sm:h-auto max-w-md bg-white p-6 md:p-8 sm:rounded-3xl shadow-xl overflow-y-auto">
         <div className="flex gap-2 mb-8">
@@ -454,6 +454,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
     </div>
   )
 }
+
 
 
 

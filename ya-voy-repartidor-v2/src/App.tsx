@@ -8,6 +8,7 @@ import PendingReview from "./pages/PendingReview"
 import Rejected from "./pages/Rejected"
 import Dashboard from "./pages/Dashboard"
 import { syncUsuario, getSolicitudRepartidor, getRepartidor } from "./lib/api"
+import ServerWarmup from "./components/ServerWarmup"
 
 type AppStatus = "loading" | "setup" | "pendiente" | "rechazado" | "aprobado"
 
@@ -52,7 +53,8 @@ export default function App() {
   if (!isLoaded || !isSignedIn) return <Login />
 
   if (status === "loading") return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className="min-h-[100dvh] bg-slate-50 flex items-center justify-center">
+      <ServerWarmup />
       <div className="w-12 h-12 border-4 border-[#F107A3] border-t-transparent rounded-full animate-spin" />
     </div>
   )
@@ -84,4 +86,6 @@ export default function App() {
     </div>
   )
 }
+
+
 

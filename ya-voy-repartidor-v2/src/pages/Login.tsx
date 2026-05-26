@@ -36,7 +36,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: GRAD }}>
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6" style={{ background: GRAD }}>
       <AnimatePresence mode="wait">
         {mode === "selection" && (
           <motion.div key="sel" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
@@ -104,6 +104,7 @@ export default function Login() {
     </div>
   )
 }
+
 
 
 

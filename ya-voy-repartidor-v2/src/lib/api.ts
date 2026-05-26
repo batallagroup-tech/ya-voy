@@ -44,3 +44,6 @@ export const toggleStatusRepartidor = (userId: string, enLinea: boolean) =>
     method: "PATCH",
     body: JSON.stringify({ en_linea: enLinea }),
   })
+
+export const warmupAPI = () =>
+  fetch(`${API}/api/health`).then(r => r.ok).catch(() => false);

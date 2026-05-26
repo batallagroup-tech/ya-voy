@@ -28,3 +28,6 @@ export const crearPedido = (data: any) =>
 export const getPedidos = (userId: string) => apiFetch(`/api/usuario/pedidos/${userId}`);
 
 export const getPedidoById = (id: string) => apiFetch(`/api/usuario/pedidos/detalle/${id}`);
+
+export const warmupAPI = () =>
+  fetch(`${API}/api/health`).then(r => r.ok).catch(() => false);

@@ -219,7 +219,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     .reduce((a, p) => a + (p.comision || 0), 0)
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-[100dvh] bg-slate-50 flex flex-col">
       <Toaster position="top-center" />
 
       <div className="sticky top-0 z-40 text-white px-4 py-3 flex items-center justify-between" style={{ background: GRAD }}>
@@ -517,5 +517,6 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     </div>
   )
 }
+
 
 

@@ -13,6 +13,7 @@ import OnboardingFlow from "./components/OnboardingFlow";
 const _API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 import DireccionesScreen from "./components/DireccionesScreen";
+import ServerWarmup from "./components/ServerWarmup";
 import type { Direccion } from "./components/DireccionesScreen";
 
 const GRAD = "linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%)";
@@ -20,7 +21,7 @@ const GRAD = "linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%)";
 function LoginScreen() {
   const { openSignIn } = useClerk();
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: GRAD }}>
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6" style={{ background: GRAD }}>
       <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-8 w-full max-w-xs">
         <div className="flex flex-col items-center gap-4">
           <div className="w-24 h-24 bg-white/20 backdrop-blur rounded-3xl flex items-center justify-center shadow-2xl">
@@ -255,8 +256,9 @@ export default function App() {
   if (showDirecciones) return <DireccionesScreen onBack={() => setShowDirecciones(false)} />;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-[100dvh] bg-slate-50 flex flex-col">
       <Toaster position="top-center" />
+      <ServerWarmup />
 
       {/* NEGOCIO SELECCIONADO */}
       <AnimatePresence>
@@ -928,3 +930,5 @@ export default function App() {
     </div>
   );
 }
+
+
