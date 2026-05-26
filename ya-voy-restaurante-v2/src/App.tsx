@@ -10,6 +10,7 @@ import Rejected from './pages/Rejected';
 import Dashboard from './pages/Dashboard';
 import { syncUsuario, getSolicitud, getNegocio } from './lib/api';
 import ServerWarmup from './components/ServerWarmup';
+import { usePushNotifications } from './hooks/usePushNotifications'
 
 type AppStatus = 'loading' | 'setup' | 'pendiente' | 'rechazado' | 'aprobado';
 
@@ -18,8 +19,9 @@ export default function App() {
     return <AuthenticateWithRedirectCallback />;
   }
 
-  const { isLoaded, isSignedIn, userId } = useAuth();
-  const { user } = useUser();
+  const { isLoaded, isSignedIn, userId, getToken } = useAuth();
+  const { user } = useUser()
+  usePushNotifications({ userId, getToken });
   const { signOut } = useClerk();
   const [showSplash, setShowSplash] = useState(true)
   const [rtGlow, setRtGlow] = useState(false);
