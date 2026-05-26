@@ -14,7 +14,9 @@ const _API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 import DireccionesScreen from "./components/DireccionesScreen";
 import ServerWarmup from "./components/ServerWarmup"
-import { usePushNotifications } from "./hooks/usePushNotifications";
+import { usePushNotifications } from "./hooks/usePushNotifications"
+import { Stripe, PaymentSheetEventsEnum } from "@capacitor-community/stripe"
+import { Capacitor } from "@capacitor/core";
 import type { Direccion } from "./components/DireccionesScreen";
 
 const GRAD = "linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%)";
