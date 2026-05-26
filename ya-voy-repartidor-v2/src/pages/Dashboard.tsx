@@ -285,7 +285,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                       <h3 className="font-black text-slate-900">{p.negocio_nombre || "Restaurante"}</h3>
                     </div>
                     <div className="text-right">
-                      <p className="font-black text-lg" style={{ color: TEAL }}>${Number(p.total ?? 0) * 0.15.toFixed(2)}</p>
+                      <p className="font-black text-lg" style={{ color: TEAL }}>${(Number(p.total ?? 0) * 0.15).toFixed(2)}</p>
                       <p className="text-[10px] text-slate-400 uppercase font-bold">Ganancia</p>
                     </div>
                   </div>

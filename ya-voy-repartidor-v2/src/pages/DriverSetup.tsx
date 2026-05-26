@@ -90,6 +90,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrFailed, setOcrFailed] = useState(false)
   const [nombre, setNombre] = useState(initialData?.datos?.nombre || "")
+  const [nombreManual, setNombreManual] = useState("")
   const [ineReverso, setIneReverso] = useState<File | null>(null)
   const [selfie, setSelfie] = useState<string | null>(null)
   const [showWebcam, setShowWebcam] = useState(false)
@@ -161,7 +162,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                 <button
                   onClick={() => {
                     if (nombreManual?.trim()) {
-                      setNombreOCR(nombreManual.trim());
+                      setNombre(nombreManual.trim());
                       setOcrFailed(false);
                     }
                   }}
