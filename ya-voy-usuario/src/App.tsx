@@ -888,7 +888,7 @@ export default function App() {
       </div>
 
       {/* BOTTOM NAV */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-2 py-2 z-40">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-2 pt-2 z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
         <div className="flex justify-around">
           {[
             { id: "home", label: "¡YA VOY!", icon: ShoppingBag },
@@ -930,5 +930,6 @@ export default function App() {
     </div>
   );
 }
+
 
 
