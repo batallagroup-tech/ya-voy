@@ -147,6 +147,31 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                 <p className="text-sm text-slate-500">Sube el frente de tu INE. Leemos tu nombre automáticamente.</p>
               </div>
               {ocrFailed && (
+              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-300 rounded-xl">
+                <p className="text-sm text-yellow-800 mb-2 font-medium">
+                  No se pudo leer la licencia. Escribe tu nombre manualmente:
+                </p>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  placeholder="Nombre completo según tu licencia"
+                  value={nombreManual ?? ''}
+                  onChange={(e) => setNombreManual(e.target.value)}
+                />
+                <button
+                  onClick={() => {
+                    if (nombreManual?.trim()) {
+                      setNombreOCR(nombreManual.trim());
+                      setOcrFailed(false);
+                    }
+                  }}
+                  className="mt-2 w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-semibold"
+                >
+                  Continuar con este nombre
+                </button>
+              </div>
+            )}
+            {ocrFailed && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 border-2 border-red-200 rounded-3xl p-6 text-center space-y-4">
                   <XCircle className="text-red-400 mx-auto" size={48} />
                   <div>

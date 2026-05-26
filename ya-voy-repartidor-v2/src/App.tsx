@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useAuth, useUser, useClerk, AuthenticateWithRedirectCallback } from "@clerk/clerk-react"
 import { AnimatePresence } from "motion/react"
 import SplashScreen from "./components/SplashScreen"
