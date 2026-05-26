@@ -1,0 +1,3 @@
+[submodule "ya-voy-api"]
+	path = ya-voy-api
+	url = https://github.com/batallagroup-tech/ya-voy-api.git
