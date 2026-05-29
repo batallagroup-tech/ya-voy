@@ -48,6 +48,7 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
   const [form, setForm] = useState({ label: "Casa", icono: "casa" as "casa"|"trabajo"|"otro", direccion: "", lat: DEFAULT_LAT, lng: DEFAULT_LNG });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [sugerencias, setSugerencias] = useState<any[]>([]);
 
   const reverseGeocode = async (lat: number, lng: number) => {
     setGeocoding(true);
@@ -161,7 +162,7 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
         })}
         <button onClick={() => { setEditando(null); setForm({ label: "Casa", icono: "casa", direccion: "", lat: DEFAULT_LAT, lng: DEFAULT_LNG }); setShowForm(true); }}
           className="w-full border-2 border-dashed border-slate-200 rounded-2xl p-4 flex items-center justify-center gap-2 text-slate-400 hover:border-purple-400 hover:text-purple-600 transition-all">
-          <Plus size={18} /> Nueva direcciu00f3n
+          <Plus size={18} /> Nueva dirección
         </button>
       </div>
 
@@ -172,7 +173,7 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
             <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
               className="bg-white w-full rounded-t-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-black text-slate-900">{editando ? "Editar direcciu00f3n" : "Nueva direcciu00f3n"}</h3>
+                <h3 className="text-lg font-black text-slate-900">{editando ? "Editar dirección" : "Nueva dirección"}</h3>
                 <button onClick={() => setShowForm(false)}><X size={22} className="text-slate-400" /></button>
               </div>
 
@@ -180,7 +181,7 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">
                   <MapPin size={12} className="inline mr-1" />Toca el mapa para marcar tu ubicacion
                 </label>
-                <div className="w-full h-52 rounded-2xl overflow-hidden border-2 border-slate-100">
+                <div className="relative w-full h-52 rounded-2xl overflow-hidden border-2 border-slate-100">
                   <MapContainer
                     center={[form.lat, form.lng]}
                     zoom={16}
@@ -196,6 +197,14 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
                     />
                     <PinHandler onMove={handleMapClick} />
                   </MapContainer>
+                  <button
+                    type="button"
+                    onClick={() => { navigator.geolocation?.getCurrentPosition(pos => { handleMapClick(pos.coords.latitude, pos.coords.longitude); }, () => {}); }}
+                    className="absolute bottom-3 right-3 z-[1000] bg-white shadow-lg rounded-xl p-2 border border-slate-200 hover:bg-purple-50 transition-all"
+                    title="Ir a mi ubicacion"
+                  >
+                    <MapPin size={18} className="text-purple-600" />
+                  </button>
                 </div>
               </div>
 
@@ -224,13 +233,23 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
                   className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-purple-400" />
               </div>
 
-              <div>
+              <div className="relative">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">
                   Direccion {geocoding && <Loader2 size={12} className="inline animate-spin text-purple-400 ml-1" />}
                 </label>
-                <input value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))}
-                  placeholder="Se llena automatico al tocar el mapa"
+                <input value={form.direccion} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, direccion: v })); if (v.length > 3) { clearTimeout((window as any)._gt); (window as any)._gt = setTimeout(async () => { try { const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(v)}&countrycodes=mx&limit=5`); const res = await r.json(); setSugerencias(res); } catch {} }, 500); } else { setSugerencias([]); } }}
+                  placeholder="Escribe una direccion o toca el mapa"
                   className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-purple-400" />
+                {sugerencias.length > 0 && (
+                  <div className="absolute z-10 w-full bg-white border border-slate-200 rounded-xl shadow-lg mt-1 overflow-hidden">
+                    {sugerencias.map((s: any) => (
+                      <button key={s.place_id} type="button" onClick={() => { setForm(f => ({ ...f, direccion: s.display_name, lat: parseFloat(s.lat), lng: parseFloat(s.lon) })); setSugerencias([]); }}
+                        className="w-full px-4 py-3 text-left text-xs text-slate-700 hover:bg-purple-50 border-b border-slate-100 last:border-0 truncate">
+                        {s.display_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <button onClick={guardar} disabled={!form.direccion.trim()}
@@ -252,7 +271,7 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trash2 size={28} className="text-red-500" />
               </div>
-              <h3 className="text-lg font-black text-slate-900 mb-2">u00bfEliminar direcciu00f3n?</h3>
+              <h3 className="text-lg font-black text-slate-900 mb-2">¿Eliminar dirección?</h3>
               <p className="text-sm text-slate-500 mb-6">Esta accion no se puede deshacer.</p>
               <div className="flex gap-3">
                 <button onClick={() => setShowDeleteConfirm(null)}

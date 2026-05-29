@@ -651,6 +651,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                 <div className="text-center py-12 text-slate-400">
                   <Clock size={40} className="mx-auto mb-3 opacity-30" />
                   <p className="font-medium">Sin entregas aun</p>
+                  <p className="text-xs text-slate-300 mt-2">El historial se elimina automaticamente despues de 90 dias</p>
                 </div>
               ) : historial.filter(p => p.status !== "en_camino").map(p => (
                 <div key={p.id} className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3">

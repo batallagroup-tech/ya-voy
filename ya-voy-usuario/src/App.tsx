@@ -1019,20 +1019,8 @@ export default function App() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                <button className="w-full px-4 py-4 flex items-center gap-3 hover:bg-slate-50 transition-all border-b border-slate-50">
-                  <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center">
-                    <HelpCircle size={18} className="text-slate-500" />
-                  </div>
-                  <p className="font-bold text-slate-900 text-sm">Ayuda y soporte</p>
-                  <ChevronRight size={18} className="text-slate-300 ml-auto" />
-                </button>
-                <button className="w-full px-4 py-4 flex items-center gap-3 hover:bg-slate-50 transition-all">
-                  <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center">
-                    <FileText size={18} className="text-slate-500" />
-                  </div>
-                  <p className="font-bold text-slate-900 text-sm">Términos y condiciones</p>
-                  <ChevronRight size={18} className="text-slate-300 ml-auto" />
-                </button>
+                <button onClick={() => window.open("mailto:batallagroup@gmail.com","_blank")} className="w-full px-4 py-4 flex items-center gap-3 hover:bg-slate-50 transition-all border-b border-slate-50"><div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center"><HelpCircle size={18} className="text-slate-500" /></div><p className="font-bold text-slate-900 text-sm">Ayuda y soporte</p><ChevronRight size={18} className="text-slate-300 ml-auto" /></button>
+                <button onClick={() => window.open("https://batallagroup-tech.github.io/ya-voy/","_blank")} className="w-full px-4 py-4 flex items-center gap-3 hover:bg-slate-50 transition-all"><div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center"><FileText size={18} className="text-slate-500" /></div><p className="font-bold text-slate-900 text-sm">Términos y condiciones</p><ChevronRight size={18} className="text-slate-300 ml-auto" /></button>
               </div>
 
               <button onClick={() => signOut()}
