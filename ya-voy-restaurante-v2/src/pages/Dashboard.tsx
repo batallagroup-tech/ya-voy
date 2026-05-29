@@ -26,6 +26,9 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [productForm, setProductForm] = useState({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false });
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ nombre: '', direccion: '', telefono: '', descripcion: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
   const prevNuevosRef = useRef(0);
 
   const playBeep = () => {
