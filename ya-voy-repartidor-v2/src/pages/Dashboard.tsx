@@ -632,7 +632,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                     <p className="text-[10px] text-slate-500 font-bold uppercase">Entregas</p>
                   </div>
                   <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                    <p className="font-black text-xl text-yellow-500">⭐ {repartidor?.rating?.toFixed(1) || "5.0"}</p>
+                    <p className="font-black text-xl text-yellow-500">⭐ {repartidor?.rating ? Number(repartidor.rating).toFixed(1) : "5.0"}</p>
                     <p className="text-[10px] text-slate-500 font-bold uppercase">Rating</p>
                   </div>
                 </div>
