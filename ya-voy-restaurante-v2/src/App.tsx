@@ -57,10 +57,6 @@ export default function App() {
     init();
   }, [isLoaded, isSignedIn, userId, user]);
 
-  if (window.location.pathname === '/sso-callback') {
-    return <AuthenticateWithRedirectCallback />;
-  }
-
   if (showSplash) {
     return (
       <AnimatePresence>
@@ -69,6 +65,7 @@ export default function App() {
     );
   }
 
+  if (window.location.pathname === '/sso-callback') return <AuthenticateWithRedirectCallback />;
   if (!isLoaded || !isSignedIn) return <Login />;
 
   if (status === 'loading') {

@@ -202,12 +202,27 @@ export default function App() {
   }, [isLoaded, isSignedIn, userId]);
 
 
-  // BUG-02: countdown interval para repartidor esperando
+  // countdown + auto-expirar cuando llega a 0
   useEffect(() => {
     if (esperandoTimer === null || esperandoTimer <= 0) return;
-    const iv = setInterval(() => setEsperandoTimer(t => t !== null && t > 0 ? t - 1 : 0), 1000);
+    const iv = setInterval(() => {
+      setEsperandoTimer(t => {
+        if (t === null) return null;
+        if (t <= 1) {
+          // Llamar endpoint para marcar entregado
+          const pedidoEsp = pedidos.find((p: any) => p.status === "esperando_cliente");
+          if (pedidoEsp) {
+            fetch(`${_API}/api/repartidor/pedidos/${pedidoEsp.id}/expirar-espera`, { method: "PATCH" })
+              .then(() => loadPedidos())
+              .catch(() => {});
+          }
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
     return () => clearInterval(iv);
-  }, [esperandoTimer !== null]);
+  }, [esperandoTimer]);
     useEffect(() => { if (tab === "pedidos") loadPedidos(); }, [tab]);
   useEffect(() => {
     if (categoria === "comida" && productosFeed.length === 0) loadProductosFeed();

@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useClerk } from '@clerk/clerk-react';
 import {
@@ -96,6 +96,14 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
       const updated = await apiFetch<any>(`/api/negocios/${negocio.id}/toggle`, { method: 'PATCH' });
       setNegocio(updated);
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
+  };
+
+  const tiempoTranscurrido = (fecha: string) => {
+    const mins = Math.floor((Date.now() - new Date(fecha).getTime()) / 60000);
+    if (mins < 1) return "ahora";
+    if (mins < 60) return `hace ${mins} min`;
+    const hrs = Math.floor(mins / 60);
+    return `hace ${hrs}h ${mins % 60}min`;
   };
 
   const statsToday = {
@@ -218,7 +226,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-black text-slate-900">Pedido #{o.numero ?? o.id?.slice(-6).toUpperCase()}</p>
-                      <p className="text-xs text-slate-500">{new Date(o.creado_en).toLocaleTimeString()}</p>
+                      <p className="text-xs text-slate-500">{new Date(o.creado_en).toLocaleTimeString()} · {tiempoTranscurrido(o.creado_en)}</p>
                     </div>
                     <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-full text-white ${orderStatusConfig[o.status]?.color || 'bg-slate-400'}`}>
                       {orderStatusConfig[o.status]?.label || o.status}

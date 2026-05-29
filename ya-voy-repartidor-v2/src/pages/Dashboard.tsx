@@ -102,11 +102,22 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   const [userLng, setUserLng] = useState<number | null>(null)
   const pollRef = useRef<any>(null)
 
-  const getEstado = (id: string): EstadoPedido =>
-    estadosPedidos[id] || { deliveryStep: "heading_restaurant", restOk: false, clienteOk: false, intentosFallidos: 0 }
+  const getEstado = (id: string): EstadoPedido => {
+    if (estadosPedidos[id]) return estadosPedidos[id]
+    try {
+      const saved = localStorage.getItem(`rep_step_${id}`)
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return { deliveryStep: "heading_restaurant", restOk: false, clienteOk: false, intentosFallidos: 0 }
+  }
 
-  const setEstado = (id: string, partial: Partial<EstadoPedido>) =>
-    setEstadosPedidos(prev => ({ ...prev, [id]: { ...getEstado(id), ...partial } }))
+  const setEstado = (id: string, partial: Partial<EstadoPedido>) => {
+    setEstadosPedidos(prev => {
+      const next = { ...prev, [id]: { ...getEstado(id), ...partial } }
+      try { localStorage.setItem(`rep_step_${id}`, JSON.stringify(next[id])) } catch {}
+      return next
+    })
+  }
 
   const opcionesRestaurante = useMemo(() => {
     if (!pedidoSeleccionado) return []
@@ -210,6 +221,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
       toast.success("Entrega completada!")
       setPedidosActivos(prev => prev.filter(p => p.id !== pedido.id))
       setEstadosPedidos(prev => { const n = { ...prev }; delete n[pedido.id]; return n })
+      try { localStorage.removeItem(`rep_step_${pedido.id}`) } catch {}
       if (pedidoSeleccionado?.id === pedido.id) setPedidoSeleccionado(null)
       cargarHistorial()
       if (pedidosActivos.length <= 1) {
@@ -223,6 +235,14 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
   const gananciasHoy = historial
     .filter(p => new Date(p.creado_en).toDateString() === new Date().toDateString() && p.status === "entregado")
+    .reduce((a, p) => a + (p.comision || 0), 0)
+
+  const gananciasMes = historial
+    .filter(p => {
+      const d = new Date(p.creado_en)
+      const now = new Date()
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && p.status === "entregado"
+    })
     .reduce((a, p) => a + (p.comision || 0), 0)
 
   return (
@@ -606,18 +626,24 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                 </div>
                 <p className="font-black text-slate-900 text-xl">{user?.fullName || "Repartidor"}</p>
                 <p className="text-sm text-slate-500">{user?.primaryEmailAddress?.emailAddress}</p>
-                <div className="grid grid-cols-3 gap-3 mt-5 w-full">
+                <div className="grid grid-cols-2 gap-3 mt-5 w-full">
                   <div className="bg-slate-50 rounded-2xl p-3 text-center">
                     <p className="font-black text-xl text-slate-900">{historial.filter(p => p.status === "entregado").length}</p>
                     <p className="text-[10px] text-slate-500 font-bold uppercase">Entregas</p>
                   </div>
                   <div className="bg-slate-50 rounded-2xl p-3 text-center">
+                    <p className="font-black text-xl text-yellow-500">⭐ {repartidor?.rating?.toFixed(1) || "5.0"}</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase">Rating</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  <div className="bg-slate-50 rounded-2xl p-3 text-center">
                     <p className="font-black text-xl" style={{ color: TEAL }}>${Number(gananciasHoy).toFixed(0)}</p>
                     <p className="text-[10px] text-slate-500 font-bold uppercase">Hoy</p>
                   </div>
                   <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                    <p className="font-black text-xl text-yellow-500">⭐ {repartidor?.rating?.toFixed(1) || "5.0"}</p>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Rating</p>
+                    <p className="font-black text-xl text-green-600">${Number(gananciasMes).toFixed(0)}</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase">Este mes</p>
                   </div>
                 </div>
               </div>

@@ -14,8 +14,6 @@ import { usePushNotifications } from "./hooks/usePushNotifications"
 type AppStatus = "loading" | "setup" | "pendiente" | "rechazado" | "aprobado"
 
 export default function App() {
-  if (window.location.pathname === "/sso-callback") return <AuthenticateWithRedirectCallback />
-
   const { isLoaded, isSignedIn, userId, getToken } = useAuth()
   const { user } = useUser()
   usePushNotifications({ userId, getToken })
@@ -54,6 +52,7 @@ export default function App() {
     <AnimatePresence><SplashScreen onDone={() => setShowSplash(false)} /></AnimatePresence>
   )
 
+  if (window.location.pathname === "/sso-callback") return <AuthenticateWithRedirectCallback />
   if (!isLoaded || !isSignedIn) return <Login />
 
   if (status === "loading") return (
