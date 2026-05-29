@@ -26,6 +26,8 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [productForm, setProductForm] = useState({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false });
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [cancelando, setCancelando] = useState<{id:string,numero:any}|null>(null);
+  const [razonCancel, setRazonCancel] = useState('');
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ nombre: '', direccion: '', telefono: '', descripcion: '' });
   const [savingProfile, setSavingProfile] = useState(false);
@@ -481,6 +483,44 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
         </AnimatePresence>
       </div>
 
+      {/* MODAL CANCELAR */}
+      <AnimatePresence>
+        {cancelando && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-6">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-black text-slate-900">Cancelar pedido #{cancelando.numero}</h3>
+                <button onClick={() => setCancelando(null)}><X size={22} className="text-slate-400" /></button>
+              </div>
+              <p className="text-sm text-slate-500">Selecciona el motivo:</p>
+              <div className="space-y-2">
+                {['No tenemos ingredientes','Estamos muy ocupados','Cerramos por el momento','Pedido duplicado','Otro'].map(r => (
+                  <button key={r} onClick={() => setRazonCancel(r)}
+                    className={`w-full px-4 py-3 rounded-xl text-sm font-bold text-left border-2 transition-all ${razonCancel === r ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-100 text-slate-700 bg-slate-50'}`}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setCancelando(null)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl text-sm">Volver</button>
+                <button onClick={async () => {
+                  if (!razonCancel) { toast.error('Selecciona un motivo'); return; }
+                  try {
+                    await apiFetch(`/api/negocios/pedidos/${cancelando.id}/cancelar`, { method: 'PATCH', body: JSON.stringify({ razon: razonCancel }) });
+                    setOrders(prev => prev.map(ord => ord.id === cancelando.id ? { ...ord, status: 'cancelado' } : ord));
+                    toast.success('Pedido cancelado');
+                    setCancelando(null); setRazonCancel('');
+                  } catch { toast.error('Error al cancelar'); }
+                }} disabled={!razonCancel} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm disabled:opacity-50">
+                  Confirmar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-4 pt-2 z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
         <div className="flex justify-around">
           {tabs.map(({ id, label, icon: Icon, badge }) => (
