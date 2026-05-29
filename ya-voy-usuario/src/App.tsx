@@ -587,8 +587,8 @@ export default function App() {
               )}
               {pedidoDetalle.status === 'en_camino' && !codigoConfirmado && codigoOpciones.length > 0 && (
                 <div className="bg-white rounded-2xl border-2 border-purple-200 p-4">
-                  <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">El repartidor llegó</p>
-                  <p className="text-sm text-slate-600 mb-3">Muestra UNA de estas palabras al repartidor y luego presionala:</p>
+                  <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">El repartidor llego — muestra tu palabra</p>
+                  <p className="text-sm text-slate-600 mb-3">Muestra UNA de estas palabras al repartidor. El repartidor la seleccionara en su app para confirmar la entrega:</p>
                   <div className="space-y-2">
                     {codigoOpciones.map(op => (
                       <button key={op} onClick={async () => { await fetch(`${_API}/api/usuario/pedidos/confirmar`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pedidoId: pedidoDetalle.id, codigo: op }) }); if (op === pedidoDetalle.codigo_entrega) { setCodigoConfirmado(true); setPedidoDetalle((p: any) => ({ ...p, status: 'entregado' })); toast.success('¡Pedido entregado!'); setTimeout(() => setShowRating(true), 800); } else { toast.error('Código incorrecto'); } }}
@@ -619,8 +619,8 @@ export default function App() {
           className="fixed top-0 left-0 right-0 z-[80] bg-amber-500 text-white p-3 shadow-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-black text-sm">🛵 ¡Tu repartidor está esperando!</p>
-              <p className="text-xs opacity-90">Sal a recibir tu pedido — {Math.floor(esperandoTimer/60)}:{String(esperandoTimer%60).padStart(2,"0")} restantes</p>
+              <p className="font-black text-sm">🛵 El repartidor esta en tu puerta</p>
+              <p className="text-xs opacity-90">Sal a recibir tu pedido — {Math.floor(esperandoTimer/60)}:{String(esperandoTimer%60).padStart(2,"0")} — si no sales, el pedido se marca entregado sin reembolso</p>
             </div>
             <div className="text-2xl font-black tabular-nums">
               {Math.floor(esperandoTimer/60)}:{String(esperandoTimer%60).padStart(2,"0")}
@@ -1028,7 +1028,7 @@ export default function App() {
             { id: "pedidos", label: "Pedidos", icon: Clock },
             { id: "perfil", label: "Perfil", icon: User },
           ].map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => setTab(id as any)}
+            <button key={id} onClick={() => { setTab(id as any); if (id === "home") { loadProductosFeed(); loadNegocios(); } }}
               className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-all ${tab === id ? "text-purple-600" : "text-slate-400"}`}>
               <Icon size={22} strokeWidth={tab === id ? 2.5 : 2} />
               <span className={`text-[9px] font-black uppercase tracking-tight ${tab === id ? "opacity-100" : "opacity-60"}`}>{label}</span>

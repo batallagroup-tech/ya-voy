@@ -101,6 +101,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
   const pollRef = useRef<any>(null)
+  const [esperandoTimers, setEsperandoTimers] = useState<Record<string, number>>({})
+  const timerRefs = useRef<Record<string, any>>({})
 
   const getEstado = (id: string): EstadoPedido => {
     if (estadosPedidos[id]) return estadosPedidos[id]
@@ -140,6 +142,39 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     const otros = PALS.filter(w => w !== cod).sort(() => Math.random() - 0.5)
     return [cod, otros[0], otros[1]].sort(() => Math.random() - 0.5)
   }, [pedidoSeleccionado?.id, pedidoSeleccionado?.codigo_entrega])
+
+  useEffect(() => {
+    Object.entries(esperandoTimers).forEach(([pedidoId, secs]) => {
+      if (secs <= 0 && timerRefs.current[pedidoId]) {
+        clearInterval(timerRefs.current[pedidoId])
+        delete timerRefs.current[pedidoId]
+        fetch(`${API}/api/repartidor/pedidos/${pedidoId}/expirar-espera`, { method: "PATCH" })
+          .then(() => {
+            setPedidosActivos(prev => prev.filter(p => p.id !== pedidoId))
+            setEstadosPedidos(prev => { const n = { ...prev }; delete n[pedidoId]; return n })
+            try { localStorage.removeItem(`rep_step_${pedidoId}`) } catch {}
+            if (pedidoSeleccionado?.id === pedidoId) setPedidoSeleccionado(null)
+            toast.success("Tiempo agotado — entrega completada automaticamente")
+            cargarHistorial()
+          }).catch(() => {})
+      }
+    })
+  }, [esperandoTimers])
+
+  const iniciarTimerEspera = (pedidoId: string) => {
+    setEsperandoTimers(prev => ({ ...prev, [pedidoId]: 600 }))
+    timerRefs.current[pedidoId] = setInterval(() => {
+      setEsperandoTimers(prev => {
+        const curr = prev[pedidoId] ?? 0
+        if (curr <= 1) {
+          clearInterval(timerRefs.current[pedidoId])
+          delete timerRefs.current[pedidoId]
+          return { ...prev, [pedidoId]: 0 }
+        }
+        return { ...prev, [pedidoId]: curr - 1 }
+      })
+    }, 1000)
+  }
 
   const cargarDisponibles = async () => {
     if (!online) { setDisponibles([]); return }
@@ -295,6 +330,16 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                     <MapPin size={12} className="text-purple-500 shrink-0" />
                     <div><p className="text-[10px] text-slate-400 uppercase font-bold">Entregar en</p><p className="font-bold text-slate-800">{confirmando.direccion_entrega}</p></div>
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${confirmando.lat_restaurante},${confirmando.lng_restaurante}`} target="_blank"
+                    className="flex items-center justify-center gap-2 py-2.5 bg-orange-50 border border-orange-200 rounded-xl text-orange-700 font-bold text-xs">
+                    🗺️ Ir al restaurante
+                  </a>
+                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${confirmando.lat_entrega},${confirmando.lng_entrega}`} target="_blank"
+                    className="flex items-center justify-center gap-2 py-2.5 bg-purple-50 border border-purple-200 rounded-xl text-purple-700 font-bold text-xs">
+                    🗺️ Ir al cliente
+                  </a>
                 </div>
                 <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
                   {(Array.isArray(confirmando.items) ? confirmando.items : []).map((item: any, i: number) => (
@@ -478,8 +523,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                         {/* PASO 2 */}
                         {est.deliveryStep === "at_restaurant" && (
                           <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
-                            <p className="text-sm font-black text-orange-600">Paso 2 - Codigo del restaurante</p>
-                            <p className="text-xs text-slate-500">Selecciona la palabra que te muestra el restaurante</p>
+                            <p className="text-sm font-black text-orange-600">Paso 2 - Verificacion con restaurante</p>
+                            <p className="text-xs text-slate-500">Muestra tu codigo al restaurante y selecciona el que el confirma</p>
                             {est.intentosFallidos >= 2 ? (
                               <div className="bg-red-100 rounded-xl p-4 text-center">
                                 <p className="font-black text-red-600">Cuenta bloqueada 24h</p>
@@ -528,7 +573,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                         {/* PASO 4 */}
                         {est.deliveryStep === "at_client" && (
                           <div className="rounded-2xl p-4 border space-y-3" style={{ background: "rgba(241,7,163,0.05)", borderColor: "rgba(241,7,163,0.2)" }}>
-                            <p className="text-sm font-black" style={{ color: TEAL }}>Paso 4 - Entrega al cliente</p>
+                            <p className="text-sm font-black" style={{ color: TEAL }}>Paso 4 - Verificacion con cliente</p>
                             {pedidoSeleccionado?.status !== "esperando_cliente" && (
                               <button onClick={() => {
                                 navigator.geolocation.getCurrentPosition(async pos => {
@@ -539,7 +584,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                                     if (!r.ok) { toast.error(d.error||"Error"); return }
                                     setPedidosActivos(prev => prev.map(p => p.id === pedidoSeleccionado.id ? {...p, status:"esperando_cliente"} : p))
                                     setPedidoSeleccionado((p:any) => ({...p, status:"esperando_cliente"}))
-                                    toast("Cliente notificado - 10 min")
+                                    iniciarTimerEspera(pedidoSeleccionado.id)
+                                    toast("Cliente notificado - tienes 10 min")
                                   } catch { toast.error("Error de conexion") }
                                 }, () => toast.error("Activa tu GPS"))
                               }} className="w-full py-2.5 rounded-xl border-2 border-amber-300 bg-amber-50 text-amber-700 font-bold text-sm flex items-center justify-center gap-2">
@@ -549,9 +595,15 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                             {pedidoSeleccionado?.status === "esperando_cliente" && (
                               <div className="bg-amber-100 border border-amber-300 rounded-xl p-3 text-center">
                                 <p className="font-black text-amber-700 text-sm">En espera del cliente</p>
+                                {esperandoTimers[pedidoSeleccionado.id] !== undefined && (
+                                  <p className="text-amber-600 text-xl font-black mt-1 tabular-nums">
+                                    {Math.floor((esperandoTimers[pedidoSeleccionado.id] || 0) / 60)}:{String((esperandoTimers[pedidoSeleccionado.id] || 0) % 60).padStart(2, "0")}
+                                  </p>
+                                )}
+                                <p className="text-xs text-amber-500 mt-1">Si expira, entrega completada automaticamente</p>
                               </div>
                             )}
-                            <p className="text-xs text-slate-500">Selecciona la palabra que muestra el cliente</p>
+                            <p className="text-xs text-slate-500">El cliente te mostrara una palabra — seleccionala aqui</p>
                             {est.intentosFallidos >= 2 ? (
                               <div className="bg-red-100 rounded-xl p-4 text-center"><p className="font-black text-red-600">Cuenta bloqueada 24h</p></div>
                             ) : opcionesCliente.map((op: string) => (
