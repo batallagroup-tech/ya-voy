@@ -151,6 +151,10 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showDirecciones, setShowDirecciones] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSoporte, setShowSoporte] = useState(false);
+  const [soporteTipo, setSoporteTipo] = useState("");
+  const [soporteComentario, setSoporteComentario] = useState("");
+  const [soporteLoading, setSoporteLoading] = useState(false);
 
   const [tab, setTab] = useState<"home" | "explorar" | "pedidos" | "perfil">("home");
   const [categoria, setCategoria] = useState<"comida" | "tienda" | "envio">("comida");
@@ -1019,7 +1023,7 @@ export default function App() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                <button onClick={() => window.open("mailto:batallagroup@gmail.com","_blank")} className="w-full px-4 py-4 flex items-center gap-3 hover:bg-slate-50 transition-all border-b border-slate-50"><div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center"><HelpCircle size={18} className="text-slate-500" /></div><p className="font-bold text-slate-900 text-sm">Ayuda y soporte</p><ChevronRight size={18} className="text-slate-300 ml-auto" /></button>
+                <button onClick={() => setShowSoporte(true)} className="w-full px-4 py-4 flex items-center gap-3 hover:bg-slate-50 transition-all border-b border-slate-50"><div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center"><HelpCircle size={18} className="text-slate-500" /></div><p className="font-bold text-slate-900 text-sm">Ayuda y soporte</p><ChevronRight size={18} className="text-slate-300 ml-auto" /></button>
                 <button onClick={() => window.open("https://batallagroup-tech.github.io/ya-voy/","_blank")} className="w-full px-4 py-4 flex items-center gap-3 hover:bg-slate-50 transition-all"><div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center"><FileText size={18} className="text-slate-500" /></div><p className="font-bold text-slate-900 text-sm">Términos y condiciones</p><ChevronRight size={18} className="text-slate-300 ml-auto" /></button>
               </div>
 
@@ -1058,6 +1062,54 @@ export default function App() {
           ))}
         </div>
       </div>
+
+      {/* MODAL SOPORTE */}
+      <AnimatePresence>
+        {showSoporte && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-[70] flex items-end">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-black text-slate-900">Ayuda y soporte</h3>
+                <button onClick={() => { setShowSoporte(false); setSoporteTipo(""); setSoporteComentario(""); }}><X size={22} className="text-slate-400" /></button>
+              </div>
+              <p className="text-sm text-slate-500">Selecciona el motivo de tu reporte:</p>
+              <div className="space-y-2">
+                {["Mi pedido no llego","El repartidor no llego","Producto incorrecto o en mal estado","Cobro incorrecto","El restaurante no acepto mi pedido","Otro"].map(op => (
+                  <button key={op} onClick={() => setSoporteTipo(op)}
+                    className={`w-full px-4 py-3 rounded-xl text-sm font-bold text-left border-2 transition-all ${soporteTipo === op ? "border-purple-500 bg-purple-50 text-purple-700" : "border-slate-100 text-slate-700 bg-slate-50"}`}>
+                    {op}
+                  </button>
+                ))}
+              </div>
+              {soporteTipo && (
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Comentario adicional (opcional)</label>
+                  <textarea value={soporteComentario} onChange={e => setSoporteComentario(e.target.value)}
+                    placeholder="Describe tu problema..."
+                    className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-purple-400 resize-none h-24" />
+                </div>
+              )}
+              <button onClick={async () => {
+                if (!soporteTipo) { toast.error("Selecciona un motivo"); return; }
+                setSoporteLoading(true);
+                try {
+                  await fetch(`${_API}/api/soporte`, { method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ usuarioId: userId, usuarioEmail: user?.primaryEmailAddress?.emailAddress, usuarioNombre: user?.fullName, tipo: soporteTipo, comentario: soporteComentario }) });
+                  toast.success("Reporte enviado. Te contactaremos pronto.");
+                  setShowSoporte(false); setSoporteTipo(""); setSoporteComentario("");
+                } catch { toast.error("Error al enviar reporte"); }
+                finally { setSoporteLoading(false); }
+              }} disabled={!soporteTipo || soporteLoading} style={{ background: GRAD }}
+                className="w-full py-4 text-white font-black rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2">
+                {soporteLoading ? <Loader2 className="animate-spin" size={20} /> : null}
+                Enviar reporte
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* DELETE CONFIRM */}
       <AnimatePresence>
