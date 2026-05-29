@@ -402,9 +402,39 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                 ))}
               </div>
               <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-50">
+                <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between flex-wrap gap-2">
                   <h3 className="font-black text-slate-900 text-sm">Historial de pedidos</h3>
+                  <div className="flex gap-2">
+                    <button onClick={() => {
+                      const entregados = orders.filter(o => o.status === "entregado");
+                      if (!entregados.length) { toast.error("Sin pedidos entregados"); return; }
+                      const rows = [["Numero","Fecha","Total","Items"].join(","), ...entregados.map(o => [
+                        o.numero ?? o.id?.slice(-6).toUpperCase(),
+                        new Date(o.creado_en).toLocaleDateString("es-MX"),
+                        Number(o.total||0).toFixed(2),
+                        (o.items||[]).map((i:any) => `${i.cantidad}x ${i.nombre}`).join(" | ")
+                      ].map(v => `"${v}"`).join(","))].join("\n");
+                      const a = document.createElement("a");
+                      a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(rows);
+                      a.download = `historial_${negocio?.nombre?.replace(/\s/g,"_")}_${new Date().toISOString().slice(0,10)}.csv`;
+                      a.click();
+                    }} className="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-black rounded-xl border border-green-200 hover:bg-green-100 transition-all">
+                      ⬇ CSV
+                    </button>
+                    <button onClick={() => {
+                      const entregados = orders.filter(o => o.status === "entregado");
+                      if (!entregados.length) { toast.error("Sin pedidos entregados"); return; }
+                      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<historial negocio="${negocio?.nombre}" fecha="${new Date().toISOString().slice(0,10)}">\n${entregados.map(o => `  <pedido>\n    <numero>${o.numero ?? o.id?.slice(-6).toUpperCase()}</numero>\n    <fecha>${new Date(o.creado_en).toLocaleDateString("es-MX")}</fecha>\n    <total>${Number(o.total||0).toFixed(2)}</total>\n    <items>${(o.items||[]).map((i:any) => `<item><nombre>${i.nombre}</nombre><cantidad>${i.cantidad}</cantidad></item>`).join("")}</items>\n  </pedido>`).join("\n")}\n</historial>`;
+                      const a = document.createElement("a");
+                      a.href = "data:text/xml;charset=utf-8," + encodeURIComponent(xml);
+                      a.download = `historial_${negocio?.nombre?.replace(/\s/g,"_")}_${new Date().toISOString().slice(0,10)}.xml`;
+                      a.click();
+                    }} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-black rounded-xl border border-blue-200 hover:bg-blue-100 transition-all">
+                      ⬇ XML
+                    </button>
+                  </div>
                 </div>
+                <p className="text-[10px] text-slate-400 px-4 py-2 bg-amber-50 border-b border-amber-100">⚠️ El historial se elimina automaticamente despues de 90 dias. Descarga periodicamente.</p>
                 {orders.filter(o => o.status === 'entregado').map(o => (
                   <div key={o.id} className="px-4 py-3 border-b border-slate-50 last:border-none flex items-center justify-between">
                     <div>
