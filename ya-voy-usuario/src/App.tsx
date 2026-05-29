@@ -171,6 +171,8 @@ export default function App() {
   const [esperandoTimer, setEsperandoTimer] = useState<number | null>(null);
   const [ratingRest, setRatingRest] = useState(0);
   const [ratingRep, setRatingRep] = useState(0);
+  const [ratingRestFrase, setRatingRestFrase] = useState("");
+  const [ratingRepFrase, setRatingRepFrase] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -644,37 +646,69 @@ export default function App() {
                 <h2 className="font-black text-xl text-slate-900">¿Cómo te fue?</h2>
                 <p className="text-sm text-slate-500 mt-1">Tu opinión ayuda a mejorar el servicio</p>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
-                  <p className="font-bold text-slate-700 mb-2 text-sm">🍽️ Restaurante</p>
-                  <div className="flex gap-2">
-                    {["😤 Malo","😐 Regular","🙂 Bien","😊 Muy bien","🤩 Excelente"].map((op,i) => (
-                      <button key={i} onClick={() => setRatingRest(i+1)}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold border-2 transition-all ${ratingRest===i+1 ? "border-purple-500 bg-purple-50 text-purple-700" : "border-slate-200 text-slate-500"}`}>
-                        {op.split(" ")[0]}
+                  <p className="font-bold text-slate-700 mb-3 text-sm">🍽️ Restaurante</p>
+                  <div className="flex justify-center gap-1 mb-3">
+                    {[1,2,3,4,5].map(i => (
+                      <button key={i} onClick={() => setRatingRest(i)} className="p-1 transition-transform hover:scale-110">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill={i <= ratingRest ? "#F59E0B" : "none"} stroke={i <= ratingRest ? "#F59E0B" : "#CBD5E1"} strokeWidth="1.5">
+                          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                        </svg>
                       </button>
                     ))}
                   </div>
+                  {ratingRest > 0 && (
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {(ratingRest <= 2
+                        ? ["Tardaron mucho","Comida fria","Orden incorrecta","Mala atencion"]
+                        : ratingRest === 3
+                        ? ["Bien en general","Podria mejorar","Comida correcta"]
+                        : ["Excelente comida","Rapido","Todo perfecto","Lo recomiendo"]
+                      ).map(frase => (
+                        <button key={frase} onClick={() => setRatingRestFrase(frase)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${ratingRestFrase === frase ? "border-purple-500 bg-purple-50 text-purple-700" : "border-slate-200 text-slate-500"}`}>
+                          {frase}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <p className="font-bold text-slate-700 mb-2 text-sm">🛵 Repartidor</p>
-                  <div className="flex gap-2">
-                    {["😤 Malo","😐 Regular","🙂 Bien","😊 Muy bien","🤩 Excelente"].map((op,i) => (
-                      <button key={i} onClick={() => setRatingRep(i+1)}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold border-2 transition-all ${ratingRep===i+1 ? "border-pink-500 bg-pink-50 text-pink-700" : "border-slate-200 text-slate-500"}`}>
-                        {op.split(" ")[0]}
+                  <p className="font-bold text-slate-700 mb-3 text-sm">🛵 Repartidor</p>
+                  <div className="flex justify-center gap-1 mb-3">
+                    {[1,2,3,4,5].map(i => (
+                      <button key={i} onClick={() => setRatingRep(i)} className="p-1 transition-transform hover:scale-110">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill={i <= ratingRep ? "#F59E0B" : "none"} stroke={i <= ratingRep ? "#F59E0B" : "#CBD5E1"} strokeWidth="1.5">
+                          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                        </svg>
                       </button>
                     ))}
                   </div>
+                  {ratingRep > 0 && (
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {(ratingRep <= 2
+                        ? ["Llego tarde","Mala actitud","Comida danada","No siguio instrucciones"]
+                        : ratingRep === 3
+                        ? ["Bien en general","Entrega correcta","Puntual"]
+                        : ["Muy amable","Entrega rapida","Excelente servicio","Lo recomiendo"]
+                      ).map(frase => (
+                        <button key={frase} onClick={() => setRatingRepFrase(frase)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${ratingRepFrase === frase ? "border-pink-500 bg-pink-50 text-pink-700" : "border-slate-200 text-slate-500"}`}>
+                          {frase}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <button onClick={async () => {
                 if (ratingRest && ratingRep) {
                   await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/usuario/pedidos/${pedidoDetalle.id}/rating`, {
                     method: "PATCH", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ rating_restaurante: ratingRest, rating_repartidor: ratingRep })
+                    body: JSON.stringify({ rating_restaurante: ratingRest, rating_repartidor: ratingRep, comentario_rating: [ratingRestFrase, ratingRepFrase].filter(Boolean).join(" | ") })
                   });
-                  setShowRating(false); toast.success("¡Gracias por tu calificación!");
+                  setShowRating(false); setRatingRest(0); setRatingRep(0); setRatingRestFrase(""); setRatingRepFrase(""); toast.success("Gracias por tu calificacion!");
                 } else { toast.error("Califica ambos para continuar"); }
               }} className="w-full py-4 rounded-2xl text-white font-black text-lg" style={{ background: GRAD }}>
                 Enviar calificación
