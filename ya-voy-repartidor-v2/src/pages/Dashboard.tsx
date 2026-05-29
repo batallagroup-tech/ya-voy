@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "motion/react"
 import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
-import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Lock, Package, ChevronRight, TrendingUp, Loader2, X } from "lucide-react"
+import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft } from "lucide-react"
 import { Toaster, toast } from "sonner"
 import { getPedidosDisponibles, aceptarPedido, actualizarEstadoPedido, getPedidosRepartidor, toggleStatusRepartidor } from "../lib/api"
 
@@ -16,6 +16,7 @@ L.Icon.Default.mergeOptions({
 
 const GRAD = "linear-gradient(135deg, #7B2FF7 0%, #F107A3 50%, #FF6B00 100%)"
 const TEAL = "#F107A3"
+const API = import.meta.env.VITE_API_URL || "http://localhost:3001"
 
 const statusColor: Record<string, string> = {
   nuevo: "bg-blue-500", preparando: "bg-orange-500", listo: "bg-yellow-500",
@@ -26,11 +27,9 @@ const statusLabel: Record<string, string> = {
   en_camino: "En camino", entregado: "Entregado", cancelado: "Cancelado",
 }
 
-
 function RouteMap({ restLat, restLng, entregaLat, entregaLng }: { restLat: number; restLng: number; entregaLat: number; entregaLng: number }) {
   const [coords, setCoords] = useState<[number,number][]>([])
   const [info, setInfo] = useState<{ dist: string; time: string } | null>(null)
-
   useEffect(() => {
     const fetchRoute = async () => {
       try {
@@ -44,14 +43,12 @@ function RouteMap({ restLat, restLng, entregaLat, entregaLng }: { restLat: numbe
     }
     fetchRoute()
   }, [restLat, restLng, entregaLat, entregaLng])
-
   const restauranteIcon = L.divIcon({ html: '<div style="background:#FF6B00;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconSize: [14,14], iconAnchor: [7,7], className: "" })
   const clienteIcon = L.divIcon({ html: '<div style="background:#7B2FF7;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconSize: [14,14], iconAnchor: [7,7], className: "" })
   const center: [number,number] = [(restLat + entregaLat) / 2, (restLng + entregaLng) / 2]
-
   return (
     <div>
-      <div style={{ height: 220 }}>
+      <div style={{ height: 200 }}>
         <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={false}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <Marker position={[restLat, restLng]} icon={restauranteIcon} />
@@ -60,16 +57,10 @@ function RouteMap({ restLat, restLng, entregaLat, entregaLng }: { restLat: numbe
         </MapContainer>
       </div>
       {info && (
-        <div className="flex items-center gap-4 px-4 py-2.5 bg-slate-50 border-b border-slate-100 text-sm">
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-400 text-xs uppercase font-bold">Dist.</span>
-            <span className="font-black text-slate-900">{info.dist}</span>
-          </div>
+        <div className="flex items-center gap-4 px-4 py-2 bg-slate-50 border-b border-slate-100 text-sm">
+          <div className="flex items-center gap-1.5"><span className="text-slate-400 text-xs uppercase font-bold">Dist.</span><span className="font-black text-slate-900">{info.dist}</span></div>
           <div className="w-px h-4 bg-slate-200" />
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-400 text-xs uppercase font-bold">Tiempo</span>
-            <span className="font-black text-slate-900">{info.time}</span>
-          </div>
+          <div className="flex items-center gap-1.5"><span className="text-slate-400 text-xs uppercase font-bold">Tiempo</span><span className="font-black text-slate-900">{info.time}</span></div>
           <div className="flex items-center gap-3 ml-auto">
             <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-orange-500" /><span className="text-xs text-slate-500">Restaurante</span></div>
             <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-purple-600" /><span className="text-xs text-slate-500">Cliente</span></div>
@@ -80,59 +71,64 @@ function RouteMap({ restLat, restLng, entregaLat, entregaLng }: { restLat: numbe
   )
 }
 
-
 function calcDist(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
+
+interface EstadoPedido {
+  deliveryStep: string
+  restOk: boolean
+  clienteOk: boolean
+  intentosFallidos: number
 }
 
 export default function Dashboard({ repartidor, userId, user }: { repartidor: any; userId: string; user: any }) {
   const { signOut } = useClerk()
   const [tab, setTab] = useState<"pedidos" | "activo" | "historial" | "perfil">("pedidos")
   const [disponibles, setDisponibles] = useState<any[]>([])
-  const [pedidoActivo, setPedidoActivo] = useState<any>(null)
+  const [pedidosActivos, setPedidosActivos] = useState<any[]>([])
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState<any>(null)
+  const [estadosPedidos, setEstadosPedidos] = useState<Record<string, EstadoPedido>>({})
   const [historial, setHistorial] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [online, setOnline] = useState(() => localStorage.getItem('rep_online') === 'true' || (repartidor?.en_linea ?? false))
-  const [codRest, setCodRest] = useState("")
   const [radioKm, setRadioKm] = useState(10)
-  const [pedidoDetalle, setPedidoDetalle] = useState<any>(null)
   const [confirmando, setConfirmando] = useState<any>(null)
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
-  const _PALS = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
-  const _seed = (pedidoActivo?.id || "").split("").reduce((a:number,c:string)=>a+c.charCodeAt(0),0)
-  const opcionesRestaurante = useMemo(() => {
-    if (!pedidoActivo) return []
-    const cod = String(pedidoActivo.codigo_restaurante || "")
-    if (!cod) return []
-    const others = _PALS.filter((w:string) => w !== cod)
-    const i1 = _seed % others.length
-    let i2 = (_seed * 3 + 7) % others.length
-    if (i2 === i1) i2 = (i2 + 1) % others.length
-    const opts = [cod, others[i1], others[i2]]
-    const s = _seed % 3
-    if (s === 1) return [opts[1], opts[0], opts[2]]
-    if (s === 2) return [opts[2], opts[1], opts[0]]
-    return opts
-  }, [pedidoActivo?.id, pedidoActivo?.codigo_restaurante])
-  const opcionesCliente = useMemo(() => {
-    const cod = pedidoActivo?.codigo_entrega
-    if (!cod) return []
-    const seed = cod.charCodeAt(0) + cod.charCodeAt(1)
-    const sorted = _PALS.filter(w => w !== cod).sort((a,b) => ((seed * a.charCodeAt(0)) % 97) - ((seed * b.charCodeAt(0)) % 97))
-    return [cod, sorted[0], sorted[1]].sort((a,b) => ((seed * a.charCodeAt(2)||1) % 7) - ((seed * b.charCodeAt(2)||1) % 7))
-  }, [pedidoActivo?.codigo_entrega])
-  const PALS_CONST = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
-  const [codCliente, setCodCliente] = useState("")
-  const [restOk, setRestOk] = useState(false)
-  const [intentosFallidos, setIntentosFallidos] = useState(0)
-  const [deliveryStep, setDeliveryStep] = useState<string>("heading_restaurant")
-  const [clienteOk, setClienteOk] = useState(false)
   const pollRef = useRef<any>(null)
+
+  const getEstado = (id: string): EstadoPedido =>
+    estadosPedidos[id] || { deliveryStep: "heading_restaurant", restOk: false, clienteOk: false, intentosFallidos: 0 }
+
+  const setEstado = (id: string, partial: Partial<EstadoPedido>) =>
+    setEstadosPedidos(prev => ({ ...prev, [id]: { ...getEstado(id), ...partial } }))
+
+  const opcionesRestaurante = useMemo(() => {
+    if (!pedidoSeleccionado) return []
+    const pv = pedidoSeleccionado.palabras_verificacion
+    if (pv && pv.restaurante && pv.restaurante.length === 3) return pv.restaurante
+    const PALS = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
+    const cod = String(pedidoSeleccionado.codigo_restaurante || "")
+    if (!cod) return []
+    const otros = PALS.filter((w:string) => w !== cod).sort(() => Math.random() - 0.5)
+    return [cod, otros[0], otros[1]].sort(() => Math.random() - 0.5)
+  }, [pedidoSeleccionado?.id, pedidoSeleccionado?.codigo_restaurante])
+
+  const opcionesCliente = useMemo(() => {
+    if (!pedidoSeleccionado) return []
+    const pv = pedidoSeleccionado.palabras_verificacion
+    if (pv && pv.entrega && pv.entrega.length === 3) return pv.entrega
+    const PALS = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
+    const cod = pedidoSeleccionado?.codigo_entrega
+    if (!cod) return []
+    const otros = PALS.filter(w => w !== cod).sort(() => Math.random() - 0.5)
+    return [cod, otros[0], otros[1]].sort(() => Math.random() - 0.5)
+  }, [pedidoSeleccionado?.id, pedidoSeleccionado?.codigo_entrega])
 
   const cargarDisponibles = async () => {
     if (!online) { setDisponibles([]); return }
@@ -143,37 +139,40 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
         return calcDist(userLat, userLng, p.lat_restaurante, p.lng_restaurante) <= radioKm
       })
       setDisponibles(filtrados)
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Error al cargar pedidos") }
   }
 
   const cargarHistorial = async () => {
     try {
       const data = (await getPedidosRepartidor(userId) as any[]) || []
-      const activo = data.find((p: any) => p.status === "en_camino" && p.repartidor_id === userId)
-      if (activo && !pedidoActivo) {
-        setPedidoActivo(activo); setTab("activo")
-        if (activo.codigo_entrega) {
-          const PALS2 = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
-          const falsas2 = PALS2.filter((w:string) => w !== activo.codigo_entrega).sort(() => Math.random()-0.5).slice(0,2)
-        }
+      const activos = data.filter((p: any) => p.status === "en_camino" && p.repartidor_id === userId)
+      if (activos.length > 0) {
+        setPedidosActivos(activos)
+        activos.forEach((p: any) => {
+          setEstadosPedidos(prev => {
+            if (prev[p.id]) return prev
+            return { ...prev, [p.id]: { deliveryStep: "heading_restaurant", restOk: false, clienteOk: false, intentosFallidos: 0 } }
+          })
+        })
       }
       setHistorial(data)
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Error al cargar historial") }
   }
 
   useEffect(() => {
     cargarHistorial()
     navigator.geolocation.getCurrentPosition(pos => {
-      setUserLat(pos.coords.latitude)
-      setUserLng(pos.coords.longitude)
+      setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude)
     }, () => {})
   }, [])
+
   useEffect(() => {
     cargarDisponibles()
     clearInterval(pollRef.current)
     pollRef.current = setInterval(cargarDisponibles, 2000)
     return () => clearInterval(pollRef.current)
   }, [online])
+
   useEffect(() => { if (tab === "historial") cargarHistorial() }, [tab])
 
   const handleToggleOnline = async () => {
@@ -181,7 +180,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
       await toggleStatusRepartidor(userId, !online)
       setOnline(!online)
       localStorage.setItem('rep_online', String(!online))
-      toast.success(!online ? "Ahora estás en línea" : "Ahora estás desconectado")
+      toast.success(!online ? "Ahora estas en linea" : "Ahora estas desconectado")
     } catch { toast.error("Error al cambiar estado") }
   }
 
@@ -190,57 +189,34 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     try {
       const updated = await aceptarPedido(pedido.id, userId)
       const pedidoFinal = { ...pedido, ...updated }
-      setPedidoActivo(pedidoFinal); setRestOk(false); setClienteOk(false); setDeliveryStep("heading_restaurant"); setIntentosFallidos(0)
-      setCodRest(""); setCodCliente(""); setTab("activo")
-      // Generar 3 opciones para el codigo del cliente
-      const PALS = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
-      const cod = pedidoFinal.codigo_entrega || PALS[Math.floor(Math.random()*PALS.length)]
-      if (!pedidoFinal.codigo_entrega) pedidoFinal.codigo_entrega = cod
-      const falsas = PALS.filter((w: string) => w !== cod).sort(() => Math.random()-0.5).slice(0,2)
-      toast.success("¡Pedido aceptado!")
+      setPedidosActivos(prev => [...prev, pedidoFinal])
+      setEstado(pedidoFinal.id, { deliveryStep: "heading_restaurant", restOk: false, clienteOk: false, intentosFallidos: 0 })
+      setConfirmando(null)
+      setTab("activo")
+      setPedidoSeleccionado(pedidoFinal)
+      toast.success("Pedido aceptado!")
       setDisponibles(prev => prev.filter(p => p.id !== pedido.id))
-      clearInterval(pollRef.current)
     } catch (e: any) {
       if (e.message?.includes("409") || e.message?.includes("tomado")) {
-        toast.error("⚡ Este pedido ya fue tomado por otro repartidor");
-        cargarDisponibles();
-      } else {
-        toast.error(e.message || "Error");
-      }
-    }
-    finally { setLoading(false) }
+        toast.error("Este pedido ya fue tomado"); cargarDisponibles()
+      } else { toast.error(e.message || "Error") }
+    } finally { setLoading(false) }
   }
 
-  const verificarRest = async () => {
-    const codigo = (pedidoActivo?.codigo_restaurante || "").toUpperCase()
-    if (codRest.trim().toUpperCase() === codigo) {
-      setRestOk(true); setCodRest(""); toast.success("✅ Recolección verificada")
-      try { await actualizarEstadoPedido(pedidoActivo.id, "en_camino") } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
-    } else { toast.error("Código incorrecto") }
-  }
-
-  const verificarClienteDirecto = (codigo: string) => {
-    const correcto = (pedidoActivo?.codigo_entrega || "").toUpperCase()
-    if (codigo.toUpperCase() === correcto) {
-      setClienteOk(true); toast.success("✅ Entrega verificada")
-    } else { toast.error("Código incorrecto — el cliente dijo otro") }
-  }
-
-  const verificarCliente = () => {
-    const codigo = (pedidoActivo?.codigo_entrega || "").toUpperCase()
-    if (codCliente.trim().toUpperCase() === codigo) {
-      setClienteOk(true); setCodCliente(""); toast.success("✅ Entrega verificada")
-    } else { toast.error("Código incorrecto") }
-  }
-
-  const finalizarEntrega = async (force = false) => {
-    if (!force && !restOk || !clienteOk && !force) { toast.error("Completa las verificaciones primero"); return }
+  const finalizarEntrega = async (pedido: any) => {
     setLoading(true)
     try {
-      await actualizarEstadoPedido(pedidoActivo.id, "entregado")
-      toast.success("¡Entrega completada! 🎉")
-      setPedidoActivo(null); setTab("historial"); setDeliveryStep("heading_restaurant"); setIntentosFallidos(0); cargarHistorial()
-      pollRef.current = setInterval(cargarDisponibles, 2000)
+      await actualizarEstadoPedido(pedido.id, "entregado")
+      toast.success("Entrega completada!")
+      setPedidosActivos(prev => prev.filter(p => p.id !== pedido.id))
+      setEstadosPedidos(prev => { const n = { ...prev }; delete n[pedido.id]; return n })
+      if (pedidoSeleccionado?.id === pedido.id) setPedidoSeleccionado(null)
+      cargarHistorial()
+      if (pedidosActivos.length <= 1) {
+        setTab("historial")
+        clearInterval(pollRef.current)
+        pollRef.current = setInterval(cargarDisponibles, 2000)
+      }
     } catch (e: any) { toast.error(e.message || "Error") }
     finally { setLoading(false) }
   }
@@ -252,7 +228,6 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   return (
     <div className="min-h-[100dvh] bg-slate-50 flex flex-col">
       <Toaster position="top-center" />
-
       <div className="sticky top-0 z-40 text-white px-4 py-3 flex items-center justify-between" style={{ background: GRAD }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-white/20 overflow-hidden flex items-center justify-center">
@@ -262,7 +237,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
             <p className="font-black text-sm">{user?.firstName || "Repartidor"}</p>
             <div className="flex items-center gap-1.5">
               <div className={`w-2 h-2 rounded-full ${online ? "bg-green-300" : "bg-white/40"}`} />
-              <p className="text-white/70 text-[10px] font-bold uppercase tracking-wider">{online ? "En línea" : "Desconectado"}</p>
+              <p className="text-white/70 text-[10px] font-bold uppercase tracking-wider">{online ? "En linea" : "Desconectado"}</p>
             </div>
           </div>
         </div>
@@ -273,8 +248,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
         </button>
       </div>
 
-      
-      {/* MODAL DETALLE PEDIDO */}
+      {/* MODAL DETALLE PEDIDO DISPONIBLE */}
       <AnimatePresence>
         {confirmando && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -295,17 +269,11 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <div className="w-3 h-3 rounded-full shrink-0" style={{ background: "#FF6B00" }} />
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-bold">Recoger en</p>
-                      <p className="font-bold text-slate-800">{confirmando.negocio_nombre}</p>
-                    </div>
+                    <div><p className="text-[10px] text-slate-400 uppercase font-bold">Recoger en</p><p className="font-bold text-slate-800">{confirmando.negocio_nombre}</p></div>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <MapPin size={12} className="text-purple-500 shrink-0" />
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-bold">Entregar en</p>
-                      <p className="font-bold text-slate-800">{confirmando.direccion_entrega}</p>
-                    </div>
+                    <div><p className="text-[10px] text-slate-400 uppercase font-bold">Entregar en</p><p className="font-bold text-slate-800">{confirmando.direccion_entrega}</p></div>
                   </div>
                 </div>
                 <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
@@ -326,7 +294,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                   </div>
                   <TrendingUp size={32} className="text-green-400" />
                 </div>
-                <button onClick={() => { handleAceptar(confirmando); setConfirmando(null); }} disabled={loading}
+                <button onClick={() => handleAceptar(confirmando)} disabled={loading}
                   className="w-full py-4 rounded-2xl text-white font-black text-lg flex items-center justify-center gap-2 disabled:opacity-60"
                   style={{ background: GRAD }}>
                   {loading ? <Loader2 className="animate-spin" size={22} /> : <Navigation size={22} />}
@@ -337,9 +305,11 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
           </motion.div>
         )}
       </AnimatePresence>
+
       <div className="flex-1 overflow-y-auto pb-20">
         <AnimatePresence mode="wait">
 
+          {/* TAB PEDIDOS */}
           {tab === "pedidos" && (
             <motion.div key="p" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               <div className="flex items-center justify-between">
@@ -349,25 +319,19 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
               <div className="flex items-center gap-2 bg-slate-50 rounded-2xl p-3">
                 <MapPin size={14} className="text-slate-400 shrink-0" />
                 <span className="text-xs text-slate-500 font-bold">Radio:</span>
-                <input type="range" min={1} max={30} value={radioKm}
-                  onChange={e => setRadioKm(Number(e.target.value))}
-                  className="flex-1 accent-pink-500" />
+                <input type="range" min={1} max={30} value={radioKm} onChange={e => setRadioKm(Number(e.target.value))} className="flex-1 accent-pink-500" />
                 <span className="font-black text-sm min-w-[40px] text-right" style={{ color: TEAL }}>{radioKm} km</span>
               </div>
               {!online ? (
                 <div className="text-center py-16">
-                  <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <Bike size={36} className="text-slate-300" />
-                  </div>
-                  <p className="font-black text-slate-500 mb-1">Estás desconectado</p>
-                  <p className="text-sm text-slate-400 mb-6">Conéctate para recibir pedidos</p>
+                  <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4"><Bike size={36} className="text-slate-300" /></div>
+                  <p className="font-black text-slate-500 mb-1">Estas desconectado</p>
+                  <p className="text-sm text-slate-400 mb-6">Conectate para recibir pedidos</p>
                   <button onClick={handleToggleOnline} className="px-8 py-3 rounded-2xl text-white font-black" style={{ background: GRAD }}>Conectarme</button>
                 </div>
               ) : disponibles.length === 0 ? (
                 <div className="text-center py-16">
-                  <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <Clock size={36} className="text-slate-300" />
-                  </div>
+                  <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4"><Clock size={36} className="text-slate-300" /></div>
                   <p className="font-medium text-slate-400">Esperando pedidos...</p>
                   <p className="text-xs text-slate-300 mt-1">Se actualizan cada 2 segundos</p>
                 </div>
@@ -395,7 +359,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                       <span className="truncate">{p.direccion_entrega || "Cliente"}</span>
                     </div>
                   </div>
-                  <button onClick={() => setConfirmando(p)} disabled={loading || !!pedidoActivo}
+                  <button onClick={() => setConfirmando(p)} disabled={loading}
                     className="w-full py-3 rounded-xl text-white font-black flex items-center justify-center gap-2 disabled:opacity-60"
                     style={{ background: GRAD }}>
                     Ver detalles <ChevronRight size={18} />
@@ -405,159 +369,186 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
             </motion.div>
           )}
 
+          {/* TAB ACTIVO */}
           {tab === "activo" && (
             <motion.div key="a" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              {!pedidoActivo ? (
+              {pedidosActivos.length === 0 ? (
                 <div className="p-4 text-center py-16">
-                  <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <Package size={36} className="text-slate-300" />
-                  </div>
-                  <p className="font-black text-slate-500 mb-1">Sin entrega activa</p>
+                  <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4"><Package size={36} className="text-slate-300" /></div>
+                  <p className="font-black text-slate-500 mb-1">Sin entregas activas</p>
                   <button onClick={() => setTab("pedidos")} className="mt-4 px-8 py-3 rounded-2xl text-white font-black" style={{ background: GRAD }}>Ver pedidos</button>
                 </div>
+              ) : !pedidoSeleccionado ? (
+                /* LISTA DE PEDIDOS ACTIVOS */
+                <div className="p-4 space-y-3">
+                  <h2 className="text-xl font-black text-slate-900">Entregas activas <span className="text-base font-bold text-slate-400">({pedidosActivos.length})</span></h2>
+                  {pedidosActivos.map(p => {
+                    const est = getEstado(p.id)
+                    const pasoLabel: Record<string, string> = {
+                      heading_restaurant: "Yendo al restaurante",
+                      at_restaurant: "En restaurante",
+                      heading_client: "Yendo al cliente",
+                      at_client: "En punto de entrega",
+                    }
+                    return (
+                      <button key={p.id} onClick={() => setPedidoSeleccionado(p)}
+                        className="w-full bg-white rounded-2xl border border-slate-100 p-4 text-left shadow-sm hover:shadow-md transition-all">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-black text-slate-900">{p.negocio_nombre || "Restaurante"}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{p.direccion_entrega}</p>
+                          </div>
+                          <div className="text-right shrink-0 ml-3">
+                            <p className="font-black text-green-600">${(Number(p.total) * 0.15).toFixed(2)}</p>
+                            <p className="text-[10px] text-slate-400">ganancia</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs font-bold px-3 py-1 rounded-full text-white bg-teal-500">{pasoLabel[est.deliveryStep] || "En progreso"}</span>
+                          <ChevronRight size={18} className="text-slate-300" />
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
               ) : (
+                /* FLUJO DE ENTREGA DE UN PEDIDO */
                 <div>
-                  {(deliveryStep === "heading_client" || deliveryStep === "at_client") && pedidoActivo.lat_restaurante && pedidoActivo.lat_entrega && (
-                    <RouteMap restLat={pedidoActivo.lat_restaurante} restLng={pedidoActivo.lng_restaurante}
-                      entregaLat={pedidoActivo.lat_entrega} entregaLng={pedidoActivo.lng_entrega} />
-                  )}
-                  <div className="p-4 space-y-4">
-                    <div className="bg-white rounded-2xl border border-slate-100 p-4">
-                      <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: TEAL }}>Entrega activa</p>
-                      <h3 className="font-black text-slate-900 text-lg">{pedidoActivo.negocio_nombre || "Restaurante"}</h3>
-                      <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
-                        <MapPin size={14} className="text-orange-400" />
-                        <span>{pedidoActivo.direccion_entrega}</span>
-                      </div>
+                  <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-100">
+                    <button onClick={() => setPedidoSeleccionado(null)} className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center">
+                      <ChevronLeft size={18} className="text-slate-600" />
+                    </button>
+                    <div className="flex-1">
+                      <p className="font-black text-slate-900 text-sm">{pedidoSeleccionado.negocio_nombre}</p>
+                      <p className="text-xs text-slate-500">{pedidoSeleccionado.direccion_entrega}</p>
                     </div>
-
-                    {/* PASO 1: Ir al restaurante */}
-                    {deliveryStep === "heading_restaurant" && (
-                      <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
-                        <p className="text-sm font-black text-orange-600">Paso 1 — Ir al restaurante</p>
-                        {pedidoActivo.lat_restaurante && pedidoActivo.lat_entrega && (
-                          <div className="rounded-xl overflow-hidden border border-slate-200 mb-1">
-                            <RouteMap restLat={pedidoActivo.lat_restaurante} restLng={pedidoActivo.lng_restaurante}
-                              entregaLat={pedidoActivo.lat_entrega} entregaLng={pedidoActivo.lng_entrega} />
-                          </div>
-                        )}
-                        {pedidoActivo.lat_restaurante && (
-                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${pedidoActivo.lat_restaurante},${pedidoActivo.lng_restaurante}`} target="_blank"
-                            className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 font-bold text-sm">
-                            🗺️ Navegar al restaurante
-                          </a>
-                        )}
-                        <button onClick={() => setDeliveryStep("at_restaurant")}
-                          className="w-full py-3 rounded-2xl text-white font-black" style={{ background: GRAD }}>
-                          ✅ Llegue al restaurante
-                        </button>
-                      </div>
+                    {pedidosActivos.length > 1 && (
+                      <span className="text-xs font-black px-2 py-1 rounded-full text-white" style={{ background: GRAD }}>+{pedidosActivos.length - 1} mas</span>
                     )}
+                  </div>
 
-                    {/* PASO 2: Verificar con restaurante */}
-                    {deliveryStep === "at_restaurant" && (
-                      <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
-                        <p className="text-sm font-black text-orange-600">Paso 2 — Codigo del restaurante</p>
-                        <p className="text-xs text-slate-500">Selecciona la palabra que te muestra el restaurante</p>
-                        {intentosFallidos >= 2 ? (
-                          <div className="bg-red-100 rounded-xl p-4 text-center">
-                            <p className="font-black text-red-600">Cuenta bloqueada 24h</p>
-                            <p className="text-xs text-red-500 mt-1">Demasiados intentos incorrectos</p>
+                  {(() => {
+                    const est = getEstado(pedidoSeleccionado.id)
+                    return (
+                      <div className="p-4 space-y-4">
+
+                        {/* PASO 1 */}
+                        {est.deliveryStep === "heading_restaurant" && (
+                          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
+                            <p className="text-sm font-black text-orange-600">Paso 1 - Ir al restaurante</p>
+                            {pedidoSeleccionado.lat_restaurante && pedidoSeleccionado.lat_entrega && (
+                              <div className="rounded-xl overflow-hidden border border-slate-200">
+                                <RouteMap restLat={pedidoSeleccionado.lat_restaurante} restLng={pedidoSeleccionado.lng_restaurante}
+                                  entregaLat={pedidoSeleccionado.lat_entrega} entregaLng={pedidoSeleccionado.lng_entrega} />
+                              </div>
+                            )}
+                            {pedidoSeleccionado.lat_restaurante && (
+                              <a href={`https://www.google.com/maps/dir/?api=1&destination=${pedidoSeleccionado.lat_restaurante},${pedidoSeleccionado.lng_restaurante}`} target="_blank"
+                                className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 font-bold text-sm">
+                                Navegar al restaurante
+                              </a>
+                            )}
+                            <button onClick={() => setEstado(pedidoSeleccionado.id, { deliveryStep: "at_restaurant" })}
+                              className="w-full py-3 rounded-2xl text-white font-black" style={{ background: GRAD }}>
+                              Llegue al restaurante
+                            </button>
                           </div>
-                        ) : (
-                          <div className="flex flex-col gap-2">
-                            {opcionesRestaurante.length === 0 ? (
+                        )}
+
+                        {/* PASO 2 */}
+                        {est.deliveryStep === "at_restaurant" && (
+                          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
+                            <p className="text-sm font-black text-orange-600">Paso 2 - Codigo del restaurante</p>
+                            <p className="text-xs text-slate-500">Selecciona la palabra que te muestra el restaurante</p>
+                            {est.intentosFallidos >= 2 ? (
+                              <div className="bg-red-100 rounded-xl p-4 text-center">
+                                <p className="font-black text-red-600">Cuenta bloqueada 24h</p>
+                              </div>
+                            ) : opcionesRestaurante.length === 0 ? (
                               <p className="text-xs text-red-400">Error cargando opciones. Recarga la app.</p>
                             ) : opcionesRestaurante.map((op: string) => (
-                              <button key={op}
-                                onClick={() => {
-                                  if (op.trim().toUpperCase() === String(pedidoActivo?.codigo_restaurante||"").trim().toUpperCase()) {
-                                    setRestOk(true); setDeliveryStep("heading_client");
-                                    toast.success("✅ Recoleccion verificada");
-                                    actualizarEstadoPedido(pedidoActivo.id, "en_camino").catch(()=>{});
-                                  } else {
-                                    const ni = intentosFallidos + 1; setIntentosFallidos(ni);
-                                    if (ni >= 2) {
-                                      toast.error("Cuenta bloqueada por intentos incorrectos");
-                                      fetch(`${import.meta.env.VITE_API_URL||"http://localhost:3001"}/api/repartidor/${userId}/status`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({en_linea:false})});
-                                    } else { toast.error(`Incorrecto — ${2-ni} intento(s) restante(s)`); }
-                                  }
-                                }}
+                              <button key={op} onClick={() => {
+                                if (op.trim().toUpperCase() === String(pedidoSeleccionado?.codigo_restaurante||"").trim().toUpperCase()) {
+                                  setEstado(pedidoSeleccionado.id, { restOk: true, deliveryStep: "heading_client" })
+                                  toast.success("Recoleccion verificada")
+                                  actualizarEstadoPedido(pedidoSeleccionado.id, "en_camino").catch(()=>{})
+                                } else {
+                                  const ni = est.intentosFallidos + 1
+                                  setEstado(pedidoSeleccionado.id, { intentosFallidos: ni })
+                                  if (ni >= 2) {
+                                    toast.error("Cuenta bloqueada por intentos incorrectos")
+                                    fetch(`${API}/api/repartidor/${userId}/status`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({en_linea:false})})
+                                  } else { toast.error(`Incorrecto - ${2-ni} intento(s) restante(s)`) }
+                                }
+                              }}
                                 className="w-full py-3 rounded-xl font-black text-base border-2 border-orange-200 bg-white text-slate-700 hover:border-orange-400 transition-all tracking-widest">
                                 {op}
                               </button>
                             ))}
                           </div>
                         )}
-                      </div>
-                    )}
 
-                    {/* PASO 3: En camino al cliente */}
-                    {deliveryStep === "heading_client" && (
-                      <div className="space-y-3">
-                        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
-                          <p className="text-sm font-black text-purple-600 mb-3">Paso 3 — En camino al cliente</p>
-                          {pedidoActivo.lat_entrega && (
-                            <a href={`https://www.google.com/maps/dir/?api=1&destination=${pedidoActivo.lat_entrega},${pedidoActivo.lng_entrega}`} target="_blank"
-                              className="flex items-center justify-center gap-2 w-full py-2.5 mb-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 font-bold text-sm">
-                              🗺️ Navegar al cliente
-                            </a>
-                          )}
-                          <button onClick={() => setDeliveryStep("at_client")}
-                            className="w-full py-3 rounded-2xl text-white font-black" style={{ background: GRAD }}>
-                            📍 Llegue al punto de entrega
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* PASO 4: Verificar entrega con cliente */}
-                    {deliveryStep === "at_client" && (
-                      <div className="rounded-2xl p-4 border space-y-3" style={{ background: "rgba(241,7,163,0.05)", borderColor: "rgba(241,7,163,0.2)" }}>
-                        <p className="text-sm font-black" style={{ color: TEAL }}>Paso 4 — Entrega al cliente</p>
-                        {pedidoActivo?.status !== "esperando_cliente" && (
-                          <button onClick={() => {
-                            navigator.geolocation.getCurrentPosition(async pos => {
-                              try {
-                                const r = await fetch(`${import.meta.env.VITE_API_URL||"http://localhost:3001"}/api/repartidor/pedidos/${pedidoActivo.id}/esperando`,
-                                  { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({lat:pos.coords.latitude,lng:pos.coords.longitude}) });
-                                const d = await r.json();
-                                if (!r.ok) { toast.error(d.error||"Error"); return; }
-                                setPedidoActivo((p:any)=>({...p,status:"esperando_cliente"}));
-                                toast("⏱️ Cliente notificado — 10 min");
-                              } catch { toast.error("Error de conexion"); }
-                            }, () => toast.error("Activa tu GPS"));
-                          }} className="w-full py-2.5 rounded-xl border-2 border-amber-300 bg-amber-50 text-amber-700 font-bold text-sm flex items-center justify-center gap-2">
-                            📍 Cliente no esta — Marcar en espera
-                          </button>
-                        )}
-                        {pedidoActivo?.status === "esperando_cliente" && (
-                          <div className="bg-amber-100 border border-amber-300 rounded-xl p-3 text-center">
-                            <p className="font-black text-amber-700 text-sm">⏱️ En espera del cliente</p>
+                        {/* PASO 3 */}
+                        {est.deliveryStep === "heading_client" && (
+                          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-3">
+                            <p className="text-sm font-black text-purple-600">Paso 3 - En camino al cliente</p>
+                            {pedidoSeleccionado.lat_entrega && (
+                              <a href={`https://www.google.com/maps/dir/?api=1&destination=${pedidoSeleccionado.lat_entrega},${pedidoSeleccionado.lng_entrega}`} target="_blank"
+                                className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 font-bold text-sm">
+                                Navegar al cliente
+                              </a>
+                            )}
+                            <button onClick={() => setEstado(pedidoSeleccionado.id, { deliveryStep: "at_client" })}
+                              className="w-full py-3 rounded-2xl text-white font-black" style={{ background: GRAD }}>
+                              Llegue al punto de entrega
+                            </button>
                           </div>
                         )}
-                        <p className="text-xs text-slate-500">Selecciona la palabra que muestra el cliente</p>
-                        {intentosFallidos >= 2 ? (
-                          <div className="bg-red-100 rounded-xl p-4 text-center">
-                            <p className="font-black text-red-600">Cuenta bloqueada 24h</p>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-2">
-                            {opcionesCliente.map((op: string) => (
-                              <button key={op}
-                                onClick={() => {
-                                  if (op.trim().toUpperCase() === String(pedidoActivo?.codigo_entrega||"").trim().toUpperCase()) {
-                                    setClienteOk(true);
-                                    toast.success("✅ Entrega verificada");
-                                    finalizarEntrega(true);
-                                  } else {
-                                    const ni = intentosFallidos + 1; setIntentosFallidos(ni);
-                                    if (ni >= 2) {
-                                      toast.error("Cuenta bloqueada por intentos incorrectos");
-                                      fetch(`${import.meta.env.VITE_API_URL||"http://localhost:3001"}/api/repartidor/${userId}/status`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({en_linea:false})});
-                                    } else { toast.error(`Incorrecto — ${2-ni} intento(s) restante(s)`); }
-                                  }
-                                }}
+
+                        {/* PASO 4 */}
+                        {est.deliveryStep === "at_client" && (
+                          <div className="rounded-2xl p-4 border space-y-3" style={{ background: "rgba(241,7,163,0.05)", borderColor: "rgba(241,7,163,0.2)" }}>
+                            <p className="text-sm font-black" style={{ color: TEAL }}>Paso 4 - Entrega al cliente</p>
+                            {pedidoSeleccionado?.status !== "esperando_cliente" && (
+                              <button onClick={() => {
+                                navigator.geolocation.getCurrentPosition(async pos => {
+                                  try {
+                                    const r = await fetch(`${API}/api/repartidor/pedidos/${pedidoSeleccionado.id}/esperando`,
+                                      { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({lat:pos.coords.latitude,lng:pos.coords.longitude}) })
+                                    const d = await r.json()
+                                    if (!r.ok) { toast.error(d.error||"Error"); return }
+                                    setPedidosActivos(prev => prev.map(p => p.id === pedidoSeleccionado.id ? {...p, status:"esperando_cliente"} : p))
+                                    setPedidoSeleccionado((p:any) => ({...p, status:"esperando_cliente"}))
+                                    toast("Cliente notificado - 10 min")
+                                  } catch { toast.error("Error de conexion") }
+                                }, () => toast.error("Activa tu GPS"))
+                              }} className="w-full py-2.5 rounded-xl border-2 border-amber-300 bg-amber-50 text-amber-700 font-bold text-sm flex items-center justify-center gap-2">
+                                Cliente no esta - Marcar en espera
+                              </button>
+                            )}
+                            {pedidoSeleccionado?.status === "esperando_cliente" && (
+                              <div className="bg-amber-100 border border-amber-300 rounded-xl p-3 text-center">
+                                <p className="font-black text-amber-700 text-sm">En espera del cliente</p>
+                              </div>
+                            )}
+                            <p className="text-xs text-slate-500">Selecciona la palabra que muestra el cliente</p>
+                            {est.intentosFallidos >= 2 ? (
+                              <div className="bg-red-100 rounded-xl p-4 text-center"><p className="font-black text-red-600">Cuenta bloqueada 24h</p></div>
+                            ) : opcionesCliente.map((op: string) => (
+                              <button key={op} onClick={() => {
+                                if (op.trim().toUpperCase() === String(pedidoSeleccionado?.codigo_entrega||"").trim().toUpperCase()) {
+                                  setEstado(pedidoSeleccionado.id, { clienteOk: true })
+                                  toast.success("Entrega verificada")
+                                  finalizarEntrega(pedidoSeleccionado)
+                                } else {
+                                  const ni = est.intentosFallidos + 1
+                                  setEstado(pedidoSeleccionado.id, { intentosFallidos: ni })
+                                  if (ni >= 2) {
+                                    toast.error("Cuenta bloqueada por intentos incorrectos")
+                                    fetch(`${API}/api/repartidor/${userId}/status`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({en_linea:false})})
+                                  } else { toast.error(`Incorrecto - ${2-ni} intento(s) restante(s)`) }
+                                }
+                              }}
                                 className="w-full py-3 rounded-xl font-black text-base border-2 bg-white text-slate-700 hover:opacity-80 transition-all tracking-widest"
                                 style={{ borderColor: "rgba(241,7,163,0.3)" }}>
                                 {op}
@@ -565,28 +556,29 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                             ))}
                           </div>
                         )}
-                      </div>
-                    )}
 
-                    {restOk && clienteOk && (
-                      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-                        <CheckCircle className="text-green-500 mx-auto mb-2" size={32} />
-                        <p className="font-black text-green-700">Entrega completada</p>
+                        {est.restOk && est.clienteOk && (
+                          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+                            <CheckCircle className="text-green-500 mx-auto mb-2" size={32} />
+                            <p className="font-black text-green-700">Entrega completada</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    )
+                  })()}
                 </div>
               )}
             </motion.div>
           )}
 
+          {/* TAB HISTORIAL */}
           {tab === "historial" && (
             <motion.div key="h" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-3">
               <h2 className="text-xl font-black text-slate-900">Historial</h2>
               {historial.filter(p => p.status !== "en_camino").length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
                   <Clock size={40} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">Sin entregas aún</p>
+                  <p className="font-medium">Sin entregas aun</p>
                 </div>
               ) : historial.filter(p => p.status !== "en_camino").map(p => (
                 <div key={p.id} className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3">
@@ -597,15 +589,14 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-black" style={{ color: TEAL }}>${Number(p.comision || 0).toFixed(2)}</p>
-                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full text-white ${statusColor[p.status] || "bg-slate-400"}`}>
-                      {statusLabel[p.status] || p.status}
-                    </span>
+                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full text-white ${statusColor[p.status] || "bg-slate-400"}`}>{statusLabel[p.status] || p.status}</span>
                   </div>
                 </div>
               ))}
             </motion.div>
           )}
 
+          {/* TAB PERFIL */}
           {tab === "perfil" && (
             <motion.div key="pf" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               <div className="bg-white rounded-3xl border border-slate-100 p-6 flex flex-col items-center text-center">
@@ -630,26 +621,20 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                   </div>
                 </div>
               </div>
-
               <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center justify-between">
                 <div>
                   <p className="font-bold text-slate-900 text-sm">Estado</p>
                   <p className="text-xs text-slate-500">{online ? "Recibiendo pedidos" : "No recibo pedidos"}</p>
                 </div>
-                <button onClick={handleToggleOnline} className="w-14 h-7 rounded-full relative transition-all"
-                  style={{ background: online ? GRAD : "#e2e8f0" }}>
+                <button onClick={handleToggleOnline} className="w-14 h-7 rounded-full relative transition-all" style={{ background: online ? GRAD : "#e2e8f0" }}>
                   <div className={`w-6 h-6 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${online ? "right-0.5" : "left-0.5"}`} />
                 </button>
               </div>
-
               <button onClick={() => signOut()}
                 className="w-full py-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-center gap-2 text-slate-600 font-bold hover:bg-slate-50">
-                <LogOut size={18} /> Cerrar sesión
+                <LogOut size={18} /> Cerrar sesion
               </button>
-
-              <p className="text-center text-slate-300 text-[10px] font-black uppercase tracking-[0.2em]">
-                Desarrollado por <span className="text-slate-400">Batalla Group</span>
-              </p>
+              <p className="text-center text-slate-300 text-[10px] font-black uppercase tracking-[0.2em]">Desarrollado por <span className="text-slate-400">Batalla Group</span></p>
             </motion.div>
           )}
 
@@ -664,11 +649,13 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
             { id: "historial", label: "Historial", icon: Clock },
             { id: "perfil", label: "Perfil", icon: User },
           ].map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => setTab(id as any)}
+            <button key={id} onClick={() => { setTab(id as any); if (id !== "activo") setPedidoSeleccionado(null) }}
               className="flex flex-col items-center gap-0.5 px-3 py-1 transition-all relative"
               style={{ color: tab === id ? TEAL : "#94a3b8" }}>
-              {id === "activo" && pedidoActivo && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white" />
+              {id === "activo" && pedidosActivos.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-black text-white">
+                  {pedidosActivos.length}
+                </span>
               )}
               <Icon size={22} strokeWidth={tab === id ? 2.5 : 2} />
               <span className={`text-[9px] font-black uppercase tracking-tight ${tab === id ? "opacity-100" : "opacity-60"}`}>{label}</span>
@@ -679,7 +666,3 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     </div>
   )
 }
-
-
-
-
