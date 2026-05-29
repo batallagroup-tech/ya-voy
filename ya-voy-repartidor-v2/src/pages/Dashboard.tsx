@@ -701,6 +701,44 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                   </div>
                 </div>
               </div>
+
+              {/* VEHICULO */}
+              {(repartidor?.vehiculo || repartidor?.placa) && (
+                <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Vehiculo registrado</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0" style={{ background: "rgba(123,47,247,0.1)" }}>
+                      {repartidor?.vehiculo === "bici" ? "🚲" : repartidor?.vehiculo === "moto" ? "🏍️" : "🚗"}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm capitalize">{repartidor?.vehiculo || "—"}</p>
+                      <p className="text-xs text-slate-500">Placas: <span className="font-black tracking-widest">{repartidor?.placa || "Sin placas"}</span></p>
+                    </div>
+                    <div className="ml-auto">
+                      <span className={`text-[10px] font-black px-3 py-1.5 rounded-full text-white ${repartidor?.verificado ? "bg-green-500" : "bg-amber-500"}`}>
+                        {repartidor?.verificado ? "✓ Verificado" : "Pendiente"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* DOCUMENTOS */}
+              {repartidor?.documentos && (
+                <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Documentos entregados</p>
+                  <div className="space-y-2">
+                    {[["INE", repartidor.documentos.ine_frente], ["Selfie", repartidor.documentos.selfie], ["Tarjeta circulacion", repartidor.documentos.tarjeta_url]].map(([label, url]) => (
+                      <div key={label as string} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-slate-600 font-medium">{label as string}</span>
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-full ${url ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400"}`}>
+                          {url ? "✓ Entregado" : "Sin documento"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center justify-between">
                 <div>
                   <p className="font-bold text-slate-900 text-sm">Estado</p>
