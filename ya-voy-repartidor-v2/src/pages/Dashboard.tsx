@@ -30,6 +30,7 @@ const statusLabel: Record<string, string> = {
 function RouteMap({ restLat, restLng, entregaLat, entregaLng }: { restLat: number; restLng: number; entregaLat: number; entregaLng: number }) {
   const [coords, setCoords] = useState<[number,number][]>([])
   const [info, setInfo] = useState<{ dist: string; time: string } | null>(null)
+  const compact = false
   useEffect(() => {
     const fetchRoute = async () => {
       try {
@@ -48,7 +49,7 @@ function RouteMap({ restLat, restLng, entregaLat, entregaLng }: { restLat: numbe
   const center: [number,number] = [(restLat + entregaLat) / 2, (restLng + entregaLng) / 2]
   return (
     <div>
-      <div style={{ height: 200 }}>
+      <div style={{ height: 180 }}>
         <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={false}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <Marker position={[restLat, restLng]} icon={restauranteIcon} />
@@ -371,7 +372,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
         )}
       </AnimatePresence>
 
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto pb-24">
         <AnimatePresence mode="wait">
 
           {/* TAB PEDIDOS */}
@@ -514,8 +515,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                               </a>
                             )}
                             <button onClick={() => setEstado(pedidoSeleccionado.id, { deliveryStep: "at_restaurant" })}
-                              className="w-full py-3 rounded-2xl text-white font-black" style={{ background: GRAD }}>
-                              Llegue al restaurante
+                              className="w-full py-4 rounded-2xl text-white font-black text-base" style={{ background: GRAD }}>
+                              ✅ Llegue al restaurante
                             </button>
                           </div>
                         )}
@@ -564,8 +565,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                               </a>
                             )}
                             <button onClick={() => setEstado(pedidoSeleccionado.id, { deliveryStep: "at_client" })}
-                              className="w-full py-3 rounded-2xl text-white font-black" style={{ background: GRAD }}>
-                              Llegue al punto de entrega
+                              className="w-full py-4 rounded-2xl text-white font-black text-base" style={{ background: GRAD }}>
+                              ✅ Llegue al punto de entrega
                             </button>
                           </div>
                         )}
