@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useSignIn } from '@clerk/clerk-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Utensils, Mail, Eye, EyeOff, ArrowLeft, Loader2 } from 'lucide-react';
@@ -28,7 +28,7 @@ export default function Login() {
     if (!isLoaded) return;
     await signIn!.authenticateWithRedirect({
       strategy: 'oauth_google',
-      redirectUrl: '/sso-callback',
+      redirectUrl: window.location.origin + '/sso-callback',
       redirectUrlComplete: '/',
     });
   };
@@ -121,6 +121,7 @@ export default function Login() {
         )}
       </AnimatePresence>
 
+      <div id="clerk-captcha" className="hidden" />
       <p className="absolute bottom-6 text-white/30 text-xs">Desarrollado por Batalla Group</p>
     </div>
   );

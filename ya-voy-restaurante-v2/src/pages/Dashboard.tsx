@@ -235,7 +235,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   <div className="flex items-center justify-between pt-2 border-t border-slate-50">
                     <p className="font-black text-slate-900">Total: ${Number(o.total || 0).toFixed(2)}</p>
                     <div className="flex items-center gap-2">
-                      {o.status === 'listo' && o.codigo_entrega && (
+                      {(o.status === 'listo' || o.status === 'en_camino') && o.codigo_restaurante && (
                         <div className="flex-1 bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-center">
                           <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">C�digo para repartidor</p>
                           <p className="text-lg font-black text-green-700 tracking-widest">{o.codigo_entrega}</p>

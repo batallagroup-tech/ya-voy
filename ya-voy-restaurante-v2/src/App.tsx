@@ -15,16 +15,11 @@ import { usePushNotifications } from './hooks/usePushNotifications'
 type AppStatus = 'loading' | 'setup' | 'pendiente' | 'rechazado' | 'aprobado';
 
 export default function App() {
-  if (window.location.pathname === '/sso-callback') {
-    return <AuthenticateWithRedirectCallback />;
-  }
-
   const { isLoaded, isSignedIn, userId, getToken } = useAuth();
   const { user } = useUser()
   usePushNotifications({ userId, getToken });
   const { signOut } = useClerk();
   const [showSplash, setShowSplash] = useState(true)
-  const [rtGlow, setRtGlow] = useState(false);
   const [status, setStatus] = useState<AppStatus>('loading');
   const [solicitudData, setSolicitudData] = useState<any>(null);
   const [negocioData, setNegocioData] = useState<any>(null);
@@ -62,6 +57,10 @@ export default function App() {
     init();
   }, [isLoaded, isSignedIn, userId, user]);
 
+  if (window.location.pathname === '/sso-callback') {
+    return <AuthenticateWithRedirectCallback />;
+  }
+
   if (showSplash) {
     return (
       <AnimatePresence>
@@ -98,7 +97,7 @@ export default function App() {
         onClick={() => signOut()}
         className="fixed top-4 right-4 z-50 bg-white border border-slate-200 text-slate-500 text-sm px-4 py-2 rounded-lg shadow-sm hover:bg-slate-50 transition-all"
       >
-        ← Cerrar sesión
+        Cerrar sesion
       </button>
       <RestaurantSetup
         userId={userId}
@@ -110,4 +109,3 @@ export default function App() {
     </div>
   );
 }
-

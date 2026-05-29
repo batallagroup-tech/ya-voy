@@ -367,7 +367,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
               </div>
               <div className="space-y-3">
                 {[{ value: vehiculoModelo, set: setVehiculoModelo, label: "Modelo", placeholder: "Ej: Italika FT150, Tsuru...", upper: false },
-                  { value: vehiculoPlacas, set: setVehiculoPlacas, label: "Placas", placeholder: "Ej: ABC-1234", upper: true },
+                  ...(vehiculoTipo !== "bici" ? [{ value: vehiculoPlacas, set: setVehiculoPlacas, label: "Placas", placeholder: "Ej: ABC-1234", upper: true }] : []),
                   { value: telefono, set: setTelefono, label: "Teléfono de contacto", placeholder: "55 1234 5678", upper: false }
                 ].map(({ value, set, label, placeholder, upper }) => (
                   <div key={label} className="space-y-1.5">
@@ -379,7 +379,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
               </div>
               <div className="flex gap-4">
                 <button onClick={() => setStep(2)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2"><ChevronLeft size={20} /> Atrás</button>
-                <button onClick={() => setStep(4)} disabled={!vehiculoModelo || !vehiculoPlacas || !telefono}
+                <button onClick={() => setStep(4)} disabled={!vehiculoModelo || (vehiculoTipo !== "bici" && !vehiculoPlacas) || !telefono}
                   className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50">Siguiente <ChevronRight size={20} /></button>
               </div>
             </motion.div>
@@ -389,15 +389,16 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
           {step === 4 && (
             <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 mb-1">Tarjeta de Circulación</h1>
-                <p className="text-sm text-slate-500">Foto de la tarjeta de circulación de tu vehículo.</p>
+                <h1 className="text-2xl font-black text-slate-900 mb-1">{vehiculoTipo === "bici" ? "Foto de tu bicicleta" : "Tarjeta de Circulacion"}</h1>
+                <p className="text-sm text-slate-500">{vehiculoTipo === "bici" ? "Sube una foto clara de tu bicicleta." : "Foto de la tarjeta de circulacion de tu vehiculo."}</p>
               </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
                 <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
                 <p className="text-amber-700 text-xs font-bold leading-relaxed">
-                  Las placas y datos del vehículo deben coincidir <span className="underline">exactamente</span> con
-                  lo que ingresaste. De lo contrario tu solicitud será <strong>rechazada</strong>.
+                  {vehiculoTipo === "bici"
+                    ? "La foto debe mostrar claramente tu bicicleta completa."
+                    : <>Las placas y datos del vehiculo deben coincidir <span className="underline">exactamente</span> con lo que ingresaste. De lo contrario tu solicitud sera <strong>rechazada</strong>.</>}
                 </p>
               </div>
 
@@ -413,7 +414,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                 ) : (
                   <div className="p-8 text-center space-y-4">
                     <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto">
-                      <span className="text-3xl">🚗</span>
+                      <span className="text-3xl">{vehiculoTipo === "bici" ? "🚲" : "🚗"}</span>
                     </div>
                     <div>
                       <p className="font-bold text-slate-700">Tarjeta de Circulación</p>
@@ -437,7 +438,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                 <button onClick={() => setStep(3)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2">
                   <ChevronLeft size={20} /> Atrás
                 </button>
-                <button onClick={() => setStep(5)} disabled={!tarjetaCirc}
+                <button onClick={() => setStep(5)} disabled={vehiculoTipo !== "bici" && !tarjetaCirc}
                   className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50">
                   Siguiente <ChevronRight size={20} />
                 </button>
@@ -455,7 +456,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                     <div className="flex items-center gap-1 mt-0.5"><Lock size={10} className="text-green-500" /><p className="text-[10px] text-green-600 font-bold">Verificado con INE</p></div>
                   </div>
                 </div>
-                {[["Teléfono", telefono], ["Vehículo", `${vehiculoTipo.charAt(0).toUpperCase() + vehiculoTipo.slice(1)} — ${vehiculoModelo}`], ["Placas", vehiculoPlacas], ["Documentos", "✓ INE frente + reverso + selfie + tarjeta"]].map(([k, v]) => (
+                {[["Teléfono", telefono], ["Vehículo", `${vehiculoTipo.charAt(0).toUpperCase() + vehiculoTipo.slice(1)} — ${vehiculoModelo}`], ...(vehiculoTipo !== "bici" ? [["Placas", vehiculoPlacas]] : []), ["Documentos", "✓ INE frente + reverso + selfie + " + (vehiculoTipo === "bici" ? "foto bici" : "tarjeta circulacion")]].map(([k, v]) => (
                   <div key={k} className="flex justify-between text-sm"><span className="text-slate-500">{k}</span><span className="font-bold text-slate-900">{v}</span></div>
                 ))}
               </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useClerk } from "@clerk/clerk-react"
 import { motion, AnimatePresence } from "motion/react"
 import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet"
@@ -103,9 +103,34 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   const [confirmando, setConfirmando] = useState<any>(null)
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
-  const [opcionesCliente, setOpcionesCliente] = useState<string[]>([])
+  const _PALS = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
+  const _seed = (pedidoActivo?.id || "").split("").reduce((a:number,c:string)=>a+c.charCodeAt(0),0)
+  const opcionesRestaurante = useMemo(() => {
+    if (!pedidoActivo) return []
+    const cod = String(pedidoActivo.codigo_restaurante || "")
+    if (!cod) return []
+    const others = _PALS.filter((w:string) => w !== cod)
+    const i1 = _seed % others.length
+    let i2 = (_seed * 3 + 7) % others.length
+    if (i2 === i1) i2 = (i2 + 1) % others.length
+    const opts = [cod, others[i1], others[i2]]
+    const s = _seed % 3
+    if (s === 1) return [opts[1], opts[0], opts[2]]
+    if (s === 2) return [opts[2], opts[1], opts[0]]
+    return opts
+  }, [pedidoActivo?.id, pedidoActivo?.codigo_restaurante])
+  const opcionesCliente = useMemo(() => {
+    const cod = pedidoActivo?.codigo_entrega
+    if (!cod) return []
+    const seed = cod.charCodeAt(0) + cod.charCodeAt(1)
+    const sorted = _PALS.filter(w => w !== cod).sort((a,b) => ((seed * a.charCodeAt(0)) % 97) - ((seed * b.charCodeAt(0)) % 97))
+    return [cod, sorted[0], sorted[1]].sort((a,b) => ((seed * a.charCodeAt(2)||1) % 7) - ((seed * b.charCodeAt(2)||1) % 7))
+  }, [pedidoActivo?.codigo_entrega])
+  const PALS_CONST = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
   const [codCliente, setCodCliente] = useState("")
   const [restOk, setRestOk] = useState(false)
+  const [intentosFallidos, setIntentosFallidos] = useState(0)
+  const [deliveryStep, setDeliveryStep] = useState<string>("heading_restaurant")
   const [clienteOk, setClienteOk] = useState(false)
   const pollRef = useRef<any>(null)
 
@@ -125,7 +150,13 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     try {
       const data = (await getPedidosRepartidor(userId) as any[]) || []
       const activo = data.find((p: any) => p.status === "en_camino" && p.repartidor_id === userId)
-      if (activo && !pedidoActivo) { setPedidoActivo(activo); setTab("activo") }
+      if (activo && !pedidoActivo) {
+        setPedidoActivo(activo); setTab("activo")
+        if (activo.codigo_entrega) {
+          const PALS2 = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
+          const falsas2 = PALS2.filter((w:string) => w !== activo.codigo_entrega).sort(() => Math.random()-0.5).slice(0,2)
+        }
+      }
       setHistorial(data)
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
   }
@@ -157,15 +188,15 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   const handleAceptar = async (pedido: any) => {
     setLoading(true)
     try {
-      await aceptarPedido(pedido.id, userId)
-      setPedidoActivo(pedido); setRestOk(false); setClienteOk(false)
+      const updated = await aceptarPedido(pedido.id, userId)
+      const pedidoFinal = { ...pedido, ...updated }
+      setPedidoActivo(pedidoFinal); setRestOk(false); setClienteOk(false); setDeliveryStep("heading_restaurant"); setIntentosFallidos(0)
       setCodRest(""); setCodCliente(""); setTab("activo")
       // Generar 3 opciones para el codigo del cliente
-      if (pedido.codigo_entrega) {
-        const PALS = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
-        const falsas = PALS.filter((w: string) => w !== pedido.codigo_entrega).sort(() => Math.random()-0.5).slice(0,2)
-        setOpcionesCliente([pedido.codigo_entrega, ...falsas].sort(() => Math.random()-0.5))
-      }
+      const PALS = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]
+      const cod = pedidoFinal.codigo_entrega || PALS[Math.floor(Math.random()*PALS.length)]
+      if (!pedidoFinal.codigo_entrega) pedidoFinal.codigo_entrega = cod
+      const falsas = PALS.filter((w: string) => w !== cod).sort(() => Math.random()-0.5).slice(0,2)
       toast.success("¡Pedido aceptado!")
       setDisponibles(prev => prev.filter(p => p.id !== pedido.id))
       clearInterval(pollRef.current)
@@ -202,13 +233,13 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     } else { toast.error("Código incorrecto") }
   }
 
-  const finalizarEntrega = async () => {
-    if (!restOk || !clienteOk) { toast.error("Completa las verificaciones primero"); return }
+  const finalizarEntrega = async (force = false) => {
+    if (!force && !restOk || !clienteOk && !force) { toast.error("Completa las verificaciones primero"); return }
     setLoading(true)
     try {
       await actualizarEstadoPedido(pedidoActivo.id, "entregado")
       toast.success("¡Entrega completada! 🎉")
-      setPedidoActivo(null); setTab("historial"); cargarHistorial()
+      setPedidoActivo(null); setTab("historial"); setDeliveryStep("heading_restaurant"); setIntentosFallidos(0); cargarHistorial()
       pollRef.current = setInterval(cargarDisponibles, 2000)
     } catch (e: any) { toast.error(e.message || "Error") }
     finally { setLoading(false) }
@@ -242,6 +273,70 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
         </button>
       </div>
 
+      
+      {/* MODAL DETALLE PEDIDO */}
+      <AnimatePresence>
+        {confirmando && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[60] flex items-end">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                <h3 className="font-black text-slate-900 text-lg">Detalles del pedido</h3>
+                <button onClick={() => setConfirmando(null)} className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center">
+                  <X size={18} className="text-slate-500" />
+                </button>
+              </div>
+              {confirmando.lat_restaurante && confirmando.lat_entrega && (
+                <RouteMap restLat={confirmando.lat_restaurante} restLng={confirmando.lng_restaurante}
+                  entregaLat={confirmando.lat_entrega} entregaLng={confirmando.lng_entrega} />
+              )}
+              <div className="p-4 space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ background: "#FF6B00" }} />
+                    <div>
+                      <p className="text-[10px] text-slate-400 uppercase font-bold">Recoger en</p>
+                      <p className="font-bold text-slate-800">{confirmando.negocio_nombre}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin size={12} className="text-purple-500 shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-slate-400 uppercase font-bold">Entregar en</p>
+                      <p className="font-bold text-slate-800">{confirmando.direccion_entrega}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
+                  {(Array.isArray(confirmando.items) ? confirmando.items : []).map((item: any, i: number) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-slate-600">{item.cantidad}x {item.nombre}</span>
+                      <span className="font-bold">${(item.precio * item.cantidad).toFixed(2)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-slate-200 pt-2 flex justify-between font-black text-slate-900">
+                    <span>Total pedido</span><span>${Number(confirmando.total).toFixed(2)}</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center bg-green-50 border border-green-200 rounded-2xl p-4">
+                  <div>
+                    <p className="text-xs text-green-600 font-bold uppercase">Tu ganancia (15%)</p>
+                    <p className="font-black text-2xl text-green-700">${(Number(confirmando.total) * 0.15).toFixed(2)}</p>
+                  </div>
+                  <TrendingUp size={32} className="text-green-400" />
+                </div>
+                <button onClick={() => { handleAceptar(confirmando); setConfirmando(null); }} disabled={loading}
+                  className="w-full py-4 rounded-2xl text-white font-black text-lg flex items-center justify-center gap-2 disabled:opacity-60"
+                  style={{ background: GRAD }}>
+                  {loading ? <Loader2 className="animate-spin" size={22} /> : <Navigation size={22} />}
+                  Aceptar esta ruta
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="flex-1 overflow-y-auto pb-20">
         <AnimatePresence mode="wait">
 
@@ -300,7 +395,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                       <span className="truncate">{p.direccion_entrega || "Cliente"}</span>
                     </div>
                   </div>
-                  <button onClick={() => setConfirmando(p)} disabled={loading}
+                  <button onClick={() => setConfirmando(p)} disabled={loading || !!pedidoActivo}
                     className="w-full py-3 rounded-xl text-white font-black flex items-center justify-center gap-2 disabled:opacity-60"
                     style={{ background: GRAD }}>
                     Ver detalles <ChevronRight size={18} />
@@ -322,17 +417,13 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                 </div>
               ) : (
                 <div>
-                  {pedidoActivo.lat_restaurante && pedidoActivo.lat_entrega && (
-                    <RouteMap
-                      restLat={pedidoActivo.lat_restaurante}
-                      restLng={pedidoActivo.lng_restaurante}
-                      entregaLat={pedidoActivo.lat_entrega}
-                      entregaLng={pedidoActivo.lng_entrega}
-                    />
+                  {(deliveryStep === "heading_client" || deliveryStep === "at_client") && pedidoActivo.lat_restaurante && pedidoActivo.lat_entrega && (
+                    <RouteMap restLat={pedidoActivo.lat_restaurante} restLng={pedidoActivo.lng_restaurante}
+                      entregaLat={pedidoActivo.lat_entrega} entregaLng={pedidoActivo.lng_entrega} />
                   )}
                   <div className="p-4 space-y-4">
                     <div className="bg-white rounded-2xl border border-slate-100 p-4">
-                      <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: TEAL }}>Entrega activa</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: TEAL }}>Entrega activa</p>
                       <h3 className="font-black text-slate-900 text-lg">{pedidoActivo.negocio_nombre || "Restaurante"}</h3>
                       <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
                         <MapPin size={14} className="text-orange-400" />
@@ -340,93 +431,149 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                       </div>
                     </div>
 
-                    {!restOk && (
-                      <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Lock size={16} className="text-orange-500" />
-                          <p className="text-sm font-black text-orange-600">Fase 1: Recolección en restaurante</p>
-                        </div>
-                        <p className="text-xs text-slate-500 mb-3">Pide el código al restaurante al recoger</p>
-                        <div className="flex gap-2">
-                          <input value={codRest} onChange={e => setCodRest(e.target.value)}
-                            placeholder="Código restaurante"
-                            className="flex-1 px-3 py-2.5 bg-white border border-orange-200 rounded-xl text-sm outline-none" />
-                          <button onClick={verificarRest} className="px-4 py-2.5 bg-orange-500 text-white rounded-xl font-black text-xs">OK</button>
+                    {/* PASO 1: Ir al restaurante */}
+                    {deliveryStep === "heading_restaurant" && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
+                        <p className="text-sm font-black text-orange-600">Paso 1 — Ir al restaurante</p>
+                        {pedidoActivo.lat_restaurante && pedidoActivo.lat_entrega && (
+                          <div className="rounded-xl overflow-hidden border border-slate-200 mb-1">
+                            <RouteMap restLat={pedidoActivo.lat_restaurante} restLng={pedidoActivo.lng_restaurante}
+                              entregaLat={pedidoActivo.lat_entrega} entregaLng={pedidoActivo.lng_entrega} />
+                          </div>
+                        )}
+                        {pedidoActivo.lat_restaurante && (
+                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${pedidoActivo.lat_restaurante},${pedidoActivo.lng_restaurante}`} target="_blank"
+                            className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 font-bold text-sm">
+                            🗺️ Navegar al restaurante
+                          </a>
+                        )}
+                        <button onClick={() => setDeliveryStep("at_restaurant")}
+                          className="w-full py-3 rounded-2xl text-white font-black" style={{ background: GRAD }}>
+                          ✅ Llegue al restaurante
+                        </button>
+                      </div>
+                    )}
+
+                    {/* PASO 2: Verificar con restaurante */}
+                    {deliveryStep === "at_restaurant" && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
+                        <p className="text-sm font-black text-orange-600">Paso 2 — Codigo del restaurante</p>
+                        <p className="text-xs text-slate-500">Selecciona la palabra que te muestra el restaurante</p>
+                        {intentosFallidos >= 2 ? (
+                          <div className="bg-red-100 rounded-xl p-4 text-center">
+                            <p className="font-black text-red-600">Cuenta bloqueada 24h</p>
+                            <p className="text-xs text-red-500 mt-1">Demasiados intentos incorrectos</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            {opcionesRestaurante.length === 0 ? (
+                              <p className="text-xs text-red-400">Error cargando opciones. Recarga la app.</p>
+                            ) : opcionesRestaurante.map((op: string) => (
+                              <button key={op}
+                                onClick={() => {
+                                  if (op.trim().toUpperCase() === String(pedidoActivo?.codigo_restaurante||"").trim().toUpperCase()) {
+                                    setRestOk(true); setDeliveryStep("heading_client");
+                                    toast.success("✅ Recoleccion verificada");
+                                    actualizarEstadoPedido(pedidoActivo.id, "en_camino").catch(()=>{});
+                                  } else {
+                                    const ni = intentosFallidos + 1; setIntentosFallidos(ni);
+                                    if (ni >= 2) {
+                                      toast.error("Cuenta bloqueada por intentos incorrectos");
+                                      fetch(`${import.meta.env.VITE_API_URL||"http://localhost:3001"}/api/repartidor/${userId}/status`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({en_linea:false})});
+                                    } else { toast.error(`Incorrecto — ${2-ni} intento(s) restante(s)`); }
+                                  }
+                                }}
+                                className="w-full py-3 rounded-xl font-black text-base border-2 border-orange-200 bg-white text-slate-700 hover:border-orange-400 transition-all tracking-widest">
+                                {op}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* PASO 3: En camino al cliente */}
+                    {deliveryStep === "heading_client" && (
+                      <div className="space-y-3">
+                        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
+                          <p className="text-sm font-black text-purple-600 mb-3">Paso 3 — En camino al cliente</p>
+                          {pedidoActivo.lat_entrega && (
+                            <a href={`https://www.google.com/maps/dir/?api=1&destination=${pedidoActivo.lat_entrega},${pedidoActivo.lng_entrega}`} target="_blank"
+                              className="flex items-center justify-center gap-2 w-full py-2.5 mb-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 font-bold text-sm">
+                              🗺️ Navegar al cliente
+                            </a>
+                          )}
+                          <button onClick={() => setDeliveryStep("at_client")}
+                            className="w-full py-3 rounded-2xl text-white font-black" style={{ background: GRAD }}>
+                            📍 Llegue al punto de entrega
+                          </button>
                         </div>
                       </div>
                     )}
 
-                    {restOk && !clienteOk && (
-                      <div className="rounded-2xl p-4 border" style={{ background: "rgba(0,150,136,0.05)", borderColor: "rgba(0,150,136,0.2)" }}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <CheckCircle size={16} style={{ color: TEAL }} />
-                          <p className="text-sm font-black" style={{ color: TEAL }}>Recolección ✓ · Fase 2: Entrega al cliente</p>
-                        </div>
+                    {/* PASO 4: Verificar entrega con cliente */}
+                    {deliveryStep === "at_client" && (
+                      <div className="rounded-2xl p-4 border space-y-3" style={{ background: "rgba(241,7,163,0.05)", borderColor: "rgba(241,7,163,0.2)" }}>
+                        <p className="text-sm font-black" style={{ color: TEAL }}>Paso 4 — Entrega al cliente</p>
                         {pedidoActivo?.status !== "esperando_cliente" && (
                           <button onClick={() => {
                             navigator.geolocation.getCurrentPosition(async pos => {
                               try {
-                                const r = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/repartidor/pedidos/${pedidoActivo.id}/esperando`,
-                                  { method: "PATCH", headers: {"Content-Type":"application/json"},
-                                    body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }) });
+                                const r = await fetch(`${import.meta.env.VITE_API_URL||"http://localhost:3001"}/api/repartidor/pedidos/${pedidoActivo.id}/esperando`,
+                                  { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({lat:pos.coords.latitude,lng:pos.coords.longitude}) });
                                 const d = await r.json();
-                                if (!r.ok) { toast.error(d.error || "Debes estar en la ubicación"); return; }
-                                setPedidoActivo((p: any) => ({...p, status: "esperando_cliente"}));
-                                toast("⏱️ Cliente notificado — 10 min", { duration: 2000 });
-                              } catch { toast.error("Error de conexión"); }
+                                if (!r.ok) { toast.error(d.error||"Error"); return; }
+                                setPedidoActivo((p:any)=>({...p,status:"esperando_cliente"}));
+                                toast("⏱️ Cliente notificado — 10 min");
+                              } catch { toast.error("Error de conexion"); }
                             }, () => toast.error("Activa tu GPS"));
-                          }} className="w-full py-2.5 rounded-xl border-2 border-amber-300 bg-amber-50 text-amber-700 font-bold text-sm mb-3 flex items-center justify-center gap-2">
-                            📍 Cliente no está — Marcar en espera
+                          }} className="w-full py-2.5 rounded-xl border-2 border-amber-300 bg-amber-50 text-amber-700 font-bold text-sm flex items-center justify-center gap-2">
+                            📍 Cliente no esta — Marcar en espera
                           </button>
                         )}
                         {pedidoActivo?.status === "esperando_cliente" && (
-                          <div className="bg-amber-100 border border-amber-300 rounded-xl p-3 mb-3 text-center">
+                          <div className="bg-amber-100 border border-amber-300 rounded-xl p-3 text-center">
                             <p className="font-black text-amber-700 text-sm">⏱️ En espera del cliente</p>
-                            <p className="text-xs text-amber-600 mt-0.5">Si no llega en 10 min el pedido se cierra automáticamente</p>
                           </div>
                         )}
-                        <p className="text-xs text-slate-500 mb-3">Selecciona la palabra que muestra el cliente</p>
-                        {opcionesCliente.length > 0 ? (
+                        <p className="text-xs text-slate-500">Selecciona la palabra que muestra el cliente</p>
+                        {intentosFallidos >= 2 ? (
+                          <div className="bg-red-100 rounded-xl p-4 text-center">
+                            <p className="font-black text-red-600">Cuenta bloqueada 24h</p>
+                          </div>
+                        ) : (
                           <div className="flex flex-col gap-2">
-                            {opcionesCliente.map((op: string, i: number) => (
-                              <button key={i} onClick={() => setCodCliente(op)}
-                                className={`w-full py-3 rounded-xl font-bold text-sm border-2 transition-all ${codCliente === op ? "bg-teal-50 text-teal-700" : "border-gray-200 bg-white text-gray-700"}`}
-                                style={codCliente === op ? { borderColor: TEAL } : {}}>
+                            {opcionesCliente.map((op: string) => (
+                              <button key={op}
+                                onClick={() => {
+                                  if (op.trim().toUpperCase() === String(pedidoActivo?.codigo_entrega||"").trim().toUpperCase()) {
+                                    setClienteOk(true);
+                                    toast.success("✅ Entrega verificada");
+                                    finalizarEntrega(true);
+                                  } else {
+                                    const ni = intentosFallidos + 1; setIntentosFallidos(ni);
+                                    if (ni >= 2) {
+                                      toast.error("Cuenta bloqueada por intentos incorrectos");
+                                      fetch(`${import.meta.env.VITE_API_URL||"http://localhost:3001"}/api/repartidor/${userId}/status`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({en_linea:false})});
+                                    } else { toast.error(`Incorrecto — ${2-ni} intento(s) restante(s)`); }
+                                  }
+                                }}
+                                className="w-full py-3 rounded-xl font-black text-base border-2 bg-white text-slate-700 hover:opacity-80 transition-all tracking-widest"
+                                style={{ borderColor: "rgba(241,7,163,0.3)" }}>
                                 {op}
                               </button>
                             ))}
-                            <button onClick={verificarCliente} disabled={!codCliente}
-                              className="w-full py-2.5 text-white rounded-xl font-black text-sm mt-1 disabled:opacity-40"
-                              style={{ background: TEAL }}>Confirmar entrega</button>
-                          </div>
-                        ) : (
-                          <div className="flex gap-2">
-                            <input value={codCliente} onChange={e => setCodCliente(e.target.value)}
-                              placeholder="Código del cliente"
-                              className="flex-1 px-3 py-2.5 bg-white border rounded-xl text-sm outline-none"
-                              style={{ borderColor: "rgba(0,150,136,0.3)" }} />
-                            <button onClick={verificarCliente} className="px-4 py-2.5 text-white rounded-xl font-black text-xs" style={{ background: TEAL }}>OK</button>
                           </div>
                         )}
                       </div>
                     )}
 
                     {restOk && clienteOk && (
-                      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
-                        <CheckCircle className="text-green-500" size={24} />
-                        <div>
-                          <p className="font-black text-green-700 text-sm">Ambas verificaciones completas</p>
-                          <p className="text-xs text-green-600">Ya puedes finalizar la entrega</p>
-                        </div>
+                      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+                        <CheckCircle className="text-green-500 mx-auto mb-2" size={32} />
+                        <p className="font-black text-green-700">Entrega completada</p>
                       </div>
                     )}
-
-                    <button onClick={finalizarEntrega} disabled={loading || !restOk || !clienteOk}
-                      className="w-full py-4 rounded-2xl text-white font-black flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
-                      style={{ background: GRAD }}>
-                      {loading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle size={20} />}
-                      Finalizar entrega
-                    </button>
                   </div>
                 </div>
               )}

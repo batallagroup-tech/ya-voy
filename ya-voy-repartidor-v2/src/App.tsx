@@ -48,6 +48,8 @@ export default function App() {
     init()
   }, [isLoaded, isSignedIn, userId, user])
 
+  if (window.location.pathname === "/sso-callback") return <AuthenticateWithRedirectCallback />
+
   if (showSplash) return (
     <AnimatePresence><SplashScreen onDone={() => setShowSplash(false)} /></AnimatePresence>
   )
