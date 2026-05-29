@@ -4,14 +4,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, ShoppingBag, Utensils, TrendingUp,
-  Settings, LogOut, Plus, Edit2, Trash2, Check, X,
+  Settings, LogOut, Plus, Edit2, Trash2, X,
   DollarSign, Star, Clock, Power, Loader2, ChevronRight,
-  Image as ImageIcon, Ticket, Users, Save
+  Image as ImageIcon, Save
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 const CATEGORIES = ['Tacos','Hamburguesas','Pizza','Sushi','Postres','Bebidas','Comida Corrida','Alitas','Ensaladas','Mariscos'];
-const DAYS = [{id:'mon',label:'Lunes'},{id:'tue',label:'Martes'},{id:'wed',label:'Mi�rcoles'},{id:'thu',label:'Jueves'},{id:'fri',label:'Viernes'},{id:'sat',label:'S�bado'},{id:'sun',label:'Domingo'}];
 
 interface Props { negocio: any }
 
@@ -23,12 +22,27 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  // Producto form
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [productForm, setProductForm] = useState({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false });
   const [uploadingImg, setUploadingImg] = useState(false);
+  const prevNuevosRef = useRef(0);
+
+  const playBeep = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      [0, 150, 300].forEach(delay => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = 880; o.type = 'sine';
+        g.gain.setValueAtTime(0.3, ctx.currentTime + delay/1000);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay/1000 + 0.2);
+        o.start(ctx.currentTime + delay/1000);
+        o.stop(ctx.currentTime + delay/1000 + 0.2);
+      });
+    } catch {}
+  };
 
   const load = useCallback(async () => {
     if (!negocio?.id) return;
@@ -38,6 +52,9 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
         apiFetch<any[]>(`/api/negocios/${negocio.id}/pedidos`).catch(() => []),
         apiFetch<any[]>(`/api/negocios/${negocio.id}/productos`).catch(() => []),
       ]);
+      const nuevosActuales = ords.filter((o: any) => o.status === 'nuevo').length;
+      if (nuevosActuales > prevNuevosRef.current) playBeep();
+      prevNuevosRef.current = nuevosActuales;
       setOrders(ords);
       setProducts(prods);
     } finally { setLoading(false); }
@@ -45,15 +62,16 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    const interval = setInterval(() => { if (tab === "orders" || tab === "overview") load() }, 2000);
+    if (tab !== 'orders' && tab !== 'overview') return;
+    const interval = setInterval(() => load(), 3000);
     return () => clearInterval(interval);
-  }, [load]);
+  }, [load, tab]);
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
       await apiFetch(`/api/negocios/pedidos/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
+    } catch { toast.error('Ocurrio un error'); }
   };
 
   const uploadImg = async (file: File) => {
@@ -65,8 +83,9 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
       const r = await fetch('https://api.cloudinary.com/v1_1/' + import.meta.env.VITE_CLOUDINARY_CLOUD_NAME + '/image/upload', { method: 'POST', body: fd });
       const d = await r.json();
       if (d.secure_url) setProductForm(p => ({ ...p, imagen_url: d.secure_url }));
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") } finally { setUploadingImg(false); }
+    } catch { toast.error('Error al subir imagen'); } finally { setUploadingImg(false); }
   };
+
   const saveProduct = async () => {
     if (!productForm.nombre || !productForm.precio) return;
     setSaving(true);
@@ -81,26 +100,26 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
       setShowProductForm(false);
       setEditingProduct(null);
       setProductForm({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false });
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") } finally { setSaving(false); }
+    } catch { toast.error('Error al guardar'); } finally { setSaving(false); }
   };
 
   const deleteProduct = async (id: string) => {
     try {
       await apiFetch(`/api/negocios/productos/${id}`, { method: 'DELETE' });
       setProducts(prev => prev.filter(p => p.id !== id));
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
+    } catch { toast.error('Error al eliminar'); }
   };
 
   const toggleActivo = async () => {
     try {
       const updated = await apiFetch<any>(`/api/negocios/${negocio.id}/toggle`, { method: 'PATCH' });
       setNegocio(updated);
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Ocurri\u00f3 un error, intenta de nuevo") }
+    } catch { toast.error('Error al cambiar estado'); }
   };
 
   const tiempoTranscurrido = (fecha: string) => {
     const mins = Math.floor((Date.now() - new Date(fecha).getTime()) / 60000);
-    if (mins < 1) return "ahora";
+    if (mins < 1) return 'ahora';
     if (mins < 60) return `hace ${mins} min`;
     const hrs = Math.floor(mins / 60);
     return `hace ${hrs}h ${mins % 60}min`;
@@ -115,25 +134,23 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const tabs = [
     { id: 'overview', label: 'Inicio', icon: LayoutDashboard },
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag, badge: statsToday.nuevos },
-    { id: 'menu', label: 'Men�', icon: Utensils },
+    { id: 'menu', label: 'Menu', icon: Utensils },
     { id: 'finance', label: 'Finanzas', icon: TrendingUp },
     { id: 'profile', label: 'Perfil', icon: Settings },
   ];
 
   const orderStatusConfig: Record<string, { label: string; color: string; next?: string; nextLabel?: string }> = {
-    pendiente:  { label: 'Nuevo',       color: 'bg-blue-500',   next: 'preparando',  nextLabel: 'Aceptar pedido' },
-    preparando: { label: 'Preparando',  color: 'bg-orange-500', next: 'listo',       nextLabel: 'Marcar listo' },
-    listo:      { label: 'Listo ✓',    color: 'bg-green-500' },
-    en_camino:  { label: 'En Camino',   color: 'bg-purple-500' },
-    nuevo:      { label: 'Nuevo',       color: 'bg-blue-500',   next: 'preparando',  nextLabel: 'Aceptar pedido' },
-    entregado:  { label: 'Entregado',   color: 'bg-slate-400' },
-    cancelado:  { label: 'Cancelado',   color: 'bg-red-500' },
+    pendiente:  { label: 'Nuevo',      color: 'bg-blue-500',   next: 'preparando', nextLabel: 'Aceptar pedido' },
+    preparando: { label: 'Preparando', color: 'bg-orange-500', next: 'listo',      nextLabel: 'Marcar listo' },
+    listo:      { label: 'Listo',      color: 'bg-green-500' },
+    en_camino:  { label: 'En Camino',  color: 'bg-purple-500' },
+    nuevo:      { label: 'Nuevo',      color: 'bg-blue-500',   next: 'preparando', nextLabel: 'Aceptar pedido' },
+    entregado:  { label: 'Entregado',  color: 'bg-slate-400' },
+    cancelado:  { label: 'Cancelado',  color: 'bg-red-500' },
   };
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 flex flex-col">
-
-      {/* Header */}
       <div className="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-[#FF6B00] rounded-xl flex items-center justify-center">
@@ -157,11 +174,9 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto pb-24">
         <AnimatePresence mode="wait">
 
-          {/* OVERVIEW */}
           {tab === 'overview' && (
             <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               <h2 className="text-xl font-black text-slate-900">Resumen de hoy</h2>
@@ -180,7 +195,6 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   </div>
                 ))}
               </div>
-
               <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
                   <h3 className="font-black text-slate-900 text-sm">Pedidos Recientes</h3>
@@ -200,14 +214,13 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                 {orders.length === 0 && (
                   <div className="p-8 text-center text-slate-400">
                     <ShoppingBag size={32} className="mx-auto mb-2 opacity-30" />
-                    <p className="text-sm font-medium">No hay pedidos a�n</p>
+                    <p className="text-sm font-medium">No hay pedidos aun</p>
                   </div>
                 )}
               </div>
             </motion.div>
           )}
 
-          {/* ORDERS */}
           {tab === 'orders' && (
             <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -244,10 +257,22 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                     <p className="font-black text-slate-900">Total: ${Number(o.total || 0).toFixed(2)}</p>
                     <div className="flex items-center gap-2">
                       {(o.status === 'listo' || o.status === 'en_camino') && o.codigo_restaurante && (
-                        <div className="flex-1 bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-center">
-                          <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">C�digo para repartidor</p>
-                          <p className="text-lg font-black text-green-700 tracking-widest">{o.codigo_entrega}</p>
+                        <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-center">
+                          <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Codigo repartidor</p>
+                          <p className="text-lg font-black text-green-700 tracking-widest">{o.codigo_restaurante}</p>
                         </div>
+                      )}
+                      {(o.status === 'nuevo' || o.status === 'preparando') && (
+                        <button onClick={async () => {
+                          if (!window.confirm('Cancelar este pedido?')) return;
+                          try {
+                            await apiFetch(`/api/negocios/pedidos/${o.id}/cancelar`, { method: 'PATCH' });
+                            setOrders(prev => prev.map(ord => ord.id === o.id ? { ...ord, status: 'cancelado' } : ord));
+                            toast.success('Pedido cancelado');
+                          } catch { toast.error('Error al cancelar'); }
+                        }} className="px-3 py-2 bg-red-50 text-red-500 text-xs font-black rounded-xl border border-red-200 hover:bg-red-100 transition-all whitespace-nowrap">
+                          Cancelar
+                        </button>
                       )}
                       {orderStatusConfig[o.status]?.next && (
                         <button onClick={() => updateOrderStatus(o.id, orderStatusConfig[o.status].next!)}
@@ -262,36 +287,37 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
             </motion.div>
           )}
 
-          {/* MENU */}
           {tab === 'menu' && (
             <motion.div key="menu" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-black text-slate-900">Men� Digital</h2>
+                <h2 className="text-xl font-black text-slate-900">Menu Digital</h2>
                 <button onClick={() => { setEditingProduct(null); setProductForm({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false }); setShowProductForm(true); }}
                   className="flex items-center gap-2 px-4 py-2 bg-[#FF6B00] text-white text-sm font-bold rounded-xl hover:bg-[#E65F00] transition-all">
                   <Plus size={16} /> Agregar
                 </button>
               </div>
-
               {showProductForm && (
-                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
-                  <h3 className="font-black text-slate-900">{editingProduct ? 'Editar producto' : 'Nuevo producto'}</h3>
-                  {/* Imagen producto */}
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-black text-slate-900">{editingProduct ? 'Editar producto' : 'Nuevo producto'}</h3>
+                    <button onClick={() => setShowProductForm(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                      <X size={16} className="text-slate-500" />
+                    </button>
+                  </div>
                   <div className="flex items-center gap-3">
                     <div className="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden shrink-0 flex items-center justify-center">
                       {productForm.imagen_url ? <img src={productForm.imagen_url} className="w-full h-full object-cover" /> : <span className="text-2xl">🍽️</span>}
                     </div>
                     <label className="flex-1 cursor-pointer">
                       <div className="px-4 py-2.5 bg-slate-100 rounded-xl text-sm font-bold text-slate-600 text-center hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
-                        {uploadingImg ? <span className="animate-spin">⏳</span> : '📷'} {uploadingImg ? 'Subiendo...' : 'Subir imagen'}
+                        {uploadingImg ? <Loader2 size={14} className="animate-spin" /> : '📷'} {uploadingImg ? 'Subiendo...' : 'Subir imagen'}
                       </div>
                       <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadImg(e.target.files[0]); }} />
                     </label>
                   </div>
                   <input value={productForm.nombre} onChange={e => setProductForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Nombre del producto"
                     className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-[#FF6B00]" />
-                  <textarea value={productForm.descripcion} onChange={e => setProductForm(p => ({ ...p, descripcion: e.target.value }))} placeholder="Descripci�n (opcional)" rows={2}
+                  <textarea value={productForm.descripcion} onChange={e => setProductForm(p => ({ ...p, descripcion: e.target.value }))} placeholder="Descripcion (opcional)" rows={2}
                     className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-[#FF6B00] resize-none" />
                   <div className="grid grid-cols-2 gap-3">
                     <input type="number" value={productForm.precio} onChange={e => setProductForm(p => ({ ...p, precio: e.target.value }))} placeholder="Precio"
@@ -323,34 +349,31 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   </div>
                 </motion.div>
               )}
-
               {products.length === 0 && !showProductForm ? (
                 <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center text-slate-400">
                   <Utensils size={40} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No hay productos en el men�</p>
+                  <p className="font-medium">No hay productos en el menu</p>
                   <p className="text-sm mt-1">Agrega tu primer producto</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {products.map(p => (
                     <div key={p.id} className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3">
-                      <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">{p.imagen_url ? <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover" /> : <ImageIcon size={20} className="text-slate-400" />}</div>
+                      <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
+                        {p.imagen_url ? <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover" /> : <ImageIcon size={20} className="text-slate-400" />}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-slate-900 text-sm truncate">{p.nombre}</p>
-                          {p.destacado && <span className="text-[10px] bg-orange-100 text-orange-600 font-black px-2 py-0.5 rounded-full">★ Destacado</span>}
+                          {p.destacado && <span className="text-[10px] bg-orange-100 text-orange-600 font-black px-2 py-0.5 rounded-full">Destacado</span>}
                         </div>
                         <p className="text-xs text-slate-500">{p.categoria} · ${p.precio}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${p.disponible ? 'bg-green-500' : 'bg-slate-300'}`} />
                         <button onClick={() => { setEditingProduct(p); setProductForm({ nombre: p.nombre, descripcion: p.descripcion || '', precio: p.precio.toString(), categoria: p.categoria, disponible: p.disponible, imagen_url: p.imagen_url || '', destacado: p.destacado }); setShowProductForm(true); }}
-                          className="p-2 text-slate-400 hover:text-[#FF6B00] transition-colors">
-                          <Edit2 size={16} />
-                        </button>
-                        <button onClick={() => deleteProduct(p.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
-                          <Trash2 size={16} />
-                        </button>
+                          className="p-2 text-slate-400 hover:text-[#FF6B00] transition-colors"><Edit2 size={16} /></button>
+                        <button onClick={() => deleteProduct(p.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                       </div>
                     </div>
                   ))}
@@ -359,7 +382,6 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
             </motion.div>
           )}
 
-          {/* FINANCE */}
           {tab === 'finance' && (
             <motion.div key="finance" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               <h2 className="text-xl font-black text-slate-900">Finanzas</h2>
@@ -390,44 +412,65 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                 {orders.filter(o => o.status === 'entregado').length === 0 && (
                   <div className="p-8 text-center text-slate-400">
                     <DollarSign size={32} className="mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">No hay ventas registradas a�n</p>
+                    <p className="text-sm">No hay ventas registradas aun</p>
                   </div>
                 )}
               </div>
             </motion.div>
           )}
 
-          {/* PROFILE */}
           {tab === 'profile' && (
             <motion.div key="profile" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               <h2 className="text-xl font-black text-slate-900">Perfil del negocio</h2>
               <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
                 <div className="flex items-center gap-4 pb-3 border-b border-slate-50">
-                  <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center">
-                    <Utensils size={28} className="text-[#FF6B00]" />
+                  <div className="relative">
+                    <div className="w-16 h-16 bg-orange-100 rounded-2xl overflow-hidden flex items-center justify-center">
+                      {negocio?.imagen_url ? <img src={negocio.imagen_url} className="w-full h-full object-cover" /> : <Utensils size={28} className="text-[#FF6B00]" />}
+                    </div>
+                    <label className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#FF6B00] rounded-full flex items-center justify-center cursor-pointer shadow-md">
+                      {uploadingImg ? <Loader2 size={12} className="text-white animate-spin" /> : <ImageIcon size={12} className="text-white" />}
+                      <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                        if (!e.target.files?.[0]) return;
+                        setUploadingImg(true);
+                        try {
+                          const fd = new FormData();
+                          fd.append('file', e.target.files[0]);
+                          fd.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+                          const r = await fetch('https://api.cloudinary.com/v1_1/' + import.meta.env.VITE_CLOUDINARY_CLOUD_NAME + '/image/upload', { method: 'POST', body: fd });
+                          const d = await r.json();
+                          if (d.secure_url) {
+                            await apiFetch(`/api/negocios/${negocio.id}/imagen`, { method: 'PATCH', body: JSON.stringify({ imagen_url: d.secure_url }) });
+                            setNegocio((n: any) => ({ ...n, imagen_url: d.secure_url }));
+                            toast.success('Foto actualizada');
+                          }
+                        } catch { toast.error('Error al subir foto'); }
+                        finally { setUploadingImg(false); }
+                      }} />
+                    </label>
                   </div>
                   <div>
                     <p className="font-black text-slate-900">{negocio?.nombre}</p>
-                    <p className="text-sm text-slate-500">{negocio?.tipo === 'restaurant' ? 'Restaurante' : 'Tienda'}</p>
+                    <p className="text-sm text-slate-500">{negocio?.tipo === 'restaurante' ? 'Restaurante' : 'Tienda'}</p>
                     <div className="flex items-center gap-1 mt-1">
                       <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                      <span className="text-xs font-bold text-slate-600">{negocio?.calificacion?.toFixed(1) || '0.0'} ({negocio?.total_resenas || 0} rese�as)</span>
+                      <span className="text-xs font-bold text-slate-600">{Number(negocio?.rating || 0).toFixed(1)} ({orders.filter(o => o.rating_restaurante).length} resenas)</span>
                     </div>
                   </div>
                 </div>
                 {[
-                  { label: 'Direcci�n', value: negocio?.direccion },
-                  { label: 'Tel�fono', value: negocio?.telefono },
+                  { label: 'Direccion', value: negocio?.direccion },
+                  { label: 'Telefono', value: negocio?.telefono },
                   { label: 'Estado', value: negocio?.esta_abierto ? 'Abierto' : 'Cerrado' },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-none">
                     <span className="text-sm text-slate-500 font-medium">{label}</span>
-                    <span className="text-sm font-bold text-slate-900">{value || '—'}</span>
+                    <span className="text-sm font-bold text-slate-900">{value || '-'}</span>
                   </div>
                 ))}
               </div>
               <button onClick={() => signOut()} className="w-full py-4 bg-red-50 text-red-500 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
-                <LogOut size={18} /> Cerrar sesi�n
+                <LogOut size={18} /> Cerrar sesion
               </button>
             </motion.div>
           )}
@@ -435,7 +478,6 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
         </AnimatePresence>
       </div>
 
-      {/* Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-4 pt-2 z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
         <div className="flex justify-around">
           {tabs.map(({ id, label, icon: Icon, badge }) => (
@@ -457,7 +499,3 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     </div>
   );
 }
-
-
-
-
