@@ -537,6 +537,41 @@ export default function App() {
                   <p className="text-sm text-slate-700">{pedidoDetalle.direccion_entrega}</p>
                 </div>
               </div>
+              {pedidoDetalle.status === "en_camino" && (
+                <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shrink-0">
+                    <span className="text-xl">🛵</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-purple-600 uppercase tracking-wider">En camino</p>
+                    <p className="text-sm font-bold text-slate-700">El repartidor va hacia ti</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: 15-30 min</p>
+                  </div>
+                </div>
+              )}
+              {pedidoDetalle.status === "preparando" && (
+                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                    <span className="text-xl">👨‍🍳</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-orange-600 uppercase tracking-wider">Preparando</p>
+                    <p className="text-sm font-bold text-slate-700">El restaurante esta preparando tu orden</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: 10-20 min</p>
+                  </div>
+                </div>
+              )}
+              {pedidoDetalle.status === "nuevo" && (
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                    <span className="text-xl">⏳</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-blue-600 uppercase tracking-wider">Recibido</p>
+                    <p className="text-sm font-bold text-slate-700">Esperando confirmacion del restaurante</p>
+                  </div>
+                </div>
+              )}
               {["nuevo","preparando"].includes(pedidoDetalle.status) && (
                 <button onClick={async () => {
                   if (!window.confirm("¿Seguro que quieres cancelar este pedido?")) return;
