@@ -1,29 +1,293 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Política de Privacidad — Ya Voy</title>
+  <title>Terminos y Privacidad — Ya Voy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: -apple-system, sans-serif; max-width: 680px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.7; }
-    h1 { color: #6C3CE1; } h2 { color: #333; margin-top: 2em; }
-    a { color: #6C3CE1; }
+    :root {
+      --grad: linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%);
+      --purple: #6C3CE1;
+      --pink: #E91E8C;
+      --dark: #0f0f1a;
+      --card: #1a1a2e;
+      --border: rgba(255,255,255,0.08);
+      --text: #f0f0f0;
+      --muted: #a0a0b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--dark); color: var(--text); line-height: 1.7; min-height: 100vh; }
+
+    /* HEADER */
+    header { background: var(--grad); padding: 48px 24px 64px; text-align: center; position: relative; overflow: hidden; }
+    header::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+    .logo { width: 72px; height: 72px; background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 36px; position: relative; }
+    header h1 { font-size: clamp(28px, 6vw, 48px); font-weight: 900; color: #fff; letter-spacing: -1px; position: relative; }
+    header p { color: rgba(255,255,255,0.75); font-size: 14px; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase; margin-top: 8px; position: relative; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); border-radius: 100px; padding: 6px 16px; font-size: 11px; font-weight: 700; color: #fff; margin-top: 16px; position: relative; }
+    .badge::before { content: ''; width: 6px; height: 6px; background: #4ade80; border-radius: 50%; display: inline-block; }
+
+    /* NAV TABS */
+    nav { background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; justify-content: center; gap: 4px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); }
+    nav a { color: var(--muted); text-decoration: none; font-weight: 700; font-size: 13px; padding: 16px 20px; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+    nav a:hover, nav a.active { color: #fff; border-bottom-color: var(--pink); }
+
+    /* MAIN */
+    main { max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
+
+    /* SECTION */
+    section { display: none; }
+    section.active { display: block; }
+
+    /* CARD */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px; margin-bottom: 16px; }
+    .card-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--grad); display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 14px; }
+    .card h2 { font-size: 16px; font-weight: 900; color: #fff; margin-bottom: 10px; }
+    .card p, .card li { font-size: 14px; color: var(--muted); line-height: 1.8; }
+    .card ul { padding-left: 20px; }
+    .card ul li { margin-bottom: 4px; }
+    a { color: #a78bfa; }
+
+    /* UPDATE */
+    .update { display: flex; align-items: center; gap: 10px; background: rgba(108,60,225,0.1); border: 1px solid rgba(108,60,225,0.25); border-radius: 10px; padding: 12px 18px; margin-bottom: 32px; font-size: 13px; color: var(--muted); }
+    .update strong { color: #a78bfa; }
+
+    /* APPS GRID */
+    .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px; }
+    .app-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 16px; text-align: center; }
+    .app-card .icon { font-size: 28px; margin-bottom: 8px; }
+    .app-card p { font-size: 12px; font-weight: 700; color: var(--muted); }
+
+    /* CONTACT */
+    .contact { background: var(--grad); border-radius: 16px; padding: 32px; text-align: center; margin-top: 32px; }
+    .contact h3 { font-size: 20px; font-weight: 900; color: #fff; margin-bottom: 8px; }
+    .contact p { color: rgba(255,255,255,0.8); font-size: 14px; margin-bottom: 20px; }
+    .contact a { display: inline-block; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 28px; border-radius: 100px; transition: all 0.2s; }
+    .contact a:hover { background: rgba(255,255,255,0.35); }
+
+    /* FOOTER */
+    footer { text-align: center; padding: 32px 24px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
+    footer strong { color: #a78bfa; }
+
+    @media (max-width: 520px) {
+      .apps { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .app-card { padding: 14px 10px; }
+      .card { padding: 20px; }
+    }
   </style>
 </head>
 <body>
-  <h1>Política de Privacidad</h1>
-  <p><strong>Ya Voy</strong> — Batalla Group · Última actualización: mayo 2026</p>
-  <h2>1. Datos que recopilamos</h2>
-  <p>Nombre, correo electrónico, dirección de entrega y ubicación GPS para operar el servicio de delivery.</p>
-  <h2>2. Uso de los datos</h2>
-  <p>Los datos se usan exclusivamente para procesar pedidos, mejorar el servicio y comunicarnos contigo sobre tu cuenta.</p>
-  <h2>3. Compartir información</h2>
-  <p>No vendemos ni compartimos tus datos con terceros, salvo con restaurantes y repartidores involucrados en tu pedido.</p>
-  <h2>4. Seguridad</h2>
-  <p>Usamos autenticación segura (Clerk) y conexiones cifradas (HTTPS) en toda la plataforma.</p>
-  <h2>5. Tus derechos</h2>
-  <p>Puedes solicitar la eliminación de tu cuenta escribiendo a <a href="mailto:batallagroup@gmail.com">batallagroup@gmail.com</a>.</p>
-  <h2>6. Contacto</h2>
-  <p><a href="mailto:batallagroup@gmail.com">batallagroup@gmail.com</a></p>
+
+<header>
+  <div class="logo">🛵</div>
+  <h1>Ya Voy</h1>
+  <p>Batalla Group · Delivery Inteligente</p>
+  <div class="badge">Politica de Privacidad y Terminos de Uso</div>
+</header>
+
+<nav>
+  <a href="#" class="active" onclick="showTab('privacidad',this)">🔒 Privacidad</a>
+  <a href="#" onclick="showTab('terminos',this)">📋 Terminos</a>
+  <a href="#" onclick="showTab('contacto',this)">📧 Contacto</a>
+</nav>
+
+<main>
+
+  <!-- PRIVACIDAD -->
+  <section id="privacidad" class="active">
+    <div class="update"><strong>Ultima actualizacion:</strong>&nbsp;Mayo 2026 — Juan Galindo, Necaxa, Puebla, Mexico</div>
+
+    <div class="apps">
+      <div class="app-card"><div class="icon">📱</div><p>App Usuario</p></div>
+      <div class="app-card"><div class="icon">🍽️</div><p>Restaurante</p></div>
+      <div class="app-card"><div class="icon">🛵</div><p>Repartidor</p></div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <h2>Datos que recopilamos</h2>
+      <ul>
+        <li>Nombre completo y correo electronico (via Clerk)</li>
+        <li>Direccion de entrega y coordenadas GPS</li>
+        <li>Historial de pedidos y preferencias</li>
+        <li>Documentos de identidad para repartidores y restaurantes (INE, selfie, tarjeta de circulacion)</li>
+        <li>Token de dispositivo para notificaciones push</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🎯</div>
+      <h2>Como usamos tus datos</h2>
+      <ul>
+        <li>Procesar y coordinar pedidos de delivery</li>
+        <li>Verificar identidad de repartidores y restaurantes</li>
+        <li>Enviarte notificaciones sobre el estado de tu pedido</li>
+        <li>Mejorar el servicio y detectar fraudes</li>
+        <li>Calcular rutas y tiempos de entrega</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🤝</div>
+      <h2>Compartir informacion</h2>
+      <p>No vendemos ni compartimos tus datos personales con terceros. Unicamente compartimos la informacion necesaria con los restaurantes y repartidores involucrados en tu pedido activo (nombre, direccion de entrega y numero de pedido).</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🔐</div>
+      <h2>Seguridad</h2>
+      <ul>
+        <li>Autenticacion segura mediante <strong>Clerk</strong></li>
+        <li>Base de datos cifrada en reposo (NeonDB)</li>
+        <li>Conexiones HTTPS en toda la plataforma</li>
+        <li>Imagenes almacenadas en Cloudinary con acceso controlado</li>
+        <li>Pagos procesados por <strong>Stripe</strong> — nunca almacenamos datos de tarjetas</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">⏱️</div>
+      <h2>Retencion de datos</h2>
+      <p>El historial de pedidos se elimina automaticamente despues de <strong>90 dias</strong>. Los tokens de dispositivo expiran a los <strong>60 dias</strong>. Puedes solicitar la eliminacion completa de tu cuenta en cualquier momento desde la app o escribiendonos.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">⚖️</div>
+      <h2>Tus derechos</h2>
+      <ul>
+        <li>Acceder a tus datos personales</li>
+        <li>Solicitar la correccion de datos incorrectos</li>
+        <li>Eliminar tu cuenta y todos tus datos</li>
+        <li>Revocar el consentimiento de notificaciones push</li>
+      </ul>
+      <p style="margin-top:12px">Para ejercer cualquiera de estos derechos, escribe a <a href="mailto:batallagroup@gmail.com">batallagroup@gmail.com</a></p>
+    </div>
+  </section>
+
+  <!-- TERMINOS -->
+  <section id="terminos">
+    <div class="update"><strong>Vigentes desde:</strong>&nbsp;Mayo 2026</div>
+
+    <div class="card">
+      <div class="card-icon">📱</div>
+      <h2>Uso de la plataforma</h2>
+      <p>Ya Voy es una plataforma de delivery que conecta usuarios, restaurantes y repartidores. Al usar cualquiera de nuestras apps aceptas estos terminos. El servicio esta disponible en Juan Galindo, Necaxa, Puebla, Mexico y areas cercanas.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">👤</div>
+      <h2>Cuentas de usuario</h2>
+      <ul>
+        <li>Debes proporcionar informacion veridica al registrarte</li>
+        <li>Eres responsable de mantener la seguridad de tu cuenta</li>
+        <li>Esta prohibido crear multiples cuentas para evadir suspensiones</li>
+        <li>Nos reservamos el derecho de suspender cuentas con comportamiento fraudulento</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🛵</div>
+      <h2>Repartidores</h2>
+      <ul>
+        <li>Deben ser mayores de 18 anos y contar con documentacion valida</li>
+        <li>Son responsables del cuidado de los pedidos durante el transporte</li>
+        <li>2 intentos fallidos de verificacion resultan en bloqueo temporal de 24h</li>
+        <li>El incumplimiento reiterado puede resultar en suspension permanente</li>
+        <li>Las ganancias se calculan como porcentaje del costo de envio</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🍽️</div>
+      <h2>Restaurantes</h2>
+      <ul>
+        <li>Son responsables de la calidad y exactitud de los productos publicados</li>
+        <li>Deben procesar los pedidos aceptados en tiempo razonable</li>
+        <li>El abandono reiterado de pedidos activos puede resultar en suspension</li>
+        <li>Ya Voy cobra una comision de plataforma por cada pedido completado</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">💳</div>
+      <h2>Pagos y reembolsos</h2>
+      <ul>
+        <li>Los pagos con tarjeta se procesan de forma segura via Stripe</li>
+        <li>Los pagos en efectivo se realizan directamente al repartidor</li>
+        <li>Si el pedido es cancelado antes de ser preparado, se genera reembolso automatico</li>
+        <li>Si el cliente no esta al momento de la entrega y el tiempo expira, no hay reembolso</li>
+        <li>En casos de accidente o producto danado, se evalua reembolso desde el fondo de recuperacion</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🚫</div>
+      <h2>Conducta prohibida</h2>
+      <ul>
+        <li>Fraude, abuso o manipulacion del sistema de verificacion</li>
+        <li>Acoso a otros usuarios, repartidores o restaurantes</li>
+        <li>Uso de la plataforma para actividades ilegales</li>
+        <li>Intento de evadir bloqueos mediante nuevas cuentas</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">⚠️</div>
+      <h2>Limitacion de responsabilidad</h2>
+      <p>Ya Voy actua como intermediario entre usuarios, restaurantes y repartidores. No somos responsables por la calidad final de los productos, demoras causadas por factores externos, o incidentes ocurridos durante el transporte mas alla de nuestras politicas de compensacion.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🔄</div>
+      <h2>Modificaciones</h2>
+      <p>Nos reservamos el derecho de modificar estos terminos en cualquier momento. Los cambios significativos seran notificados dentro de la app. El uso continuo de la plataforma implica la aceptacion de los terminos vigentes.</p>
+    </div>
+  </section>
+
+  <!-- CONTACTO -->
+  <section id="contacto">
+    <div class="card">
+      <div class="card-icon">🏢</div>
+      <h2>Informacion de la empresa</h2>
+      <ul>
+        <li><strong>Empresa:</strong> Batalla Group</li>
+        <li><strong>Responsable:</strong> Ramses Antonio Batalla Franco</li>
+        <li><strong>Ubicacion:</strong> Juan Galindo, Necaxa, Puebla, Mexico</li>
+        <li><strong>Email:</strong> <a href="mailto:batallagroup@gmail.com">batallagroup@gmail.com</a></li>
+        <li><strong>Telefono:</strong> 764131374</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">📲</div>
+      <h2>Soporte tecnico</h2>
+      <p>Para reportar problemas con la app, pedidos o tu cuenta, usa el boton de <strong>Ayuda y soporte</strong> dentro de la app de usuario. Tambien puedes escribirnos directamente a nuestro correo.</p>
+    </div>
+
+    <div class="contact">
+      <h3>Contactanos</h3>
+      <p>Estamos disponibles para resolver cualquier duda sobre privacidad, terminos o uso de la plataforma.</p>
+      <a href="mailto:batallagroup@gmail.com">📧 batallagroup@gmail.com</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>© 2026 <strong>Batalla Group</strong> · Ya Voy — Delivery Inteligente · Juan Galindo, Necaxa, Puebla, Mexico</p>
+  <p style="margin-top:6px">Desarrollado con ❤️ por Batalla Group</p>
+</footer>
+
+<script>
+  function showTab(id, el) {
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    el.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+
 </body>
 </html>
