@@ -31,6 +31,13 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ nombre: '', direccion: '', telefono: '', descripcion: '' });
   const [savingProfile, setSavingProfile] = useState(false);
+  const DIAS = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
+  const [horarios, setHorarios] = useState<Record<string,{abierto:boolean,desde:string,hasta:string}>>(() => {
+    const base: Record<string,{abierto:boolean,desde:string,hasta:string}> = {};
+    ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'].forEach(d => { base[d] = { abierto: true, desde: '09:00', hasta: '21:00' }; });
+    return base;
+  });
+  const [savingHorarios, setSavingHorarios] = useState(false);
   const prevNuevosRef = useRef(0);
 
   const playBeep = () => {
@@ -504,6 +511,45 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   </div>
                 ))}
               </div>
+              {/* HORARIOS */}
+              <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Horarios de atencion</p>
+                  <button onClick={async () => {
+                    setSavingHorarios(true);
+                    try {
+                      await apiFetch(`/api/negocios/${negocio.id}/horarios`, { method: "PATCH", body: JSON.stringify({ horarios }) });
+                      toast.success("Horarios guardados");
+                    } catch { toast.error("Error al guardar horarios"); }
+                    finally { setSavingHorarios(false); }
+                  }} disabled={savingHorarios} className="px-3 py-1.5 bg-[#FF6B00] text-white text-xs font-black rounded-xl disabled:opacity-50 flex items-center gap-1">
+                    {savingHorarios ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Guardar
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {DIAS.map(dia => (
+                    <div key={dia} className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-600 w-8 shrink-0">{dia}</span>
+                      <button onClick={() => setHorarios(h => ({ ...h, [dia]: { ...h[dia], abierto: !h[dia].abierto } }))}
+                        className={`w-10 h-5 rounded-full relative transition-all shrink-0 ${horarios[dia]?.abierto ? "bg-[#FF6B00]" : "bg-slate-200"}`}>
+                        <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${horarios[dia]?.abierto ? "right-0.5" : "left-0.5"}`} />
+                      </button>
+                      {horarios[dia]?.abierto ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <input type="time" value={horarios[dia]?.desde || "09:00"} onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], desde: e.target.value } }))}
+                            className="flex-1 px-2 py-1 bg-slate-50 rounded-lg text-xs font-medium outline-none focus:ring-1 focus:ring-[#FF6B00]" />
+                          <span className="text-xs text-slate-400">-</span>
+                          <input type="time" value={horarios[dia]?.hasta || "21:00"} onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], hasta: e.target.value } }))}
+                            className="flex-1 px-2 py-1 bg-slate-50 rounded-lg text-xs font-medium outline-none focus:ring-1 focus:ring-[#FF6B00]" />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 flex-1">Cerrado</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <button onClick={() => signOut()} className="w-full py-4 bg-red-50 text-red-500 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
                 <LogOut size={18} /> Cerrar sesion
               </button>
