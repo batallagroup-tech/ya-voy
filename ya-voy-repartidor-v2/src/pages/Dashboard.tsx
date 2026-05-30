@@ -103,6 +103,10 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   const [userLng, setUserLng] = useState<number | null>(null)
   const pollRef = useRef<any>(null)
   const [esperandoTimers, setEsperandoTimers] = useState<Record<string, number>>({})
+  const [showContingencia, setShowContingencia] = useState<{ pedido: any; tipo: 'no_pago' | 'accidente' } | null>(null)
+  const [contingenciaDesc, setContingenciaDesc] = useState('')
+  const [contingenciaFoto, setContingenciaFoto] = useState('')
+  const [enviandoContingencia, setEnviandoContingencia] = useState(false)
   const timerRefs = useRef<Record<string, any>>({})
 
   const getEstado = (id: string): EstadoPedido => {
@@ -267,6 +271,25 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
       }
     } catch (e: any) { toast.error(e.message || "Error") }
     finally { setLoading(false) }
+  }
+
+  const handleContingencia = async () => {
+    if (!showContingencia) return
+    setEnviandoContingencia(true)
+    try {
+      const endpoint = showContingencia.tipo === 'no_pago' ? 'no-pago' : 'accidente'
+      const body: any = { pedidoId: showContingencia.pedido.id, repartidorId: userId, descripcion: contingenciaDesc }
+      if (showContingencia.tipo === 'accidente') body.fotoUrl = contingenciaFoto
+      const res = await fetch(API + '/api/contingencias/' + endpoint, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      })
+      if (!res.ok) throw new Error('Error al enviar reporte')
+      toast.success(showContingencia.tipo === 'no_pago' ? 'Reporte enviado. El cliente fue bloqueado.' : 'Accidente reportado. Reembolso al cliente procesado.')
+      setShowContingencia(null); setContingenciaDesc(''); setContingenciaFoto('')
+      setPedidosActivos(prev => prev.filter(p => p.id !== showContingencia.pedido.id))
+      cargarHistorial()
+    } catch (e: any) { toast.error(e.message) }
+    finally { setEnviandoContingencia(false) }
   }
 
   const gananciasHoy = historial
@@ -758,6 +781,45 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
         </AnimatePresence>
       </div>
+
+      {/* MODAL CONTINGENCIA */}
+      <AnimatePresence>
+        {showContingencia && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[80] flex items-end">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-black text-slate-900 text-lg">
+                  {showContingencia.tipo === 'no_pago' ? '⚠️ Cliente no pago' : '🚨 Reportar accidente'}
+                </h3>
+                <button onClick={() => { setShowContingencia(null); setContingenciaDesc(''); setContingenciaFoto(''); }}>
+                  <X size={22} className="text-slate-400" />
+                </button>
+              </div>
+              <p className="text-sm text-slate-500">
+                {showContingencia.tipo === 'no_pago'
+                  ? 'El cliente sera bloqueado temporalmente y recibiras el pago del envio desde el fondo de recuperacion.'
+                  : 'El pedido sera cancelado y el cliente recibira un reembolso desde el fondo de recuperacion.'}
+              </p>
+              {showContingencia.tipo === 'accidente' && (
+                <input value={contingenciaFoto} onChange={e => setContingenciaFoto(e.target.value)}
+                  placeholder="URL de foto (opcional)..."
+                  className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm border border-slate-200 outline-none" />
+              )}
+              <textarea value={contingenciaDesc} onChange={e => setContingenciaDesc(e.target.value)}
+                placeholder="Describe brevemente lo que paso..."
+                className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm border border-slate-200 outline-none resize-none h-24" />
+              <button onClick={handleContingencia} disabled={enviandoContingencia}
+                className="w-full py-4 rounded-2xl text-white font-black flex items-center justify-center gap-2 disabled:opacity-60"
+                style={{ background: showContingencia.tipo === 'no_pago' ? '#f59e0b' : '#ef4444' }}>
+                {enviandoContingencia ? <Loader2 className="animate-spin" size={20} /> : null}
+                {showContingencia.tipo === 'no_pago' ? 'Confirmar reporte' : 'Reportar accidente'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-2 pt-2 z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
         <div className="flex justify-around">

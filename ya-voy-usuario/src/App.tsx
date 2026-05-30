@@ -18,6 +18,8 @@ import { usePushNotifications } from "./hooks/usePushNotifications"
 import { Stripe, PaymentSheetEventsEnum } from "@capacitor-community/stripe"
 import { Capacitor } from "@capacitor/core";
 import type { Direccion } from "./components/DireccionesScreen";
+import { loadStripe } from "@stripe/stripe-js";
+const _STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "";
 
 const GRAD = "linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%)";
 
@@ -29,6 +31,12 @@ function LoginScreen() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showStripeModal, setShowStripeModal] = useState(false);
+  const [stripeClientSecret, setStripeClientSecret] = useState("");
+  const [stripeCardElement, setStripeCardElement] = useState<any>(null);
+  const [stripeInstance, setStripeInstance] = useState<any>(null);
+  const [stripePagoLoading, setStripePagoLoading] = useState(false);
+  const [pendingPedidoData, setPendingPedidoData] = useState<any>(null);
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,7 +150,7 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
 interface CartItem { productoId: string; nombre: string; precio: number; cantidad: number; negocioId: string; }
 
 export default function App() {
-  const { isLoaded, isSignedIn, userId } = useAuth();
+  const { isLoaded, isSignedIn, userId, getToken } = useAuth();
   const { user } = useUser();
   const { signOut } = useClerk();
 
@@ -179,6 +187,12 @@ export default function App() {
   const [ratingRepFrase, setRatingRepFrase] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showStripeModal, setShowStripeModal] = useState(false);
+  const [stripeClientSecret, setStripeClientSecret] = useState("");
+  const [stripeCardElement, setStripeCardElement] = useState<any>(null);
+  const [stripeInstance, setStripeInstance] = useState<any>(null);
+  const [stripePagoLoading, setStripePagoLoading] = useState(false);
+  const [pendingPedidoData, setPendingPedidoData] = useState<any>(null);
 
   const [metodoPago, setMetodoPago] = useState(() => localStorage.getItem("ya_voy_pago") || "efectivo");
   const [notificaciones, setNotificaciones] = useState(() => localStorage.getItem("ya_voy_notif") !== "0");
@@ -306,24 +320,83 @@ export default function App() {
 
   const handlePedir = async () => {
     if (!cart.length || !userId) return;
+    const pedidoData = {
+      clienteId: userId,
+      negocioId: cart[0].negocioId,
+      items: cart,
+      total: total + 35 + 8.5,
+      direccionEntrega: direccionPrincipal?.direccion || "Sin direccion",
+      notas: "",
+      metodoPago,
+    };
+    if (metodoPago === "tarjeta") {
+      setLoading(true);
+      try {
+        const token = await getToken();
+        const res = await fetch(_API + "/api/stripe/payment-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+          body: JSON.stringify({ amount: pedidoData.total, currency: "mxn" }),
+        });
+        const data = await res.json();
+        if (!data.clientSecret) throw new Error("No se pudo iniciar el pago");
+        if (Capacitor.isNativePlatform()) {
+          await Stripe.initialize({ publishableKey: _STRIPE_PK });
+          await Stripe.createPaymentSheet({
+            paymentIntentClientSecret: data.clientSecret,
+            merchantDisplayName: "Ya Voy Batalla Group",
+            style: "alwaysLight",
+          });
+          const result = await Stripe.presentPaymentSheet();
+          if (result.paymentResult === PaymentSheetEventsEnum.Completed) {
+            await crearPedido(pedidoData);
+            setCart([]); setShowCart(false); setNegocioSeleccionado(null);
+            toast.success("Pedido enviado!"); setTab("pedidos");
+          } else { toast.error("Pago cancelado"); }
+        } else {
+          setPendingPedidoData(pedidoData);
+          setStripeClientSecret(data.clientSecret);
+          const stripeObj = await loadStripe(_STRIPE_PK);
+          setStripeInstance(stripeObj);
+          setShowStripeModal(true);
+          setTimeout(async () => {
+            const elements = stripeObj!.elements({ clientSecret: data.clientSecret, appearance: { theme: "stripe" } });
+            const card = elements.create("payment");
+            card.mount("#stripe-payment-element");
+            setStripeCardElement({ elements, card });
+          }, 300);
+        }
+      } catch (e: any) { toast.error(e.message); }
+      finally { setLoading(false); }
+      return;
+    }
     setLoading(true);
     try {
-      await crearPedido({
-        clienteId: userId,
-        negocioId: cart[0].negocioId,
-        items: cart,
-        total: total + 35 + 8.5,
-        direccionEntrega: direccionPrincipal?.direccion || "Sin dirección",
-        notas: "",
-        metodoPago,
-      });
-      setCart([]);
-      setShowCart(false);
-      setNegocioSeleccionado(null);
-      toast.success("¡Pedido enviado!");
-      setTab("pedidos");
+      await crearPedido(pedidoData);
+      setCart([]); setShowCart(false); setNegocioSeleccionado(null);
+      toast.success("Pedido enviado!"); setTab("pedidos");
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
+  };
+
+  const handleConfirmarPagoWeb = async () => {
+    if (!stripeInstance || !stripeCardElement || !stripeClientSecret) return;
+    setStripePagoLoading(true);
+    try {
+      const { error, paymentIntent } = await stripeInstance.confirmPayment({
+        elements: stripeCardElement.elements,
+        confirmParams: { return_url: window.location.origin },
+        redirect: "if_required",
+      });
+      if (error) { toast.error(error.message || "Error en el pago"); return; }
+      if (paymentIntent?.status === "succeeded") {
+        await crearPedido(pendingPedidoData);
+        setCart([]); setShowCart(false); setNegocioSeleccionado(null);
+        setShowStripeModal(false); setStripeClientSecret(""); setPendingPedidoData(null);
+        toast.success("Pago exitoso! Pedido enviado!"); setTab("pedidos");
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setStripePagoLoading(false); }
   };
 
   const handleDeleteAccount = async () => {
@@ -1062,6 +1135,33 @@ export default function App() {
           ))}
         </div>
       </div>
+
+      {/* MODAL STRIPE WEB */}
+      <AnimatePresence>
+        {showStripeModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[80] flex items-end">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-black text-slate-900">Pago con tarjeta</h3>
+                <button onClick={() => { setShowStripeModal(false); setStripeClientSecret(""); setPendingPedidoData(null); }}><X size={22} className="text-slate-400" /></button>
+              </div>
+              <div className="text-center pb-1">
+                <p className="font-black text-2xl text-slate-900">${String((pendingPedidoData?.total || 0).toFixed(2))} <span className="text-sm font-bold text-slate-400">MXN</span></p>
+              </div>
+              <div id="stripe-payment-element" className="min-h-[120px]" />
+              <button onClick={handleConfirmarPagoWeb} disabled={stripePagoLoading}
+                style={{ background: "linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%)" }}
+                className="w-full py-4 text-white font-black rounded-2xl flex items-center justify-center gap-2 disabled:opacity-60">
+                {stripePagoLoading ? <Loader2 className="animate-spin" size={20} /> : <CreditCard size={20} />}
+                {stripePagoLoading ? "Procesando..." : "Pagar ahora"}
+              </button>
+              <p className="text-center text-xs text-slate-400">Pago seguro procesado por Stripe</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* MODAL SOPORTE */}
       <AnimatePresence>
