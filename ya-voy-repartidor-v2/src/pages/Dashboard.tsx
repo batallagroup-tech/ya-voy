@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "motion/react"
 import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
-import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft, MessageSquare, Send } from "lucide-react"
+import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft, MessageSquare, Send, Camera } from "lucide-react"
 import { Toaster, toast } from "sonner"
 import { getPedidosDisponibles, aceptarPedido, actualizarEstadoPedido, getPedidosRepartidor, toggleStatusRepartidor } from "../lib/api"
 
@@ -85,6 +85,46 @@ interface EstadoPedido {
   restOk: boolean
   clienteOk: boolean
   intentosFallidos: number
+}
+
+function FotoEntregaBtn({ pedidoId, apiUrl, cloudName, uploadPreset }: { pedidoId: string; apiUrl: string; cloudName: string; uploadPreset: string }) {
+  const [subiendo, setSubiendo] = useState(false)
+  const [fotoOk, setFotoOk] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSubiendo(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("upload_preset", uploadPreset)
+      const r = await fetch("https://api.cloudinary.com/v1_1/" + cloudName + "/image/upload", { method: "POST", body: fd })
+      const d = await r.json()
+      if (!d.secure_url) throw new Error("Sin URL")
+      await fetch(apiUrl + "/api/negocios/pedidos/" + pedidoId + "/foto-entrega", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fotoUrl: d.secure_url })
+      })
+      setFotoOk(true)
+      toast.success("Foto de entrega guardada")
+    } catch { toast.error("Error al subir foto") }
+    finally { setSubiendo(false) }
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <input ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFoto} />
+      <button onClick={() => inputRef.current?.click()} disabled={subiendo || fotoOk}
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 font-bold text-sm transition-all disabled:opacity-50"
+        style={{ borderColor: fotoOk ? "#22c55e" : "rgba(241,7,163,0.3)", color: fotoOk ? "#22c55e" : "#F107A3", background: fotoOk ? "#f0fdf4" : "white" }}>
+        {subiendo ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+        {fotoOk ? "Foto guardada" : subiendo ? "Subiendo..." : "Tomar foto de entrega"}
+      </button>
+      <span className="text-[10px] text-slate-400 font-medium">Opcional — se borra en 24h</span>
+    </div>
+  )
 }
 
 export default function Dashboard({ repartidor, userId, user }: { repartidor: any; userId: string; user: any }) {
@@ -696,6 +736,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                                 <p className="text-xs text-amber-500 mt-1">Si expira, entrega completada automaticamente</p>
                               </div>
                             )}
+                            <FotoEntregaBtn pedidoId={pedidoSeleccionado.id} apiUrl={API} cloudName={import.meta.env.VITE_CLOUDINARY_CLOUD_NAME} uploadPreset={import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET} />
                             <p className="text-xs text-slate-500">El cliente te mostrara una palabra — seleccionala aqui</p>
                             {est.intentosFallidos >= 2 ? (
                               <div className="bg-red-100 rounded-xl p-4 text-center"><p className="font-black text-red-600">Cuenta bloqueada 24h</p></div>
