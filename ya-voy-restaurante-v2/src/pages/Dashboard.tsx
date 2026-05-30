@@ -398,6 +398,75 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
           {tab === 'finance' && (
             <motion.div key="finance" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               <h2 className="text-xl font-black text-slate-900">Finanzas</h2>
+              {/* ANALYTICS */}
+              {(() => {
+                const entregados = orders.filter((o:any) => o.status === "entregado")
+                // Ventas ultimos 7 dias
+                const dias7 = Array.from({length:7},(_,i) => { const d = new Date(); d.setDate(d.getDate()-6+i); return d })
+                const ventasPorDia = dias7.map(d => ({
+                  label: d.toLocaleDateString("es-MX",{weekday:"short"}),
+                  total: entregados.filter((o:any) => new Date(o.creado_en).toDateString() === d.toDateString()).reduce((a:number,o:any)=>a+Number(o.total||0),0)
+                }))
+                const maxVenta = Math.max(...ventasPorDia.map(v=>v.total),1)
+                // Productos mas vendidos
+                const prodCount: Record<string,{nombre:string;count:number}> = {}
+                entregados.forEach((o:any) => { (o.items||[]).forEach((it:any) => { if(!prodCount[it.nombre]) prodCount[it.nombre]={nombre:it.nombre,count:0}; prodCount[it.nombre].count+=it.cantidad||1 }) })
+                const topProds = Object.values(prodCount).sort((a:any,b:any)=>b.count-a.count).slice(0,5)
+                const maxProd = Math.max(...topProds.map((p:any)=>p.count),1)
+                // Horas pico
+                const horaCount = Array(24).fill(0)
+                entregados.forEach((o:any) => { const h = new Date(o.creado_en).getHours(); horaCount[h]++ })
+                const horasPico = horaCount.map((c:number,h:number)=>({h,c})).filter((x:any)=>x.c>0).sort((a:any,b:any)=>b.c-a.c).slice(0,5)
+                return (
+                  <div className="space-y-4">
+                    {/* Grafica ventas 7 dias */}
+                    <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Ventas ultimos 7 dias</p>
+                      <div className="flex items-end gap-1.5 h-24">
+                        {ventasPorDia.map((v:any,i:number) => (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="text-[9px] text-slate-500 font-bold">{v.total>0?"$"+(v.total>=1000?(v.total/1000).toFixed(1)+"k":v.total.toFixed(0)):""}</span>
+                            <div className="w-full rounded-t-lg transition-all" style={{ height: Math.max(4, (v.total/maxVenta)*72)+"px", background: v.total>0 ? "linear-gradient(180deg,#FF6B00,#E65F00)" : "#f1f5f9" }} />
+                            <span className="text-[9px] text-slate-400 font-bold capitalize">{v.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Productos mas vendidos */}
+                    {topProds.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Productos mas vendidos</p>
+                      <div className="space-y-2">
+                        {topProds.map((p:any,i:number) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-xs font-black text-slate-400 w-4">{i+1}</span>
+                            <span className="text-xs font-bold text-slate-700 flex-1 truncate">{p.nombre}</span>
+                            <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: (p.count/maxProd*100)+"%" , background: "linear-gradient(90deg,#FF6B00,#E65F00)" }} />
+                            </div>
+                            <span className="text-xs font-black text-orange-600 w-6 text-right">{p.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    )}
+                    {/* Horas pico */}
+                    {horasPico.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Horas pico</p>
+                      <div className="flex flex-wrap gap-2">
+                        {horasPico.map((x:any) => (
+                          <div key={x.h} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-orange-200 bg-orange-50">
+                            <span className="text-xs font-black text-orange-700">{x.h}:00</span>
+                            <span className="text-[10px] text-orange-500 font-bold">{x.c} pedido{x.c!==1?"s":""}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    )}
+                  </div>
+                )
+              })()}
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: 'Hoy', value: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString() && o.status === 'entregado').reduce((a, o) => a + (o.total || 0), 0) },
