@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser, useClerk, useSignIn, AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -363,14 +363,14 @@ export default function App() {
     const pedidoData = {
       clienteId: userId,
       negocioId: cart[0].negocioId,
-      items: cart,
       total: total + 35 + 8.5 - (cuponAplicado?.descuento || 0),
+      direccionEntrega: direccionPrincipal?.direccion || "Sin direccion",
       notas: "",
       metodoPago,
       cuponCodigo: cuponAplicado?.codigo || null,
       descuentoCupon: cuponAplicado?.descuento || 0,
     };
-
+    };
     if (metodoPago === "tarjeta") {
       setLoading(true);
       try {
