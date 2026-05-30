@@ -1500,15 +1500,14 @@ export default function App() {
         {showAgregarTarjeta && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 z-[90] flex items-end">
-            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
-              className="bg-white w-full rounded-t-3xl p-6 space-y-4">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }} className="bg-white w-full rounded-t-3xl p-6 space-y-4 overflow-y-auto" style={{ maxHeight: "90vh" }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-black text-slate-900">Agregar tarjeta</h3>
                 <button onClick={() => { setShowAgregarTarjeta(false); setSetupClientSecret(""); setSetupCardElement(null); }}>
                   <X size={22} className="text-slate-400" />
                 </button>
               </div>
-              <div id="stripe-setup-element" className="min-h-[120px]" />
+              <div id="stripe-setup-element" className="min-h-[200px]" />
               <button onClick={handleConfirmarTarjeta} disabled={guardandoTarjeta} style={{ background: GRAD }}
                 className="w-full py-4 text-white font-black rounded-2xl flex items-center justify-center gap-2 disabled:opacity-60">
                 {guardandoTarjeta ? <Loader2 className="animate-spin" size={20} /> : <CreditCard size={20} />}
