@@ -230,6 +230,25 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     }, 1000)
   }
 
+  const prevDisponiblesRef = useRef(0)
+  const playNuevoPedido = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const note = (freq: number, time: number, dur: number) => {
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = "triangle"; o.frequency.value = freq
+        g.gain.setValueAtTime(0, time)
+        g.gain.linearRampToValueAtTime(0.3, time + 0.02)
+        g.gain.exponentialRampToValueAtTime(0.001, time + dur)
+        o.start(time); o.stop(time + dur)
+      }
+      note(523, ctx.currentTime, 0.3)
+      note(659, ctx.currentTime + 0.15, 0.3)
+      note(784, ctx.currentTime + 0.3, 0.5)
+    } catch {}
+  }
+
   const cargarDisponibles = async () => {
     if (!online) { setDisponibles([]); return }
     try {
@@ -238,6 +257,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
         if (!p.lat_restaurante || !userLat || !userLng) return true
         return calcDist(userLat, userLng, p.lat_restaurante, p.lng_restaurante) <= radioKm
       })
+      if (filtrados.length > prevDisponiblesRef.current) playNuevoPedido()
+      prevDisponiblesRef.current = filtrados.length
       setDisponibles(filtrados)
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Error al cargar pedidos") }
   }
@@ -274,7 +295,6 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   }, [online])
 
   useEffect(() => { if (tab === "historial") cargarHistorial() }, [tab])
-  useEffect(() => { fetch(import.meta.env.VITE_API_URL + "/api/config").then(r=>r.json()).then(d=>setAppConfig(d)).catch(()=>{}) }, [])
   useEffect(() => { fetch(import.meta.env.VITE_API_URL + "/api/config").then(r=>r.json()).then(d=>setAppConfig(d)).catch(()=>{}) }, [])
 
   const ADMOB_BANNER_ID = "ca-app-pub-3849768825456219/4691773250"
@@ -913,7 +933,6 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                   <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${darkMode ? "right-0.5" : "left-0.5"}`} />
                 </button>
               </div>
-
               {appConfig.whatsapp && (
                 <a href={appConfig.whatsapp} target="_blank" rel="noreferrer"
                   className="w-full py-4 bg-green-50 text-green-700 font-bold rounded-2xl flex items-center justify-center gap-2">

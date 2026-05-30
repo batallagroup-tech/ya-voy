@@ -45,16 +45,22 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const playBeep = () => {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      [0, 150, 300].forEach(delay => {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.frequency.value = 880; o.type = 'sine';
-        g.gain.setValueAtTime(0.3, ctx.currentTime + delay/1000);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay/1000 + 0.2);
-        o.start(ctx.currentTime + delay/1000);
-        o.stop(ctx.currentTime + delay/1000 + 0.2);
-      });
+      const playBell = (time: number) => {
+        const freqs = [880, 1108, 1318];
+        freqs.forEach(freq => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = "sine"; o.frequency.value = freq;
+          g.gain.setValueAtTime(0, time);
+          g.gain.linearRampToValueAtTime(0.25, time + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.001, time + 0.6);
+          o.start(time); o.stop(time + 0.6);
+        });
+      };
+      playBell(ctx.currentTime);
+      playBell(ctx.currentTime + 0.7);
+      playBell(ctx.currentTime + 1.4);
     } catch {}
   };
 

@@ -314,11 +314,43 @@ export default function App() {
     catch {} finally { setLoading(false) }
   }
 
+  const prevPedidosStatusRef = useRef<Record<string,string>>({})
+  const playSound = (tipo: "enCamino" | "llegando") => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const note = (freq: number, time: number, dur: number, vol = 0.3) => {
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = "sine"; o.frequency.value = freq
+        g.gain.setValueAtTime(0, time)
+        g.gain.linearRampToValueAtTime(vol, time + 0.02)
+        g.gain.exponentialRampToValueAtTime(0.001, time + dur)
+        o.start(time); o.stop(time + dur)
+      }
+      if (tipo === "enCamino") {
+        note(440, ctx.currentTime, 0.25)
+        note(554, ctx.currentTime + 0.2, 0.25)
+        note(659, ctx.currentTime + 0.4, 0.4)
+      } else {
+        // llegando — urgente
+        [0,0.18,0.36,0.54,0.9,1.08,1.26,1.44].forEach(t => note(880, ctx.currentTime+t, 0.15, 0.4))
+      }
+    } catch {}
+  }
+
   const loadPedidos = async () => {
     if (!userId) return;
     try {
       const data = await getPedidos(userId) as any[];
       setPedidos(data);
+      data.forEach((p: any) => {
+        const prev = prevPedidosStatusRef.current[p.id]
+        if (prev && prev !== p.status) {
+          if (p.status === "en_camino") playSound("enCamino")
+          if (p.status === "esperando_cliente") playSound("llegando")
+        }
+        prevPedidosStatusRef.current[p.id] = p.status
+      })
       const enCamino = data.find((p: any) => p.status === 'en_camino' && p.repartidor_id);
       if (enCamino) { iniciarPollUbicacion(enCamino.repartidor_id); }
       else { detenerPollUbicacion(); }
