@@ -175,6 +175,9 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showDirecciones, setShowDirecciones] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCancelar, setShowCancelar] = useState(false)
+  const [cancelRazon, setCancelRazon] = useState("")
+  const [cancelLoading, setCancelLoading] = useState(false)
   const [showSoporte, setShowSoporte] = useState(false);
   const [soporteTipo, setSoporteTipo] = useState("");
   const [soporteComentario, setSoporteComentario] = useState("");
@@ -860,15 +863,8 @@ export default function App() {
                 </div>
               )}
               {["nuevo","preparando"].includes(pedidoDetalle.status) && (
-                <button onClick={async () => {
-                  if (!window.confirm("¿Seguro que quieres cancelar este pedido?")) return;
-                  try {
-                    await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/usuario/pedidos/${pedidoDetalle.id}/cancelar`, { method: "PATCH" });
-                    setPedidoDetalle((p: any) => ({...p, status: "cancelado"}));
-                    setPedidos((prev: any[]) => prev.map((o: any) => o.id === pedidoDetalle.id ? {...o, status:"cancelado"} : o));
-                    toast.success("Pedido cancelado");
-                  } catch { toast.error("No se pudo cancelar"); }
-                }} className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-bold text-sm mt-2 mb-2">
+                <button onClick={() => { setShowCancelar(true); setCancelRazon("") }}
+                  className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-bold text-sm mt-2 mb-2">
                   ✕ Cancelar pedido
                 </button>
               )}
@@ -1574,6 +1570,50 @@ export default function App() {
       </AnimatePresence>
 
       {/* DELETE CONFIRM */}
+      {/* MODAL CANCELAR CON RAZON */}
+      <AnimatePresence>
+        {showCancelar && pedidoDetalle && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[75] flex items-end">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-black text-slate-900">Cancelar pedido</h3>
+                <button onClick={() => setShowCancelar(false)}><X size={22} className="text-slate-400" /></button>
+              </div>
+              <p className="text-sm text-slate-500">Selecciona el motivo de cancelacion:</p>
+              <div className="space-y-2">
+                {["Me equivoque al pedir","Tarde demasiado","Cambie de opinion","El restaurante no responde","Otro"].map(op => (
+                  <button key={op} onClick={() => setCancelRazon(op)}
+                    className={"w-full px-4 py-3 rounded-xl text-sm font-bold text-left border-2 transition-all " + (cancelRazon === op ? "border-red-400 bg-red-50 text-red-700" : "border-slate-100 text-slate-700 bg-slate-50")}>
+                    {op}
+                  </button>
+                ))}
+              </div>
+              <button onClick={async () => {
+                if (!cancelRazon) { toast.error("Selecciona un motivo"); return }
+                setCancelLoading(true)
+                try {
+                  await fetch(_API + "/api/usuario/pedidos/" + pedidoDetalle.id + "/cancelar", {
+                    method: "PATCH", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ razon: cancelRazon })
+                  })
+                  setPedidoDetalle((p: any) => ({...p, status: "cancelado"}))
+                  setPedidos((prev: any[]) => prev.map((o: any) => o.id === pedidoDetalle.id ? {...o, status:"cancelado"} : o))
+                  setShowCancelar(false)
+                  toast.success("Pedido cancelado")
+                } catch { toast.error("No se pudo cancelar") }
+                finally { setCancelLoading(false) }
+              }} disabled={!cancelRazon || cancelLoading}
+                className="w-full py-4 rounded-2xl text-white font-black disabled:opacity-50 flex items-center justify-center gap-2 bg-red-500">
+                {cancelLoading ? <Loader2 className="animate-spin" size={20} /> : null}
+                Confirmar cancelacion
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showDeleteConfirm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
