@@ -872,6 +872,7 @@ export default function App() {
                   <div className="flex-1">
                     <p className="text-xs font-black text-purple-600 uppercase tracking-wider">En camino</p>
                     <p className="text-sm font-bold text-slate-700">El repartidor va hacia ti</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{pedidoDetalle.repartidor_rating && Number(pedidoDetalle.repartidor_rating) < 5 ? "⭐ " + Number(pedidoDetalle.repartidor_rating).toFixed(1) + " calificacion" : "⭐ Nuevo repartidor"}</p>
                     {repUbicacion ? (
                       <a href={`https://www.google.com/maps?q=${repUbicacion.lat},${repUbicacion.lng}`} target="_blank" rel="noreferrer"
                         className="text-xs text-purple-500 font-bold underline mt-0.5 block">
