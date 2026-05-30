@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft, MessageSquare, Send, Camera } from "lucide-react"
+import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob"
 import { Toaster, toast } from "sonner"
 import { getPedidosDisponibles, aceptarPedido, actualizarEstadoPedido, getPedidosRepartidor, toggleStatusRepartidor } from "../lib/api"
 
@@ -272,6 +273,15 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   }, [online])
 
   useEffect(() => { if (tab === "historial") cargarHistorial() }, [tab])
+
+  const ADMOB_BANNER_ID = "ca-app-pub-3849768825456219/4691773250"
+  useEffect(() => { AdMob.initialize().catch(() => {}) }, [])
+  useEffect(() => {
+    if (tab === "historial" && pedidosActivos.length === 0) {
+      AdMob.showBanner({ adId: ADMOB_BANNER_ID, adSize: BannerAdSize.ADAPTIVE_BANNER, position: BannerAdPosition.BOTTOM_CENTER, margin: 56 }).catch(() => {})
+    } else { AdMob.hideBanner().catch(() => {}) }
+    return () => { AdMob.hideBanner().catch(() => {}) }
+  }, [tab, pedidosActivos.length])
 
   const handleToggleOnline = async () => {
     try {

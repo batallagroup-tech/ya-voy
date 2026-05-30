@@ -18,6 +18,7 @@ import { usePushNotifications } from "./hooks/usePushNotifications"
 import { Stripe, PaymentSheetEventsEnum } from "@capacitor-community/stripe"
 import { Capacitor } from "@capacitor/core";
 import type { Direccion } from "./components/DireccionesScreen";
+import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob"
 import { loadStripe } from "@stripe/stripe-js";
 const _STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "";
 
@@ -284,6 +285,15 @@ export default function App() {
     return () => clearInterval(iv);
   }, [esperandoTimer]);
     useEffect(() => { if (tab === "pedidos") loadPedidos(); }, [tab]);
+
+  const ADMOB_BANNER_ID_USR = "ca-app-pub-3849768825456219/7317936592"
+  useEffect(() => { AdMob.initialize().catch(() => {}) }, [])
+  useEffect(() => {
+    if (tab === "explorar") {
+      AdMob.showBanner({ adId: ADMOB_BANNER_ID_USR, adSize: BannerAdSize.ADAPTIVE_BANNER, position: BannerAdPosition.BOTTOM_CENTER, margin: 56 }).catch(() => {})
+    } else { AdMob.hideBanner().catch(() => {}) }
+    return () => { AdMob.hideBanner().catch(() => {}) }
+  }, [tab])
   useEffect(() => {
     if (categoria === "comida" && productosFeed.length === 0) loadProductosFeed();
     if (categoria === "tienda") loadNegocios();
