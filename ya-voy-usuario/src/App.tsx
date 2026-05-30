@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser, useClerk, useSignIn, AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -228,6 +228,7 @@ export default function App() {
 
   const [metodoPago, setMetodoPago] = useState(() => localStorage.getItem("ya_voy_pago") || "efectivo");
   const [notificaciones, setNotificaciones] = useState(() => localStorage.getItem("ya_voy_notif") !== "0");
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
   const [userLocation, setUserLocation] = useState<[number, number] | null>(() => {
     try { return JSON.parse(localStorage.getItem("ya_voy_location") || "null"); } catch { return null; }
   });
@@ -1288,6 +1289,24 @@ export default function App() {
                   }} className={`w-12 h-6 rounded-full transition-all relative ${notificaciones ? "" : "bg-slate-200"}`}
                     style={notificaciones ? { background: GRAD } : {}}>
                     <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${notificaciones ? "right-0.5" : "left-0.5"}`} />
+                  </button>
+                </div>
+                <div className="px-4 py-4 flex items-center gap-3 border-t border-slate-50">
+                  <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <span className="text-lg">🌙</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-slate-900 text-sm">Modo oscuro</p>
+                    <p className="text-xs text-slate-500">Cambia la apariencia de la app</p>
+                  </div>
+                  <button onClick={() => {
+                    const next = !darkMode
+                    setDarkMode(next)
+                    localStorage.setItem("ya_voy_dark", next ? "1" : "0")
+                    document.documentElement.classList.toggle("dark", next)
+                  }} className={`w-12 h-6 rounded-full transition-all relative ${darkMode ? "" : "bg-slate-200"}`}
+                    style={darkMode ? { background: GRAD } : {}}>
+                    <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${darkMode ? "right-0.5" : "left-0.5"}`} />
                   </button>
                 </div>
               </div>

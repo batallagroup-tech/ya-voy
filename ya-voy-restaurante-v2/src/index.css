@@ -1,16 +1,12 @@
-﻿@import "tailwindcss";
-
+@import "tailwindcss";
 /* ===== MOBILE GLOBAL FIXES ===== */
-
 *, *::before, *::after {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
-
 html {
   height: 100%;
 }
-
 body {
   min-height: 100dvh;
   overscroll-behavior: none;
@@ -19,11 +15,55 @@ body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
-
 input, select, textarea {
   font-size: max(16px, 1rem);
 }
-
 .overflow-y-auto, .overflow-y-scroll {
   -webkit-overflow-scrolling: touch;
 }
+
+/* ===== DARK MODE ===== */
+.dark body,
+.dark .min-h-\[100dvh\],
+.dark .bg-slate-50 { background-color: #0f172a !important; }
+
+.dark .bg-white { background-color: #1e293b !important; }
+
+.dark .text-slate-900 { color: #f1f5f9 !important; }
+.dark .text-slate-800 { color: #e2e8f0 !important; }
+.dark .text-slate-700 { color: #cbd5e1 !important; }
+.dark .text-slate-600 { color: #94a3b8 !important; }
+.dark .text-slate-500 { color: #64748b !important; }
+.dark .text-slate-400 { color: #475569 !important; }
+.dark .text-slate-300 { color: #334155 !important; }
+
+.dark .border-slate-100 { border-color: #1e293b !important; }
+.dark .border-slate-200 { border-color: #334155 !important; }
+
+.dark .bg-slate-100 { background-color: #1e293b !important; }
+.dark .bg-slate-50  { background-color: #0f172a !important; }
+
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder { color: #475569 !important; }
+
+.dark .border-t,
+.dark .border-b { border-color: #1e293b !important; }
+
+.dark .bg-purple-50  { background-color: #1e1433 !important; }
+.dark .bg-orange-50  { background-color: #1c1208 !important; }
+.dark .bg-green-50   { background-color: #0a1f0f !important; }
+.dark .bg-amber-50   { background-color: #1c1608 !important; }
+.dark .bg-red-50     { background-color: #1f0a0a !important; }
+.dark .bg-blue-50    { background-color: #0a1020 !important; }
+.dark .bg-teal-50    { background-color: #061514 !important; }
+
+.dark .shadow-sm,
+.dark .shadow-lg,
+.dark .shadow-xl { box-shadow: 0 2px 8px rgba(0,0,0,0.6) !important; }

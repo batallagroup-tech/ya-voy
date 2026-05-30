@@ -16,6 +16,7 @@ interface Props { negocio: any }
 
 export default function Dashboard({ negocio: initialNegocio }: Props) {
   const { signOut } = useClerk();
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
   const [tab, setTab] = useState<'overview'|'orders'|'menu'|'profile'|'finance'>('overview');
   const [negocio, setNegocio] = useState<any>(initialNegocio);
   const [orders, setOrders] = useState<any[]>([]);
@@ -548,6 +549,25 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-100 px-4 py-4 flex items-center gap-3">
+                <div className="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center">
+                  <span className="text-lg">🌙</span>
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-slate-900 text-sm">Modo oscuro</p>
+                  <p className="text-xs text-slate-500">Cambia la apariencia de la app</p>
+                </div>
+                <button onClick={() => {
+                  const next = !darkMode
+                  setDarkMode(next)
+                  localStorage.setItem("ya_voy_dark", next ? "1" : "0")
+                  document.documentElement.classList.toggle("dark", next)
+                }} className={`w-12 h-6 rounded-full transition-all relative ${darkMode ? "" : "bg-slate-200"}`}
+                  style={darkMode ? { background: "linear-gradient(135deg,#FF6B00,#E65F00)" } : {}}>
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${darkMode ? "right-0.5" : "left-0.5"}`} />
+                </button>
               </div>
 
               <button onClick={() => signOut()} className="w-full py-4 bg-red-50 text-red-500 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
