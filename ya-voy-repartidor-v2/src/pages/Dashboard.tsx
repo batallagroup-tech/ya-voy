@@ -253,6 +253,9 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
       setPedidoSeleccionado(pedidoFinal)
       toast.success("Pedido aceptado!")
       setDisponibles(prev => prev.filter(p => p.id !== pedido.id))
+      // Iniciar update de ubicación cada 5s
+      const locIv = setInterval(() => actualizarUbicacion(pedido.id), 5000)
+      ;(window as any)[`loc_iv_${pedido.id}`] = locIv
     } catch (e: any) {
       if (e.message?.includes("409") || e.message?.includes("tomado")) {
         toast.error("Este pedido ya fue tomado"); cargarDisponibles()
@@ -265,6 +268,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     try {
       await actualizarEstadoPedido(pedido.id, "entregado")
       toast.success("Entrega completada!")
+      clearInterval((window as any)[`loc_iv_${pedido.id}`])
       setPedidosActivos(prev => prev.filter(p => p.id !== pedido.id))
       setEstadosPedidos(prev => { const n = { ...prev }; delete n[pedido.id]; return n })
       try { localStorage.removeItem(`rep_step_${pedido.id}`) } catch {}
@@ -326,6 +330,21 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
         setMensajesNoLeidos(prev => ({ ...prev, [pedidoId]: noLeidos }))
       }
     } catch {}
+  }
+
+  const actualizarUbicacion = async (pedidoId: string) => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        await fetch(API + "/api/repartidor/" + userId + "/ubicacion", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude, pedidoId })
+        })
+        setUserLat(pos.coords.latitude)
+        setUserLng(pos.coords.longitude)
+      } catch {}
+    }, () => {})
   }
 
   const enviarMensaje = async () => {

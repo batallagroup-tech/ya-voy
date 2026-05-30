@@ -51,6 +51,8 @@ function LoginScreen() {
   const [chatEnviando, setChatEnviando] = useState(false);
   const [chatNoLeidos, setChatNoLeidos] = useState<Record<string, number>>({});
   const chatPollRef = useRef<any>(null);
+  const [repUbicacion, setRepUbicacion] = useState<{ lat: number; lng: number } | null>(null);
+  const ubPollRef = useRef<any>(null);
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,6 +223,8 @@ export default function App() {
   const [chatEnviando, setChatEnviando] = useState(false);
   const [chatNoLeidos, setChatNoLeidos] = useState<Record<string, number>>({});
   const chatPollRef = useRef<any>(null);
+  const [repUbicacion, setRepUbicacion] = useState<{ lat: number; lng: number } | null>(null);
+  const ubPollRef = useRef<any>(null);
 
   const [metodoPago, setMetodoPago] = useState(() => localStorage.getItem("ya_voy_pago") || "efectivo");
   const [notificaciones, setNotificaciones] = useState(() => localStorage.getItem("ya_voy_notif") !== "0");
@@ -295,6 +299,9 @@ export default function App() {
     try {
       const data = await getPedidos(userId) as any[];
       setPedidos(data);
+      const enCamino = data.find((p: any) => p.status === 'en_camino' && p.repartidor_id);
+      if (enCamino) { iniciarPollUbicacion(enCamino.repartidor_id); }
+      else { detenerPollUbicacion(); }
       const esp = data.find((p: any) => p.status === 'esperando_cliente');
       if (esp) {
         const desde = esp.esperando_desde ? new Date(esp.esperando_desde).getTime() : Date.now();
@@ -457,6 +464,25 @@ export default function App() {
     setShowChatPedido(null);
     clearInterval(chatPollRef.current);
     setChatMensajes([]);
+  };
+
+  const iniciarPollUbicacion = (repartidorId: string) => {
+    const poll = async () => {
+      try {
+        const res = await fetch(_API + "/api/repartidor/" + repartidorId + "/ubicacion");
+        const data = await res.json();
+        if (data.lat_actual && data.lng_actual) {
+          setRepUbicacion({ lat: Number(data.lat_actual), lng: Number(data.lng_actual) });
+        }
+      } catch {}
+    };
+    poll();
+    ubPollRef.current = setInterval(poll, 5000);
+  };
+
+  const detenerPollUbicacion = () => {
+    clearInterval(ubPollRef.current);
+    setRepUbicacion(null);
   };
 
   const cargarChatMensajes = async (pedidoId: string) => {
@@ -762,10 +788,17 @@ export default function App() {
                   <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shrink-0">
                     <span className="text-xl">🛵</span>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-xs font-black text-purple-600 uppercase tracking-wider">En camino</p>
                     <p className="text-sm font-bold text-slate-700">El repartidor va hacia ti</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: 15-30 min</p>
+                    {repUbicacion ? (
+                      <a href={`https://www.google.com/maps?q=${repUbicacion.lat},${repUbicacion.lng}`} target="_blank" rel="noreferrer"
+                        className="text-xs text-purple-500 font-bold underline mt-0.5 block">
+                        📍 Ver ubicación del repartidor
+                      </a>
+                    ) : (
+                      <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: 15-30 min</p>
+                    )}
                   </div>
                 </div>
               )}
