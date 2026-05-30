@@ -151,7 +151,7 @@ return data.secure_url;
   };
 
   const steps = [
-    { label: 'Tipo' }, { label: 'Info' }, { label: 'Ubicaci�n' },
+    { label: 'Tipo' }, { label: 'Info' }, { label: 'Ubicacion' },
     { label: 'Docs' }, { label: 'Foto' }
   ];
 
@@ -174,7 +174,7 @@ return data.secure_url;
             <motion.div key="s0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
               <div>
                 <h1 className="text-2xl font-black text-slate-900 mb-1">Tipo de Negocio</h1>
-                <p className="text-sm text-slate-500">�Qu� tipo de establecimiento deseas registrar?</p>
+                <p className="text-sm text-slate-500">Que tipo de establecimiento deseas registrar?</p>
               </div>
               <div className="grid gap-4">
                 {[
@@ -199,13 +199,13 @@ return data.secure_url;
             </motion.div>
           )}
 
-          {/* STEP 1 — Info b�sica */}
+          {/* STEP 1 — Info bsica */}
           {step === 1 && (
             <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
               <div className="flex items-start justify-between">
                 <div>
-                  <h1 className="text-2xl font-black text-slate-900 mb-1">Informaci�n B�sica</h1>
-                  <p className="text-sm text-slate-500">Nombre de tu negocio y tel�fono de contacto.</p>
+                  <h1 className="text-2xl font-black text-slate-900 mb-1">Informacin Bsica</h1>
+                  <p className="text-sm text-slate-500">Nombre de tu negocio y telfono de contacto.</p>
                 </div>
                 {onCancel && <button onClick={onCancel} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl"><X size={20} /></button>}
               </div>
@@ -219,7 +219,7 @@ return data.secure_url;
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tel�fono</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Telfono</label>
                   <div className="relative">
                     <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="55 1234 5678"
@@ -230,7 +230,7 @@ return data.secure_url;
               </div>
               <div className="flex gap-4 pt-4">
                 <button onClick={() => setStep(0)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all">
-                  <ChevronLeft size={20} /> Atr�s
+                  <ChevronLeft size={20} /> Atrs
                 </button>
                 <button onClick={() => setStep(2)} disabled={!name || !phone}
                   className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all disabled:opacity-50">
@@ -240,12 +240,12 @@ return data.secure_url;
             </motion.div>
           )}
 
-          {/* STEP 2 — Ubicaci�n */}
+          {/* STEP 2 — Ubicacin */}
           {step === 2 && (
             <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 mb-1">Ubicaci�n</h1>
-                <p className="text-sm text-slate-500">Escribe tu direcci�n y confirma en el mapa.</p>
+                <h1 className="text-2xl font-black text-slate-900 mb-1">Ubicacin</h1>
+                <p className="text-sm text-slate-500">Escribe tu direccin y confirma en el mapa.</p>
               </div>
               <div className="space-y-3">
                 <div className="relative">
@@ -268,9 +268,9 @@ return data.secure_url;
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
-                  <input type="text" value={streetNumber} onChange={e => setStreetNumber(e.target.value)} placeholder="N�mero (Ext/Int)"
+                  <input type="text" value={streetNumber} onChange={e => setStreetNumber(e.target.value)} placeholder="Nmero (Ext/Int)"
                     className="px-4 py-3.5 bg-slate-50 rounded-2xl focus:ring-2 focus:ring-[#FF6B00] outline-none text-sm font-medium" />
-                  <input type="text" value={zipCode} onChange={e => setZipCode(e.target.value)} placeholder="C�digo Postal"
+                  <input type="text" value={zipCode} onChange={e => setZipCode(e.target.value)} placeholder="Cdigo Postal"
                     className="px-4 py-3.5 bg-slate-50 rounded-2xl focus:ring-2 focus:ring-[#FF6B00] outline-none text-sm font-medium" />
                 </div>
                 <div className="flex justify-between items-center">
@@ -278,11 +278,11 @@ return data.secure_url;
                   <div className="flex gap-2">
                     <button onClick={detectLocation} disabled={isLocating}
                       className="text-[10px] font-black uppercase px-3 py-1 bg-orange-100 rounded-full text-[#FF6B00] hover:bg-[#FF6B00] hover:text-white transition-all flex items-center gap-1">
-                      {isLocating ? <Loader2 className="animate-spin" size={10} /> : <MapPin size={10} />} Mi ubicaci�n
+                      {isLocating ? <Loader2 className="animate-spin" size={10} /> : <MapPin size={10} />} Mi ubicacin
                     </button>
                     <button onClick={() => setMapType(mapType === 'streets' ? 'satellite' : 'streets')}
                       className="text-[10px] font-black uppercase px-3 py-1 bg-slate-100 rounded-full text-slate-500 hover:bg-[#FF6B00] hover:text-white transition-all">
-                      {mapType === 'streets' ? 'Sat�lite' : 'Calles'}
+                      {mapType === 'streets' ? 'Satlite' : 'Calles'}
                     </button>
                   </div>
                 </div>
@@ -298,7 +298,7 @@ return data.secure_url;
               </div>
               <div className="flex gap-4 pt-2">
                 <button onClick={() => setStep(1)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all">
-                  <ChevronLeft size={20} /> Atr�s
+                  <ChevronLeft size={20} /> Atrs
                 </button>
                 <button onClick={() => setStep(3)} disabled={!address}
                   className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all disabled:opacity-50">
@@ -312,7 +312,7 @@ return data.secure_url;
 {step === 3 && (
   <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
     <div>
-      <h1 className="text-2xl font-black text-slate-900 mb-1">Documentaci�n</h1>
+      <h1 className="text-2xl font-black text-slate-900 mb-1">Documentacin</h1>
       <p className="text-sm text-slate-500">Sube fotos de tu INE por ambos lados.</p>
     </div>
 
@@ -349,7 +349,7 @@ return data.secure_url;
                   <label className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-[#FF6B00] hover:text-[#FF6B00] transition-all text-[10px] font-bold text-slate-500">
                     <input type="file" className="hidden" accept="image/*"
                       onChange={e => setFile(e.target.files?.[0] || null)} />
-                    🖼️ Galer�a
+                    🖼️ Galera
                   </label>
                 </div>
               </div>
@@ -391,7 +391,7 @@ return data.secure_url;
         <p className="text-[11px] text-red-400 font-bold ml-1">El RFC debe tener 12 o 13 caracteres</p>
       )}
       {(rfc.length === 12 || rfc.length === 13) && (
-        <p className="text-[11px] text-green-500 font-bold ml-1">✓ RFC v�lido</p>
+        <p className="text-[11px] text-green-500 font-bold ml-1">✓ RFC vlido</p>
       )}
     </div>
 
@@ -401,7 +401,7 @@ return data.secure_url;
 
     <div className="flex gap-4 pt-2">
       <button onClick={() => setStep(2)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all">
-        <ChevronLeft size={20} /> Atr�s
+        <ChevronLeft size={20} /> Atrs
       </button>
       <button onClick={() => setStep(4)} disabled={!ineFront || !ineBack || (rfc.length > 0 && rfc.length < 12)}
         className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all disabled:opacity-50">
@@ -414,8 +414,8 @@ return data.secure_url;
           {step === 4 && (
             <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 mb-1">Verificaci�n Facial</h1>
-                <p className="text-sm text-slate-500">T�mate una foto para confirmar tu identidad.</p>
+                <h1 className="text-2xl font-black text-slate-900 mb-1">Verificacin Facial</h1>
+                <p className="text-sm text-slate-500">Tmate una foto para confirmar tu identidad.</p>
               </div>
               <div className="relative aspect-[3/4] bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-200 flex items-center justify-center">
                 {selfie ? (
@@ -445,10 +445,10 @@ return data.secure_url;
                     <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Camera size={32} className="text-slate-400" />
                     </div>
-                    <p className="text-sm text-slate-500 font-medium mb-6">Necesitamos una foto para verificaci�n de identidad.</p>
+                    <p className="text-sm text-slate-500 font-medium mb-6">Necesitamos una foto para verificacin de identidad.</p>
                     <button onClick={() => setShowWebcam(true)}
                       className="px-6 py-3 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-2 mx-auto">
-                      <Camera size={18} /> Abrir c�mara
+                      <Camera size={18} /> Abrir cmara
                     </button>
                   </div>
                 )}
@@ -456,13 +456,13 @@ return data.secure_url;
               <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex gap-3">
                 <AlertCircle className="text-orange-500 shrink-0 mt-0.5" size={18} />
                 <p className="text-orange-700 text-xs font-bold uppercase tracking-wider leading-relaxed">
-                  Aseg�rate de que tu rostro est� bien iluminado y dentro de la silueta.
+                  Asegurate de que tu rostro este bien iluminado y dentro de la silueta.
                 </p>
               </div>
               {error && <p className="text-red-500 text-sm font-bold text-center bg-red-50 p-4 rounded-2xl border border-red-100">{error}</p>}
               <div className="flex gap-4 pt-2">
                 <button onClick={() => setStep(3)} disabled={loading} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all">
-                  <ChevronLeft size={20} /> Atr�s
+                  <ChevronLeft size={20} /> Atrs
                 </button>
                 <button onClick={handleSubmit} disabled={loading || !selfie}
                   className="flex-[2] py-4 bg-[#FF6B00] hover:bg-[#E65F00] text-white font-black rounded-2xl shadow-xl shadow-orange-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-lg">
