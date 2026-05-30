@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { MapPin, Home, Briefcase, Star, Plus, Pencil, Trash2, X, Check, ArrowLeft, Loader2 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -30,7 +30,18 @@ const ICONOS = { casa: Home, trabajo: Briefcase, otro: Star };
 
 function PinHandler({ onMove }: { onMove: (lat: number, lng: number) => void }) {
   useMapEvents({ click(e) { onMove(e.latlng.lat, e.latlng.lng); } });
-  return null;
+  return null
+}
+
+function MapMover({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap()
+  useEffect(() => { map.setView([lat, lng], map.getZoom()) }, [lat, lng])
+  return null
+function MapMover({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap()
+  useEffect(() => { map.setView([lat, lng], map.getZoom()) }, [lat, lng])
+  return null
+}
 }
 
 interface Props {
@@ -196,6 +207,7 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
                       eventHandlers={{ dragend: e => { const p = e.target.getLatLng(); handleMapClick(p.lat, p.lng); } }}
                     />
                     <PinHandler onMove={handleMapClick} />
+                    <MapMover lat={form.lat} lng={form.lng} />
                   </MapContainer>
                   <button
                     type="button"
