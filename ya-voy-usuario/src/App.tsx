@@ -1513,8 +1513,9 @@ export default function App() {
                 {guardandoTarjeta ? <Loader2 className="animate-spin" size={20} /> : <CreditCard size={20} />}
                 {guardandoTarjeta ? "Guardando..." : "Guardar tarjeta"}
               </button>
-              <p className="text-center text-xs text-slate-400">Pago seguro procesado por Stripe</p>
+              <p className="text-center text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2">⚠️ Al guardar tu tarjeta se realizara un cargo temporal de $1 MXN para verificarla. Este cargo se revierte automaticamente en 1-7 dias habiles.</p>
             </motion.div>
+              <p className="text-center text-xs text-slate-400">Pago seguro procesado por Stripe</p>
           </motion.div>
         )}
       </AnimatePresence>
