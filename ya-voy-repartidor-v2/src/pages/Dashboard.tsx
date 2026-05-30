@@ -131,6 +131,7 @@ function FotoEntregaBtn({ pedidoId, apiUrl, cloudName, uploadPreset }: { pedidoI
 export default function Dashboard({ repartidor, userId, user }: { repartidor: any; userId: string; user: any }) {
   const { signOut } = useClerk()
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
+  const [appConfig, setAppConfig] = useState<Record<string,string>>({})
   const [tab, setTab] = useState<"pedidos" | "activo" | "historial" | "perfil">("pedidos")
   const [disponibles, setDisponibles] = useState<any[]>([])
   const [pedidosActivos, setPedidosActivos] = useState<any[]>([])
@@ -273,6 +274,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   }, [online])
 
   useEffect(() => { if (tab === "historial") cargarHistorial() }, [tab])
+  useEffect(() => { fetch(import.meta.env.VITE_API_URL + "/api/config").then(r=>r.json()).then(d=>setAppConfig(d)).catch(()=>{}) }, [])
+  useEffect(() => { fetch(import.meta.env.VITE_API_URL + "/api/config").then(r=>r.json()).then(d=>setAppConfig(d)).catch(()=>{}) }, [])
 
   const ADMOB_BANNER_ID = "ca-app-pub-3849768825456219/4691773250"
   useEffect(() => { AdMob.initialize().catch(() => {}) }, [])
@@ -911,6 +914,12 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                 </button>
               </div>
 
+              {appConfig.whatsapp && (
+                <a href={appConfig.whatsapp} target="_blank" rel="noreferrer"
+                  className="w-full py-4 bg-green-50 text-green-700 font-bold rounded-2xl flex items-center justify-center gap-2">
+                  💬 Contactar soporte por WhatsApp
+                </a>
+              )}
               <button onClick={() => signOut()}
                 className="w-full py-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-center gap-2 text-slate-600 font-bold hover:bg-slate-50">
                 <LogOut size={18} /> Cerrar sesion
@@ -1028,3 +1037,4 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     </div>
   )
 }
+

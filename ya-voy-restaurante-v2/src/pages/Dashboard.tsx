@@ -17,6 +17,7 @@ interface Props { negocio: any }
 export default function Dashboard({ negocio: initialNegocio }: Props) {
   const { signOut } = useClerk();
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
+  const [appConfig, setAppConfig] = useState<Record<string,string>>({})
   const [tab, setTab] = useState<'overview'|'orders'|'menu'|'profile'|'finance'>('overview');
   const [negocio, setNegocio] = useState<any>(initialNegocio);
   const [orders, setOrders] = useState<any[]>([]);
@@ -73,7 +74,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     } finally { setLoading(false); }
   }, [negocio?.id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); fetch(import.meta.env.VITE_API_URL + "/api/config").then(r=>r.json()).then(d=>setAppConfig(d)).catch(()=>{}) }, [load])
   useEffect(() => {
     if (tab !== 'orders' && tab !== 'overview') return;
     const interval = setInterval(() => load(), 3000);
@@ -638,6 +639,13 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${darkMode ? "right-0.5" : "left-0.5"}`} />
                 </button>
               </div>
+
+              {appConfig.whatsapp && (
+                <a href={appConfig.whatsapp} target="_blank" rel="noreferrer"
+                  className="w-full py-4 bg-green-50 text-green-700 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-green-100 transition-all">
+                  💬 Contactar soporte por WhatsApp
+                </a>
+              )}
 
               <button onClick={() => signOut()} className="w-full py-4 bg-red-50 text-red-500 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
                 <LogOut size={18} /> Cerrar sesion

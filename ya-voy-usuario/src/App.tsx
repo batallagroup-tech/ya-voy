@@ -184,6 +184,7 @@ export default function App() {
   const [soporteComentario, setSoporteComentario] = useState("");
   const [soporteLoading, setSoporteLoading] = useState(false);
 
+  const [appConfig, setAppConfig] = useState<Record<string,string>>({})
   const [tab, setTab] = useState<"home" | "explorar" | "pedidos" | "perfil">("home");
   const [categoria, setCategoria] = useState<"comida" | "tienda" | "envio">("comida");
   const [subCategoria, setSubCategoria] = useState("Todos");
@@ -255,6 +256,7 @@ export default function App() {
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId || !user) return;
     syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: user.fullName ?? "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }).catch(() => {});
+    fetch(_API + "/api/config").then(r => r.json()).then(d => setAppConfig(d)).catch(() => {})
     if (!localStorage.getItem("ya_voy_onboarding_done")) {
       setShowOnboarding(true);
     } else {
@@ -1567,6 +1569,12 @@ export default function App() {
                     body: JSON.stringify({ usuarioId: userId, usuarioEmail: user?.primaryEmailAddress?.emailAddress, usuarioNombre: user?.fullName, tipo: soporteTipo, comentario: soporteComentario }) });
                   toast.success("Reporte enviado. Te contactaremos pronto.");
                   setShowSoporte(false); setSoporteTipo(""); setSoporteComentario("");
+              {appConfig.whatsapp && (
+                <a href={appConfig.whatsapp} target="_blank" rel="noreferrer"
+                  className="w-full py-4 rounded-2xl font-black text-white flex items-center justify-center gap-2 bg-green-500">
+                  💬 Contactar por WhatsApp
+                </a>
+              )}
                 } catch { toast.error("Error al enviar reporte"); }
                 finally { setSoporteLoading(false); }
               }} disabled={!soporteTipo || soporteLoading} style={{ background: GRAD }}
