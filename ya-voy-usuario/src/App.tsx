@@ -5,7 +5,7 @@ import {
   ShoppingBag, Search, Home, Clock, User, MapPin, Star, ChevronRight,
   Plus, Minus, X, Loader2, LogOut, ShoppingCart, Utensils, Store,
   Package, Trash2, CreditCard, Banknote, Bell, HelpCircle, FileText,
-  ChevronDown, Check, ArrowLeft, Mail, Eye, EyeOff
+  ChevronDown, Check, ArrowLeft, Mail, Eye, EyeOff, MessageSquare, Send
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed } from "./lib/api";
@@ -45,6 +45,12 @@ function LoginScreen() {
   const [setupStripeInstance, setSetupStripeInstance] = useState<any>(null);
   const [setupCardElement, setSetupCardElement] = useState<any>(null);
   const [guardandoTarjeta, setGuardandoTarjeta] = useState(false);
+  const [showChatPedido, setShowChatPedido] = useState<string | null>(null);
+  const [chatMensajes, setChatMensajes] = useState<any[]>([]);
+  const [chatTexto, setChatTexto] = useState("");
+  const [chatEnviando, setChatEnviando] = useState(false);
+  const [chatNoLeidos, setChatNoLeidos] = useState<Record<string, number>>({});
+  const chatPollRef = useRef<any>(null);
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,6 +215,12 @@ export default function App() {
   const [setupStripeInstance, setSetupStripeInstance] = useState<any>(null);
   const [setupCardElement, setSetupCardElement] = useState<any>(null);
   const [guardandoTarjeta, setGuardandoTarjeta] = useState(false);
+  const [showChatPedido, setShowChatPedido] = useState<string | null>(null);
+  const [chatMensajes, setChatMensajes] = useState<any[]>([]);
+  const [chatTexto, setChatTexto] = useState("");
+  const [chatEnviando, setChatEnviando] = useState(false);
+  const [chatNoLeidos, setChatNoLeidos] = useState<Record<string, number>>({});
+  const chatPollRef = useRef<any>(null);
 
   const [metodoPago, setMetodoPago] = useState(() => localStorage.getItem("ya_voy_pago") || "efectivo");
   const [notificaciones, setNotificaciones] = useState(() => localStorage.getItem("ya_voy_notif") !== "0");
@@ -428,6 +440,49 @@ export default function App() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, email: user?.primaryEmailAddress?.emailAddress, nombre: user?.fullName }),
     });
+  };
+
+  const abrirChatUsuario = async (pedidoId: string) => {
+    setShowChatPedido(pedidoId);
+    await cargarChatMensajes(pedidoId);
+    chatPollRef.current = setInterval(() => cargarChatMensajes(pedidoId), 3000);
+    fetch(_API + "/api/mensajes/" + pedidoId + "/leidos", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lectorTipo: "usuario" })
+    }).catch(() => {});
+    setChatNoLeidos(prev => ({ ...prev, [pedidoId]: 0 }));
+  };
+
+  const cerrarChatUsuario = () => {
+    setShowChatPedido(null);
+    clearInterval(chatPollRef.current);
+    setChatMensajes([]);
+  };
+
+  const cargarChatMensajes = async (pedidoId: string) => {
+    try {
+      const res = await fetch(_API + "/api/mensajes/" + pedidoId);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setChatMensajes(data);
+        const noLeidos = data.filter((m: any) => m.remitente_tipo === "repartidor" && !m.leido).length;
+        setChatNoLeidos(prev => ({ ...prev, [pedidoId]: noLeidos }));
+      }
+    } catch {}
+  };
+
+  const enviarChatMensaje = async () => {
+    if (!showChatPedido || !chatTexto.trim() || !userId) return;
+    setChatEnviando(true);
+    try {
+      await fetch(_API + "/api/mensajes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pedidoId: showChatPedido, remitenteId: userId, remitenteTipo: "usuario", texto: chatTexto })
+      });
+      setChatTexto("");
+      await cargarChatMensajes(showChatPedido);
+    } catch { toast.error("Error al enviar"); }
+    finally { setChatEnviando(false); }
   };
 
   const loadTarjetas = async () => {
@@ -748,6 +803,17 @@ export default function App() {
                   } catch { toast.error("No se pudo cancelar"); }
                 }} className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-bold text-sm mt-2 mb-2">
                   ✕ Cancelar pedido
+                </button>
+              )}
+              {["en_camino","esperando_cliente"].includes(pedidoDetalle.status) && (
+                <button onClick={() => abrirChatUsuario(pedidoDetalle.id)}
+                  className="relative w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 border-purple-200 text-purple-600 bg-purple-50">
+                  <MessageSquare size={18} /> Chatear con el repartidor
+                  {(chatNoLeidos[pedidoDetalle.id] || 0) > 0 && (
+                    <span className="absolute top-2 right-3 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-black flex items-center justify-center">
+                      {chatNoLeidos[pedidoDetalle.id]}
+                    </span>
+                  )}
                 </button>
               )}
               {pedidoDetalle.status === 'en_camino' && !codigoConfirmado && codigoOpciones.length > 0 && (
@@ -1215,6 +1281,48 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* MODAL CHAT USUARIO */}
+      <AnimatePresence>
+        {showChatPedido && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[95] flex items-end">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl flex flex-col" style={{ maxHeight: "80vh" }}>
+              <div className="flex items-center justify-between p-4 border-b border-slate-100 shrink-0">
+                <h3 className="font-black text-slate-900 flex items-center gap-2">
+                  <MessageSquare size={18} className="text-purple-500" /> Chat con el repartidor
+                </h3>
+                <button onClick={cerrarChatUsuario}><X size={22} className="text-slate-400" /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {chatMensajes.length === 0 && (
+                  <p className="text-center text-slate-400 text-sm py-8">Sin mensajes aún</p>
+                )}
+                {chatMensajes.map(m => (
+                  <div key={m.id} className={`flex ${m.remitente_tipo === "usuario" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm font-medium ${m.remitente_tipo === "usuario" ? "text-white rounded-br-sm" : "bg-slate-100 text-slate-900 rounded-bl-sm"}`}
+                      style={m.remitente_tipo === "usuario" ? { background: GRAD } : {}}>
+                      {m.texto}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-4 border-t border-slate-100 shrink-0 flex gap-2">
+                <input value={chatTexto} onChange={e => setChatTexto(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && !e.shiftKey && enviarChatMensaje()}
+                  placeholder="Escribe un mensaje..."
+                  className="flex-1 px-4 py-3 bg-slate-50 rounded-2xl text-sm border border-slate-200 outline-none focus:border-purple-400" />
+                <button onClick={enviarChatMensaje} disabled={chatEnviando || !chatTexto.trim()}
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center disabled:opacity-40"
+                  style={{ background: GRAD }}>
+                  {chatEnviando ? <Loader2 size={16} className="text-white animate-spin" /> : <Send size={16} className="text-white" />}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* MODAL TARJETAS */}
       <AnimatePresence>

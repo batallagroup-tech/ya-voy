@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "motion/react"
 import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
-import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft } from "lucide-react"
+import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft, MessageSquare, Send } from "lucide-react"
 import { Toaster, toast } from "sonner"
 import { getPedidosDisponibles, aceptarPedido, actualizarEstadoPedido, getPedidosRepartidor, toggleStatusRepartidor } from "../lib/api"
 
@@ -103,6 +103,12 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   const [userLng, setUserLng] = useState<number | null>(null)
   const pollRef = useRef<any>(null)
   const [esperandoTimers, setEsperandoTimers] = useState<Record<string, number>>({})
+  const [showChat, setShowChat] = useState<string | null>(null) // pedidoId
+  const [mensajes, setMensajes] = useState<any[]>([])
+  const [mensajeTexto, setMensajeTexto] = useState("")
+  const [enviandoMensaje, setEnviandoMensaje] = useState(false)
+  const [mensajesNoLeidos, setMensajesNoLeidos] = useState<Record<string, number>>({})
+  const chatPollRef = useRef<any>(null)
   const [showContingencia, setShowContingencia] = useState<{ pedido: any; tipo: 'no_pago' | 'accidente' } | null>(null)
   const [contingenciaDesc, setContingenciaDesc] = useState('')
   const [contingenciaFoto, setContingenciaFoto] = useState('')
@@ -290,6 +296,50 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
       cargarHistorial()
     } catch (e: any) { toast.error(e.message) }
     finally { setEnviandoContingencia(false) }
+  }
+
+  const abrirChat = async (pedidoId: string) => {
+    setShowChat(pedidoId)
+    await cargarMensajes(pedidoId)
+    chatPollRef.current = setInterval(() => cargarMensajes(pedidoId), 3000)
+    // marcar leidos
+    fetch(API + "/api/mensajes/" + pedidoId + "/leidos", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lectorTipo: "repartidor" })
+    }).catch(() => {})
+    setMensajesNoLeidos(prev => ({ ...prev, [pedidoId]: 0 }))
+  }
+
+  const cerrarChat = () => {
+    setShowChat(null)
+    clearInterval(chatPollRef.current)
+    setMensajes([])
+  }
+
+  const cargarMensajes = async (pedidoId: string) => {
+    try {
+      const res = await fetch(API + "/api/mensajes/" + pedidoId)
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        setMensajes(data)
+        const noLeidos = data.filter((m: any) => m.remitente_tipo === "usuario" && !m.leido).length
+        setMensajesNoLeidos(prev => ({ ...prev, [pedidoId]: noLeidos }))
+      }
+    } catch {}
+  }
+
+  const enviarMensaje = async () => {
+    if (!showChat || !mensajeTexto.trim()) return
+    setEnviandoMensaje(true)
+    try {
+      await fetch(API + "/api/mensajes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pedidoId: showChat, remitenteId: userId, remitenteTipo: "repartidor", texto: mensajeTexto })
+      })
+      setMensajeTexto("")
+      await cargarMensajes(showChat)
+    } catch { toast.error("Error al enviar") }
+    finally { setEnviandoMensaje(false) }
   }
 
   const gananciasHoy = historial
@@ -781,6 +831,48 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
         </AnimatePresence>
       </div>
+
+      {/* MODAL CHAT */}
+      <AnimatePresence>
+        {showChat && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[85] flex items-end">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl flex flex-col" style={{ maxHeight: "80vh" }}>
+              <div className="flex items-center justify-between p-4 border-b border-slate-100 shrink-0">
+                <h3 className="font-black text-slate-900 flex items-center gap-2">
+                  <MessageSquare size={18} className="text-purple-500" /> Chat con el cliente
+                </h3>
+                <button onClick={cerrarChat}><X size={22} className="text-slate-400" /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {mensajes.length === 0 && (
+                  <p className="text-center text-slate-400 text-sm py-8">Sin mensajes aún</p>
+                )}
+                {mensajes.map(m => (
+                  <div key={m.id} className={`flex ${m.remitente_tipo === "repartidor" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm font-medium ${m.remitente_tipo === "repartidor" ? "text-white rounded-br-sm" : "bg-slate-100 text-slate-900 rounded-bl-sm"}`}
+                      style={m.remitente_tipo === "repartidor" ? { background: GRAD } : {}}>
+                      {m.texto}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-4 border-t border-slate-100 shrink-0 flex gap-2">
+                <input value={mensajeTexto} onChange={e => setMensajeTexto(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && !e.shiftKey && enviarMensaje()}
+                  placeholder="Escribe un mensaje..."
+                  className="flex-1 px-4 py-3 bg-slate-50 rounded-2xl text-sm border border-slate-200 outline-none focus:border-purple-400" />
+                <button onClick={enviarMensaje} disabled={enviandoMensaje || !mensajeTexto.trim()}
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center disabled:opacity-40"
+                  style={{ background: GRAD }}>
+                  {enviandoMensaje ? <Loader2 size={16} className="text-white animate-spin" /> : <Send size={16} className="text-white" />}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* MODAL CONTINGENCIA */}
       <AnimatePresence>
