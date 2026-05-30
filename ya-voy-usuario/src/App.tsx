@@ -37,6 +37,14 @@ function LoginScreen() {
   const [stripeInstance, setStripeInstance] = useState<any>(null);
   const [stripePagoLoading, setStripePagoLoading] = useState(false);
   const [pendingPedidoData, setPendingPedidoData] = useState<any>(null);
+  const [showTarjetas, setShowTarjetas] = useState(false);
+  const [tarjetas, setTarjetas] = useState<any[]>([]);
+  const [tarjetasLoading, setTarjetasLoading] = useState(false);
+  const [showAgregarTarjeta, setShowAgregarTarjeta] = useState(false);
+  const [setupClientSecret, setSetupClientSecret] = useState("");
+  const [setupStripeInstance, setSetupStripeInstance] = useState<any>(null);
+  const [setupCardElement, setSetupCardElement] = useState<any>(null);
+  const [guardandoTarjeta, setGuardandoTarjeta] = useState(false);
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,6 +201,14 @@ export default function App() {
   const [stripeInstance, setStripeInstance] = useState<any>(null);
   const [stripePagoLoading, setStripePagoLoading] = useState(false);
   const [pendingPedidoData, setPendingPedidoData] = useState<any>(null);
+  const [showTarjetas, setShowTarjetas] = useState(false);
+  const [tarjetas, setTarjetas] = useState<any[]>([]);
+  const [tarjetasLoading, setTarjetasLoading] = useState(false);
+  const [showAgregarTarjeta, setShowAgregarTarjeta] = useState(false);
+  const [setupClientSecret, setSetupClientSecret] = useState("");
+  const [setupStripeInstance, setSetupStripeInstance] = useState<any>(null);
+  const [setupCardElement, setSetupCardElement] = useState<any>(null);
+  const [guardandoTarjeta, setGuardandoTarjeta] = useState(false);
 
   const [metodoPago, setMetodoPago] = useState(() => localStorage.getItem("ya_voy_pago") || "efectivo");
   const [notificaciones, setNotificaciones] = useState(() => localStorage.getItem("ya_voy_notif") !== "0");
@@ -405,6 +421,76 @@ export default function App() {
       localStorage.clear();
     } catch { toast.error("Error al eliminar cuenta"); }
     setShowDeleteConfirm(false);
+  };
+
+  const ensureCustomer = async () => {
+    await fetch(_API + "/api/stripe/customer", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, email: user?.primaryEmailAddress?.emailAddress, nombre: user?.fullName }),
+    });
+  };
+
+  const loadTarjetas = async () => {
+    if (!userId) return;
+    setTarjetasLoading(true);
+    try {
+      await ensureCustomer();
+      const res = await fetch(_API + "/api/stripe/payment-methods/" + userId);
+      const data = await res.json();
+      setTarjetas(data.cards || []);
+    } catch {}
+    finally { setTarjetasLoading(false); }
+  };
+
+  const handleAbrirTarjetas = async () => {
+    setShowTarjetas(true);
+    await loadTarjetas();
+  };
+
+  const handleAgregarTarjeta = async () => {
+    setShowAgregarTarjeta(true);
+    try {
+      const res = await fetch(_API + "/api/stripe/setup-intent", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (!data.clientSecret) throw new Error("No se pudo iniciar");
+      const stripeObj = await loadStripe(_STRIPE_PK);
+      setSetupStripeInstance(stripeObj);
+      setSetupClientSecret(data.clientSecret);
+      setTimeout(async () => {
+        const elements = stripeObj!.elements({ clientSecret: data.clientSecret, appearance: { theme: "stripe" } });
+        const card = elements.create("payment");
+        card.mount("#stripe-setup-element");
+        setSetupCardElement({ elements, card });
+      }, 300);
+    } catch (e: any) { toast.error(e.message); setShowAgregarTarjeta(false); }
+  };
+
+  const handleConfirmarTarjeta = async () => {
+    if (!setupStripeInstance || !setupCardElement) return;
+    setGuardandoTarjeta(true);
+    try {
+      const { error } = await setupStripeInstance.confirmSetup({
+        elements: setupCardElement.elements,
+        confirmParams: { return_url: window.location.origin },
+        redirect: "if_required",
+      });
+      if (error) { toast.error(error.message || "Error"); return; }
+      toast.success("Tarjeta guardada");
+      setShowAgregarTarjeta(false); setSetupClientSecret(""); setSetupCardElement(null);
+      await loadTarjetas();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setGuardandoTarjeta(false); }
+  };
+
+  const handleEliminarTarjeta = async (pmId: string) => {
+    try {
+      await fetch(_API + "/api/stripe/payment-methods/" + pmId, { method: "DELETE" });
+      setTarjetas(prev => prev.filter(c => c.id !== pmId));
+      toast.success("Tarjeta eliminada");
+    } catch { toast.error("Error al eliminar"); }
   };
 
   const productosFeedFiltrados = productosFeed.filter(p =>
@@ -1077,6 +1163,18 @@ export default function App() {
                   </button>
                 </div>
 
+                <button onClick={handleAbrirTarjetas}
+                  className="w-full px-4 py-4 flex items-center gap-3 hover:bg-slate-50 transition-all border-b border-slate-50">
+                  <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <CreditCard size={18} className="text-purple-600" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-bold text-slate-900 text-sm">Mis tarjetas</p>
+                    <p className="text-xs text-slate-500">{tarjetas.length > 0 ? tarjetas.length + " tarjeta" + (tarjetas.length !== 1 ? "s" : "") + " guardada" + (tarjetas.length !== 1 ? "s" : "") : "Sin tarjetas guardadas"}</p>
+                  </div>
+                  <ChevronRight size={18} className="text-slate-300" />
+                </button>
+
                 <div className="px-4 py-4 flex items-center gap-3">
                   <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center">
                     <Bell size={18} className="text-purple-600" />
@@ -1117,6 +1215,77 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* MODAL TARJETAS */}
+      <AnimatePresence>
+        {showTarjetas && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[80] flex items-end">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-black text-slate-900">Mis tarjetas</h3>
+                <button onClick={() => setShowTarjetas(false)}><X size={22} className="text-slate-400" /></button>
+              </div>
+              {tarjetasLoading ? (
+                <div className="text-center py-8"><Loader2 className="animate-spin mx-auto text-purple-500" size={28} /></div>
+              ) : tarjetas.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">
+                  <CreditCard size={40} className="mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Sin tarjetas guardadas</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tarjetas.map(card => (
+                    <div key={card.id} className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="w-12 h-8 bg-white rounded-lg border border-slate-200 flex items-center justify-center text-lg font-black text-slate-700 shrink-0">
+                        {card.brand === "visa" ? "VISA" : card.brand === "mastercard" ? "MC" : card.brand?.toUpperCase()?.slice(0,4)}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-black text-slate-900 text-sm">•••• •••• •••• {card.last4}</p>
+                        <p className="text-xs text-slate-500">Vence {card.exp_month}/{card.exp_year}</p>
+                      </div>
+                      <button onClick={() => handleEliminarTarjeta(card.id)}
+                        className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                        <X size={14} className="text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button onClick={handleAgregarTarjeta} style={{ background: GRAD }}
+                className="w-full py-4 text-white font-black rounded-2xl flex items-center justify-center gap-2">
+                <CreditCard size={20} /> Agregar tarjeta
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL AGREGAR TARJETA */}
+      <AnimatePresence>
+        {showAgregarTarjeta && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[90] flex items-end">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-black text-slate-900">Agregar tarjeta</h3>
+                <button onClick={() => { setShowAgregarTarjeta(false); setSetupClientSecret(""); setSetupCardElement(null); }}>
+                  <X size={22} className="text-slate-400" />
+                </button>
+              </div>
+              <div id="stripe-setup-element" className="min-h-[120px]" />
+              <button onClick={handleConfirmarTarjeta} disabled={guardandoTarjeta} style={{ background: GRAD }}
+                className="w-full py-4 text-white font-black rounded-2xl flex items-center justify-center gap-2 disabled:opacity-60">
+                {guardandoTarjeta ? <Loader2 className="animate-spin" size={20} /> : <CreditCard size={20} />}
+                {guardandoTarjeta ? "Guardando..." : "Guardar tarjeta"}
+              </button>
+              <p className="text-center text-xs text-slate-400">Pago seguro procesado por Stripe</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* BOTTOM NAV */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-2 pt-2 z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
