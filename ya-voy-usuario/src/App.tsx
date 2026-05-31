@@ -202,6 +202,7 @@ export default function App() {
   const [cuponError, setCuponError] = useState("")
   const [costoEnvio, setCostoEnvio] = useState(35)
   const [costoEnvioLoading, setCostoEnvioLoading] = useState(false)
+  const [tiempoEstimado, setTiempoEstimado] = useState("")
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [pedidoDetalle, setPedidoDetalle] = useState<any>(null);
   const [codigoOpciones, setCodigoOpciones] = useState<string[]>([]);
@@ -419,6 +420,7 @@ export default function App() {
       cuponCodigo: cuponAplicado?.codigo || null,
       descuentoCupon: cuponAplicado?.descuento || 0,
       costoEnvio,
+      tiempoEstimado,
     };
 
     if (metodoPago === "tarjeta") {
@@ -592,6 +594,7 @@ export default function App() {
       })
       const d = await res.json()
       if (d.costoEnvio) setCostoEnvio(d.costoEnvio)
+      if (d.tiempoEstimado) setTiempoEstimado(d.tiempoEstimado)
     } catch {} finally { setCostoEnvioLoading(false) }
   }
 
@@ -897,7 +900,7 @@ export default function App() {
                         📍 Ver ubicación del repartidor
                       </a>
                     ) : (
-                      <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: 15-30 min</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: {pedidoDetalle.tiempo_estimado || "15-30 min"}</p>
                     )}
                   </div>
                 </div>
@@ -910,7 +913,7 @@ export default function App() {
                   <div>
                     <p className="text-xs font-black text-orange-600 uppercase tracking-wider">Preparando</p>
                     <p className="text-sm font-bold text-slate-700">El restaurante esta preparando tu orden</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: 10-20 min</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: {pedidoDetalle.tiempo_estimado || "10-20 min"}</p>
                   </div>
                 </div>
               )}
