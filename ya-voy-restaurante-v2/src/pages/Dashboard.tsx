@@ -40,6 +40,8 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     return base;
   });
   const [savingHorarios, setSavingHorarios] = useState(false);
+  const [stripeConectando, setStripeConectando] = useState(false)
+  const [stripeConectado, setStripeConectado] = useState(false)
   const [retiros, setRetiros] = useState<any[]>([])
   const [retirosLoading, setRetirosLoading] = useState(false)
   const [solicitandoRetiro, setSolicitandoRetiro] = useState(false)
@@ -92,6 +94,11 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
       if (d.retiro_minimo) setRetiroMinimo(Number(d.retiro_minimo))
       if (d.comision_pct) setComisionPct(Number(d.comision_pct) / 100)
     }).catch(()=>{})
+    // Verificar Stripe Connect
+    if (initialNegocio?.owner_id) {
+      fetch(import.meta.env.VITE_API_URL + "/api/stripe/connect/status/restaurante/" + initialNegocio.id)
+        .then(r=>r.json()).then(d=>setStripeConectado(d.conectado||false)).catch(()=>{})
+    }
     // Cargar retiros del restaurante
     if (initialNegocio?.owner_id) {
       setRetirosLoading(true)
@@ -730,6 +737,28 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                 </button>
               </div>
 
+              <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Cuenta bancaria</p>
+                <p className="text-xs text-slate-400 mb-3">{stripeConectado ? "✅ Cuenta conectada — recibes pagos automaticamente" : "Conecta tu cuenta para recibir pagos de tus ventas"}</p>
+                <button onClick={async () => {
+                  if (stripeConectado) return
+                  setStripeConectando(true)
+                  try {
+                    const res = await fetch(import.meta.env.VITE_API_URL + "/api/stripe/connect/onboarding", {
+                      method: "POST", headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ tipo: "restaurante", actorId: negocio.id, email: negocio.email, nombre: negocio.nombre })
+                    })
+                    const d = await res.json()
+                    if (d.url) window.open(d.url, "_blank")
+                  } catch { toast.error("Error al conectar cuenta") }
+                  finally { setStripeConectando(false) }
+                }} disabled={stripeConectado || stripeConectando}
+                  className="w-full py-3 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                  style={{ background: stripeConectado ? "#22c55e" : "linear-gradient(135deg,#FF6B00,#E65F00)" }}>
+                  {stripeConectando ? <Loader2 className="animate-spin" size={16} /> : null}
+                  {stripeConectado ? "✅ Cuenta conectada" : stripeConectando ? "Conectando..." : "💳 Conectar cuenta bancaria"}
+                </button>
+              </div>
               {appConfig.whatsapp && (
                 <a href={appConfig.whatsapp} target="_blank" rel="noreferrer"
                   className="w-full py-4 bg-green-50 text-green-700 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-green-100 transition-all">
