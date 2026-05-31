@@ -200,6 +200,8 @@ export default function App() {
   const [cuponAplicado, setCuponAplicado] = useState<{codigo:string;descuento:number;tipo:string;valor:number}|null>(null)
   const [cuponLoading, setCuponLoading] = useState(false)
   const [cuponError, setCuponError] = useState("")
+  const [costoEnvio, setCostoEnvio] = useState(35)
+  const [costoEnvioLoading, setCostoEnvioLoading] = useState(false)
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [pedidoDetalle, setPedidoDetalle] = useState<any>(null);
   const [codigoOpciones, setCodigoOpciones] = useState<string[]>([]);
@@ -411,11 +413,12 @@ export default function App() {
       clienteId: userId,
       negocioId: cart[0].negocioId,
       items: cart,
-      total: total + 35 + 8.5 - (cuponAplicado?.descuento || 0),
+      total: total + costoEnvio - (cuponAplicado?.descuento || 0),
       notas: "",
       metodoPago,
       cuponCodigo: cuponAplicado?.codigo || null,
       descuentoCupon: cuponAplicado?.descuento || 0,
+      costoEnvio,
     };
 
     if (metodoPago === "tarjeta") {
@@ -425,7 +428,7 @@ export default function App() {
         const res = await fetch(_API + "/api/stripe/payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-          body: JSON.stringify({ amount: pedidoData.total, currency: "mxn" }),
+          body: JSON.stringify({ amount: pedidoData.total, currency: "mxn", costoEnvio }),
         });
         const data = await res.json();
         if (!data.clientSecret) throw new Error("No se pudo iniciar el pago");
@@ -576,6 +579,21 @@ export default function App() {
     } catch {}
     finally { setTarjetasLoading(false); }
   };
+
+  const calcularEnvio = async () => {
+    if (!negocioSeleccionado?.lat || !negocioSeleccionado?.lng) return
+    const loc = userLocation
+    if (!loc) return
+    setCostoEnvioLoading(true)
+    try {
+      const res = await fetch(_API + "/api/stripe/calcular-envio", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latUsuario: loc[0], lngUsuario: loc[1], latNegocio: negocioSeleccionado.lat, lngNegocio: negocioSeleccionado.lng })
+      })
+      const d = await res.json()
+      if (d.costoEnvio) setCostoEnvio(d.costoEnvio)
+    } catch {} finally { setCostoEnvioLoading(false) }
+  }
 
   const handleAbrirTarjetas = async () => {
     setShowTarjetas(true);
@@ -765,7 +783,7 @@ export default function App() {
                 <div className="flex justify-between text-sm text-slate-500"><span>Subtotal</span><span>${total.toFixed(2)}</span></div>
                 <div className="flex justify-between text-sm text-slate-500"><span>Envío</span><span>$35.00</span></div>
                 <div className="flex justify-between text-sm text-slate-500"><span>Servicio</span><span>$8.50</span></div>
-                <div className="flex justify-between font-black text-slate-900 text-lg"><span>Total</span><span>${(total + 35 + 8.5 - (cuponAplicado?.descuento || 0)).toFixed(2)}</span></div>
+                <div className="flex justify-between font-black text-slate-900 text-lg"><span>Total</span><span>${(total + costoEnvio - (cuponAplicado?.descuento || 0)).toFixed(2)}</span></div>
                 {cuponAplicado && <div className="flex justify-between text-sm text-green-600 font-bold"><span>Cupon {cuponAplicado.codigo}</span><span>-${cuponAplicado.descuento.toFixed(2)}</span></div>}
               </div>
               <div className="flex gap-2 mb-3">
@@ -778,7 +796,7 @@ export default function App() {
                   try {
                     const r = await fetch(_API + "/api/usuario/cupones/validar", {
                       method: "POST", headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ codigo: cuponCodigo.trim(), total: total + 35 + 8.5 })
+                      body: JSON.stringify({ codigo: cuponCodigo.trim(), total: total + costoEnvio })
                     })
                     const d = await r.json()
                     if (!r.ok) { setCuponError(d.error || "Cupon invalido"); return }
