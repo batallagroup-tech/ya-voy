@@ -583,9 +583,11 @@ export default function App() {
   };
 
   const calcularEnvio = async () => {
-    if (!negocioSeleccionado?.lat || !negocioSeleccionado?.lng) return
-    const loc = userLocation
-    if (!loc) return
+    if (!negocioSeleccionado?.lat || !negocioSeleccionado?.lng) {
+      setCostoEnvio(35); return
+    }
+    const loc = userLocation || (direccionPrincipal?.lat && direccionPrincipal?.lng ? [direccionPrincipal.lat, direccionPrincipal.lng] as [number,number] : null)
+    if (!loc) { setCostoEnvio(35); return }
     setCostoEnvioLoading(true)
     try {
       const res = await fetch(_API + "/api/stripe/calcular-envio", {
@@ -915,6 +917,13 @@ export default function App() {
                     <p className="text-sm font-bold text-slate-700">El restaurante esta preparando tu orden</p>
                     <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: {pedidoDetalle.tiempo_estimado || "10-20 min"}</p>
                   </div>
+                </div>
+              )}
+              {pedidoDetalle.status === "listo" && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center shrink-0"><span className="text-xl">📦</span></div>
+                  <div><p className="text-xs font-black text-yellow-600 uppercase tracking-wider">Listo</p>
+                  <p className="text-sm font-bold text-slate-700">Tu pedido esta listo — esperando repartidor</p></div>
                 </div>
               )}
               {pedidoDetalle.status === "nuevo" && (

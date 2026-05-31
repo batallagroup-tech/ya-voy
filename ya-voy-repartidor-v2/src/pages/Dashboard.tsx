@@ -559,6 +559,13 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                     <span>Total pedido</span><span>${Number(confirmando.total).toFixed(2)}</span>
                   </div>
                 </div>
+                {confirmando.tiempo_estimado && (
+                  <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-2xl p-3">
+                    <span className="text-xl">⏱️</span>
+                    <div><p className="text-xs font-bold text-blue-600 uppercase">Tiempo estimado</p>
+                    <p className="font-black text-slate-900">{confirmando.tiempo_estimado}</p></div>
+                  </div>
+                )}
                 <div className="flex justify-between items-center bg-green-50 border border-green-200 rounded-2xl p-4">
                   <div>
                     <p className="text-xs text-green-600 font-bold uppercase">Tu ganancia (envio)</p>
