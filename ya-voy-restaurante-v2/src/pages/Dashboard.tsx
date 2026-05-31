@@ -95,7 +95,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     // Cargar retiros del restaurante
     if (initialNegocio?.owner_id) {
       setRetirosLoading(true)
-      fetch(import.meta.env.VITE_API_URL + "/api/retiros/" + initialNegocio.owner_id)
+      fetch(import.meta.env.VITE_API_URL + "/api/retiros/restaurante/" + initialNegocio.owner_id)
         .then(r=>r.json()).then(d=>setRetiros(Array.isArray(d)?d:[])).catch(()=>{})
         .finally(()=>setRetirosLoading(false))
     }
@@ -586,7 +586,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                           const d = await res.json()
                           if (!res.ok) { toast.error(d.error || "Error al solicitar"); return }
                           toast.success("Solicitud enviada. Sera revisada pronto.")
-                          const updated = await fetch(import.meta.env.VITE_API_URL + "/api/retiros/" + initialNegocio?.owner_id).then(r=>r.json()).catch(()=>[])
+                          const updated = await fetch(import.meta.env.VITE_API_URL + "/api/retiros/restaurante/" + initialNegocio?.owner_id).then(r=>r.json()).catch(()=>[])
                           setRetiros(Array.isArray(updated) ? updated : [])
                         } catch { toast.error("Error de conexion") }
                         finally { setSolicitandoRetiro(false) }

@@ -463,7 +463,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   const cargarRetiros = async () => {
     setRetirosLoading(true)
     try {
-      const r = await fetch(API + "/api/retiros/" + userId)
+      const r = await fetch(API + "/api/retiros/repartidor/" + userId)
       const d = await r.json()
       setRetiros(Array.isArray(d) ? d : [])
     } catch {} finally { setRetirosLoading(false) }
