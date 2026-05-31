@@ -258,7 +258,7 @@ export default function App() {
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId || !user) return;
-    syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: user.fullName ?? "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }).catch(() => {});
+    syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress?.split("@")[0] || "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }).catch(() => {});
     fetch(_API + "/api/config").then(r => r.json()).then(d => setAppConfig(d)).catch(() => {})
     if (!localStorage.getItem("ya_voy_onboarding_done")) {
       setShowOnboarding(true);
