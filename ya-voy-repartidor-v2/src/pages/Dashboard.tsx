@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "motion/react"
 import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
-import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft, MessageSquare, Send, Camera } from "lucide-react"
+import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft, MessageSquare, Send, Camera, Wallet } from "lucide-react"
 import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob"
 import { Toaster, toast } from "sonner"
 import { getPedidosDisponibles, aceptarPedido, actualizarEstadoPedido, getPedidosRepartidor, toggleStatusRepartidor } from "../lib/api"
@@ -132,7 +132,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   const { signOut } = useClerk()
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
   const [appConfig, setAppConfig] = useState<Record<string,string>>({})
-  const [tab, setTab] = useState<"pedidos" | "activo" | "historial" | "perfil">("pedidos")
+  const [tab, setTab] = useState<"pedidos" | "activo" | "historial" | "ganancias" | "perfil">("pedidos")
   const [disponibles, setDisponibles] = useState<any[]>([])
   const [pedidosActivos, setPedidosActivos] = useState<any[]>([])
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<any>(null)
@@ -153,6 +153,10 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   const [mensajesNoLeidos, setMensajesNoLeidos] = useState<Record<string, number>>({})
   const chatPollRef = useRef<any>(null)
   const [showContingencia, setShowContingencia] = useState<{ pedido: any; tipo: 'no_pago' | 'accidente' } | null>(null)
+  const [retiros, setRetiros] = useState<any[]>([])
+  const [retirosLoading, setRetirosLoading] = useState(false)
+  const [solicitandoRetiro, setSolicitandoRetiro] = useState(false)
+  const [retiroMinimo, setRetiroMinimo] = useState(50)
   const [contingenciaDesc, setContingenciaDesc] = useState('')
   const [contingenciaFoto, setContingenciaFoto] = useState('')
   const [enviandoContingencia, setEnviandoContingencia] = useState(false)
@@ -285,6 +289,10 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     navigator.geolocation.getCurrentPosition(pos => {
       setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude)
     }, () => {})
+    // Cargar retiro minimo desde config
+    fetch(API + "/api/config").then(r => r.json()).then(d => {
+      if (d.retiro_minimo) setRetiroMinimo(Number(d.retiro_minimo))
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -295,6 +303,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   }, [online])
 
   useEffect(() => { if (tab === "historial") cargarHistorial() }, [tab])
+  useEffect(() => { if (tab === "ganancias") { cargarHistorial(); cargarRetiros() } }, [tab])
   useEffect(() => { fetch(import.meta.env.VITE_API_URL + "/api/config").then(r=>r.json()).then(d=>setAppConfig(d)).catch(()=>{}) }, [])
 
   const ADMOB_BANNER_ID = "ca-app-pub-3849768825456219/4691773250"
@@ -437,7 +446,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
   const gananciasHoy = historial
     .filter(p => new Date(p.creado_en).toDateString() === new Date().toDateString() && p.status === "entregado")
-    .reduce((a, p) => a + (p.comision || 0), 0)
+    .reduce((a, p) => a + Number(p.costo_envio || 0), 0)
 
   const gananciasMes = historial
     .filter(p => {
@@ -445,7 +454,38 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
       const now = new Date()
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && p.status === "entregado"
     })
-    .reduce((a, p) => a + (p.comision || 0), 0)
+    .reduce((a, p) => a + Number(p.costo_envio || 0), 0)
+
+  const gananciasTotal = historial
+    .filter(p => p.status === "entregado")
+    .reduce((a, p) => a + Number(p.costo_envio || 0), 0)
+
+  const cargarRetiros = async () => {
+    setRetirosLoading(true)
+    try {
+      const r = await fetch(API + "/api/retiros/" + userId)
+      const d = await r.json()
+      setRetiros(Array.isArray(d) ? d : [])
+    } catch {} finally { setRetirosLoading(false) }
+  }
+
+  const handleSolicitarRetiro = async () => {
+    const retirado = retiros.filter(r => r.status !== "rechazado").reduce((a, r) => a + Number(r.monto), 0)
+    const disponible = Math.max(0, gananciasTotal - retirado)
+    if (disponible < retiroMinimo) { toast.error("Saldo minimo para retiro: $" + retiroMinimo + " MXN"); return }
+    setSolicitandoRetiro(true)
+    try {
+      const res = await fetch(API + "/api/retiros", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo_actor: "repartidor", actor_id: userId, monto: disponible })
+      })
+      const d = await res.json()
+      if (!res.ok) { toast.error(d.error || "Error al solicitar retiro"); return }
+      toast.success("Solicitud enviada. Ramses la revisara pronto.")
+      await cargarRetiros()
+    } catch { toast.error("Error de conexion") }
+    finally { setSolicitandoRetiro(false) }
+  }
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 flex flex-col">
@@ -521,8 +561,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                 </div>
                 <div className="flex justify-between items-center bg-green-50 border border-green-200 rounded-2xl p-4">
                   <div>
-                    <p className="text-xs text-green-600 font-bold uppercase">Tu ganancia (15%)</p>
-                    <p className="font-black text-2xl text-green-700">${(Number(confirmando.total) * 0.15).toFixed(2)}</p>
+                    <p className="text-xs text-green-600 font-bold uppercase">Tu ganancia (envio)</p>
+                    <p className="font-black text-2xl text-green-700">${Number(confirmando.costo_envio || 35).toFixed(2)}</p>
                   </div>
                   <TrendingUp size={32} className="text-green-400" />
                 </div>
@@ -576,7 +616,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                       <h3 className="font-black text-slate-900">{p.negocio_nombre || "Restaurante"}</h3>
                     </div>
                     <div className="text-right">
-                      <p className="font-black text-lg" style={{ color: TEAL }}>${(Number(p.total ?? 0) * 0.15).toFixed(2)}</p>
+                      <p className="font-black text-lg" style={{ color: TEAL }}>${Number(p.costo_envio || 35).toFixed(2)}</p>
                       <p className="text-[10px] text-slate-400 uppercase font-bold">Ganancia</p>
                     </div>
                   </div>
@@ -631,7 +671,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                             <p className="text-xs text-slate-500 mt-0.5">{p.direccion_entrega}</p>
                           </div>
                           <div className="text-right shrink-0 ml-3">
-                            <p className="font-black text-green-600">${(Number(p.total) * 0.15).toFixed(2)}</p>
+                            <p className="font-black text-green-600">${Number(p.costo_envio || 35).toFixed(2)}</p>
                             <p className="text-[10px] text-slate-400">ganancia</p>
                           </div>
                         </div>
@@ -829,11 +869,83 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                     <p className="text-xs text-slate-500">{new Date(p.creado_en).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="font-black" style={{ color: TEAL }}>${Number(p.comision || 0).toFixed(2)}</p>
+                    <p className="font-black" style={{ color: TEAL }}>${Number(p.costo_envio || 0).toFixed(2)}</p>
                     <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full text-white ${statusColor[p.status] || "bg-slate-400"}`}>{statusLabel[p.status] || p.status}</span>
                   </div>
                 </div>
               ))}
+            </motion.div>
+          )}
+
+          {/* TAB GANANCIAS */}
+          {tab === "ganancias" && (
+            <motion.div key="g" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
+              <h2 className="text-xl font-black text-slate-900">Mis ganancias</h2>
+
+              {/* Resumen */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white rounded-2xl border border-slate-100 p-3 text-center">
+                  <p className="font-black text-lg text-slate-900">${Number(gananciasHoy).toFixed(0)}</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">Hoy</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-slate-100 p-3 text-center">
+                  <p className="font-black text-lg text-slate-900">${Number(gananciasMes).toFixed(0)}</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">Este mes</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-slate-100 p-3 text-center">
+                  <p className="font-black text-lg text-slate-900">${Number(gananciasTotal).toFixed(0)}</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">Total</p>
+                </div>
+              </div>
+
+              {/* Saldo disponible para retiro */}
+              {(() => {
+                const retirado = retiros.filter(r => r.status !== "rechazado").reduce((a: number, r: any) => a + Number(r.monto), 0)
+                const disponible = Math.max(0, gananciasTotal - retirado)
+                return (
+                  <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Saldo disponible</p>
+                    <p className="font-black text-4xl mb-1" style={{ color: TEAL }}>${disponible.toFixed(2)}</p>
+                    <p className="text-xs text-slate-400 mb-4">Minimo para retiro: ${retiroMinimo} MXN</p>
+                    {disponible < retiroMinimo ? (
+                      <div className="bg-slate-50 rounded-xl p-3 text-center">
+                        <p className="text-sm text-slate-500 font-medium">Necesitas ${(retiroMinimo - disponible).toFixed(2)} MXN mas para solicitar un retiro</p>
+                      </div>
+                    ) : (
+                      <button onClick={handleSolicitarRetiro} disabled={solicitandoRetiro}
+                        className="w-full py-4 rounded-2xl text-white font-black flex items-center justify-center gap-2 disabled:opacity-60"
+                        style={{ background: GRAD }}>
+                        {solicitandoRetiro ? <Loader2 className="animate-spin" size={20} /> : null}
+                        Solicitar retiro de ${disponible.toFixed(2)}
+                      </button>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* Historial retiros */}
+              <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Historial de retiros</p>
+                {retirosLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="animate-spin" size={24} style={{ color: TEAL }} /></div>
+                ) : retiros.length === 0 ? (
+                  <p className="text-center text-slate-400 text-sm py-4">Sin retiros aun</p>
+                ) : (
+                  <div className="space-y-3">
+                    {retiros.map((r: any) => (
+                      <div key={r.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm">${Number(r.monto).toFixed(2)} MXN</p>
+                          <p className="text-xs text-slate-400">{new Date(r.creado_en).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                        </div>
+                        <span className={`text-[10px] font-black px-3 py-1.5 rounded-full text-white ${r.status === "pagado" ? "bg-green-500" : r.status === "rechazado" ? "bg-red-500" : "bg-amber-400"}`}>
+                          {r.status === "pagado" ? "Pagado" : r.status === "rechazado" ? "Rechazado" : "Pendiente"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -1037,6 +1149,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
             { id: "pedidos", label: "Pedidos", icon: Package },
             { id: "activo", label: "Activo", icon: Navigation },
             { id: "historial", label: "Historial", icon: Clock },
+            { id: "ganancias", label: "Ganancias", icon: Wallet },
             { id: "perfil", label: "Perfil", icon: User },
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => { setTab(id as any); if (id !== "activo") setPedidoSeleccionado(null) }}

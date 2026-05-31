@@ -40,6 +40,11 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     return base;
   });
   const [savingHorarios, setSavingHorarios] = useState(false);
+  const [retiros, setRetiros] = useState<any[]>([])
+  const [retirosLoading, setRetirosLoading] = useState(false)
+  const [solicitandoRetiro, setSolicitandoRetiro] = useState(false)
+  const [retiroMinimo, setRetiroMinimo] = useState(50)
+  const [comisionPct, setComisionPct] = useState(0.18)
   const prevNuevosRef = useRef(0);
 
   const playBeep = () => {
@@ -80,7 +85,21 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     } finally { setLoading(false); }
   }, [negocio?.id]);
 
-  useEffect(() => { load(); fetch(import.meta.env.VITE_API_URL + "/api/config").then(r=>r.json()).then(d=>setAppConfig(d)).catch(()=>{}) }, [load])
+  useEffect(() => {
+    load()
+    fetch(import.meta.env.VITE_API_URL + "/api/config").then(r=>r.json()).then(d=>{
+      setAppConfig(d)
+      if (d.retiro_minimo) setRetiroMinimo(Number(d.retiro_minimo))
+      if (d.comision_pct) setComisionPct(Number(d.comision_pct) / 100)
+    }).catch(()=>{})
+    // Cargar retiros del restaurante
+    if (initialNegocio?.owner_id) {
+      setRetirosLoading(true)
+      fetch(import.meta.env.VITE_API_URL + "/api/retiros/" + initialNegocio.owner_id)
+        .then(r=>r.json()).then(d=>setRetiros(Array.isArray(d)?d:[])).catch(()=>{})
+        .finally(()=>setRetirosLoading(false))
+    }
+  }, [load])
   useEffect(() => {
     if (tab !== 'orders' && tab !== 'overview') return;
     const interval = setInterval(() => load(), 3000);
@@ -535,6 +554,71 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   </div>
                 )}
               </div>
+
+              {/* SECCION RETIROS */}
+              {(() => {
+                const ventasNetas = orders.filter((o:any) => o.status === "entregado").reduce((a:number,o:any) => a + Number(o.total||0), 0)
+                const gananciaRestaurante = ventasNetas * (1 - comisionPct)
+                const retirado = retiros.filter((r:any) => r.status !== "rechazado").reduce((a:number,r:any) => a + Number(r.monto), 0)
+                const disponible = Math.max(0, gananciaRestaurante - retirado)
+                return (
+                  <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-4">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Retiro de ganancias</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-slate-500">Ventas totales</span><span className="font-bold">${ventasNetas.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Comision app ({Math.round(comisionPct*100)}%)</span><span className="font-bold text-red-500">-${(ventasNetas * comisionPct).toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Ya retirado</span><span className="font-bold text-slate-400">-${retirado.toFixed(2)}</span></div>
+                      <div className="flex justify-between border-t border-slate-100 pt-2"><span className="font-black text-slate-900">Disponible</span><span className="font-black text-2xl text-[#FF6B00]">${disponible.toFixed(2)}</span></div>
+                    </div>
+                    <p className="text-xs text-slate-400">Minimo para retiro: ${retiroMinimo} MXN</p>
+                    {disponible < retiroMinimo ? (
+                      <div className="bg-slate-50 rounded-xl p-3 text-center">
+                        <p className="text-sm text-slate-500">Necesitas ${(retiroMinimo - disponible).toFixed(2)} MXN mas para solicitar retiro</p>
+                      </div>
+                    ) : (
+                      <button onClick={async () => {
+                        setSolicitandoRetiro(true)
+                        try {
+                          const res = await fetch(import.meta.env.VITE_API_URL + "/api/retiros", {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ tipo_actor: "restaurante", actor_id: initialNegocio?.owner_id, monto: disponible })
+                          })
+                          const d = await res.json()
+                          if (!res.ok) { toast.error(d.error || "Error al solicitar"); return }
+                          toast.success("Solicitud enviada. Sera revisada pronto.")
+                          const updated = await fetch(import.meta.env.VITE_API_URL + "/api/retiros/" + initialNegocio?.owner_id).then(r=>r.json()).catch(()=>[])
+                          setRetiros(Array.isArray(updated) ? updated : [])
+                        } catch { toast.error("Error de conexion") }
+                        finally { setSolicitandoRetiro(false) }
+                      }} disabled={solicitandoRetiro}
+                        className="w-full py-4 rounded-2xl text-white font-black flex items-center justify-center gap-2 disabled:opacity-60"
+                        style={{ background: "linear-gradient(135deg,#FF6B00,#E65F00)" }}>
+                        {solicitandoRetiro ? <Loader2 className="animate-spin" size={20} /> : null}
+                        Solicitar retiro de ${disponible.toFixed(2)}
+                      </button>
+                    )}
+                    {/* Historial retiros */}
+                    {retiros.length > 0 && (
+                      <div className="pt-2 border-t border-slate-100 space-y-2">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Historial de retiros</p>
+                        {retirosLoading ? <div className="flex justify-center py-2"><Loader2 className="animate-spin text-orange-400" size={20} /></div>
+                        : retiros.map((r:any) => (
+                          <div key={r.id} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
+                            <div>
+                              <p className="font-bold text-slate-900 text-sm">${Number(r.monto).toFixed(2)} MXN</p>
+                              <p className="text-xs text-slate-400">{new Date(r.creado_en).toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"numeric"})}</p>
+                            </div>
+                            <span className={"text-[10px] font-black px-3 py-1.5 rounded-full text-white " + (r.status==="pagado"?"bg-green-500":r.status==="rechazado"?"bg-red-500":"bg-amber-400")}>
+                              {r.status==="pagado"?"Pagado":r.status==="rechazado"?"Rechazado":"Pendiente"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
             </motion.div>
           )}
 
