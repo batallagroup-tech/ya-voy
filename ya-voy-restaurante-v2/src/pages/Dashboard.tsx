@@ -166,7 +166,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
 
   const statsToday = {
     pedidos: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString()).length,
-    ingresos: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString() && o.status === 'entregado').reduce((a, o) => a + (o.total || 0), 0),
+    ingresos: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString() && o.status === 'entregado').reduce((a, o) => a + ((Number(o.total||0) - Number(o.costo_envio||35)) * 0.82), 0),
     nuevos: orders.filter(o => o.status === 'nuevo').length,
   };
 
@@ -495,8 +495,8 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
               })()}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Hoy', value: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString() && o.status === 'entregado').reduce((a, o) => a + (o.total || 0), 0) },
-                  { label: 'Este mes', value: orders.filter(o => new Date(o.creado_en).getMonth() === new Date().getMonth() && o.status === 'entregado').reduce((a, o) => a + (o.total || 0), 0) },
+                  { label: 'Hoy', value: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString() && o.status === 'entregado').reduce((a, o) => a + ((Number(o.total||0) - Number(o.costo_envio||35)) * 0.82), 0) },
+                  { label: 'Este mes', value: orders.filter(o => new Date(o.creado_en).getMonth() === new Date().getMonth() && o.status === 'entregado').reduce((a, o) => a + ((Number(o.total||0) - Number(o.costo_envio||35)) * 0.82), 0) },
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-white p-4 rounded-2xl border border-slate-100">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</p>

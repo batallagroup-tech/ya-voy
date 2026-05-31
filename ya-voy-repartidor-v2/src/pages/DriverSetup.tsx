@@ -82,27 +82,37 @@ function extractNameFromINE(text: string): string {
 }
 
 export default function DriverSetup({ userId, userEmail, initialData, onSubmit, onCancel }: Props) {
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(() => { try { return parseInt(localStorage.getItem("driver_setup_step") || "0") } catch { return 0 } })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [ineFrente, setIneFrente] = useState<File | null>(null)
   const [ineFrentePreview, setIneFrentePreview] = useState("")
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrFailed, setOcrFailed] = useState(false)
-  const [nombre, setNombre] = useState(initialData?.datos?.nombre || "")
+  const [nombre, setNombre] = useState(() => initialData?.datos?.nombre || localStorage.getItem("driver_setup_nombre") || "")
   const [nombreManual, setNombreManual] = useState("")
   const [ineReverso, setIneReverso] = useState<File | null>(null)
   const [selfie, setSelfie] = useState<string | null>(null)
   const [showWebcam, setShowWebcam] = useState(false)
   const webcamRef = useRef<Webcam>(null)
   const [tarjetaCirc, setTarjetaCirc] = useState<File | null>(null)
-  const [vehiculoTipo, setVehiculoTipo] = useState(initialData?.datos?.vehiculo_tipo || "moto")
-  const [vehiculoModelo, setVehiculoModelo] = useState(initialData?.datos?.vehiculo_modelo || "")
-  const [vehiculoPlacas, setVehiculoPlacas] = useState(initialData?.datos?.vehiculo_placas || "")
-  const [telefono, setTelefono] = useState(initialData?.datos?.telefono || "")
+  const [vehiculoTipo, setVehiculoTipo] = useState(() => initialData?.datos?.vehiculo_tipo || localStorage.getItem("driver_setup_vtipo") || "moto")
+  const [vehiculoModelo, setVehiculoModelo] = useState(() => initialData?.datos?.vehiculo_modelo || localStorage.getItem("driver_setup_vmodelo") || "")
+  const [vehiculoPlacas, setVehiculoPlacas] = useState(() => initialData?.datos?.vehiculo_placas || localStorage.getItem("driver_setup_vplacas") || "")
+  const [telefono, setTelefono] = useState(() => initialData?.datos?.telefono || localStorage.getItem("driver_setup_tel") || "")
   const steps = ["INE Frente", "INE Reverso", "Selfie", "Vehículo", "Tarjeta", "Confirmar"]
 
-  const [nombreLocked, setNombreLocked] = useState(!!initialData?.datos?.nombre)
+  // Persistir progreso
+  const saveStep = (s: number) => { setStep(s); try { localStorage.setItem("driver_setup_step", String(s)) } catch {} }
+  const saveNombre = (n: string) => { setNombre(n); try { localStorage.setItem("driver_setup_nombre", n) } catch {} }
+  const saveVTipo = (v: string) => { setVehiculoTipo(v); try { localStorage.setItem("driver_setup_vtipo", v) } catch {} }
+  const saveVModelo = (v: string) => { setVehiculoModelo(v); try { localStorage.setItem("driver_setup_vmodelo", v) } catch {} }
+  const saveVPlacas = (v: string) => { setVehiculoPlacas(v); try { localStorage.setItem("driver_setup_vplacas", v) } catch {} }
+  const saveTel = (v: string) => { setTelefono(v); try { localStorage.setItem("driver_setup_tel", v) } catch {} }
+  const saveNombreLocked = (v: boolean) => { setNombreLocked(v); try { localStorage.setItem("driver_setup_nombre_locked", v ? "1" : "0") } catch {} }
+  const clearSetup = () => { ["driver_setup_step","driver_setup_nombre","driver_setup_vtipo","driver_setup_vmodelo","driver_setup_vplacas","driver_setup_tel","driver_setup_nombre_locked"].forEach(k => { try { localStorage.removeItem(k) } catch {} }) }
+
+  const [nombreLocked, setNombreLocked] = useState(() => !!initialData?.datos?.nombre || localStorage.getItem("driver_setup_nombre_locked") === "1")
   const resetFrente = () => { setIneFrente(null); setIneFrentePreview(""); setNombre(""); setOcrFailed(false); setNombreLocked(false) }
 
   const handleIneFrente = async (file: File) => {
@@ -127,6 +137,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
     try {
       const [fUrl, rUrl, sUrl, tUrl] = await Promise.all([uploadCloudinary(ineFrente), uploadCloudinary(ineReverso), uploadCloudinary(selfie), uploadCloudinary(tarjetaCirc!)])
       await enviarSolicitudRepartidor({ userId, email: userEmail, nombre, telefono, vehiculo_tipo: vehiculoTipo, vehiculo_modelo: vehiculoModelo, vehiculo_placas: vehiculoPlacas, ine_frente_url: fUrl, ine_reverso_url: rUrl, selfie_url: sUrl, tarjeta_url: tUrl })
+      clearSetup()
       onSubmit()
     } catch (e: any) { setError(e.message || "Error al enviar.") }
     finally { setLoading(false) }
@@ -259,7 +270,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                     </div>
                   )}
                   {!nombreLocked ? (
-                    <button onClick={() => setNombreLocked(true)} disabled={nombre.trim().split(" ").filter(Boolean).length < 2}
+                    <button onClick={() => saveNombreLocked(true)} disabled={nombre.trim().split(" ").filter(Boolean).length < 2}
                       className="w-full py-3 rounded-2xl text-white font-black flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
                       style={{ background: ACCENT }}>
                       <Lock size={16} /> Confirmar nombre
@@ -272,7 +283,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                 </motion.div>
               )}
               {onCancel && !ineFrentePreview && <button onClick={onCancel} className="w-full py-3 text-slate-400 text-sm font-bold">Cancelar</button>}
-              <button onClick={() => setStep(1)} disabled={!nombre || ocrLoading || !nombreLocked}
+              <button onClick={() => saveStep(1)} disabled={!nombre || ocrLoading || !nombreLocked}
                 className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-40">
                 Siguiente <ChevronRight size={20} />
               </button>
@@ -305,8 +316,8 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                 )}
               </div>
               <div className="flex gap-4">
-                <button onClick={() => setStep(0)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2"><ChevronLeft size={20} /> Atrás</button>
-                <button onClick={() => setStep(2)} disabled={!ineReverso} className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50">Siguiente <ChevronRight size={20} /></button>
+                <button onClick={() => saveStep(0)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2"><ChevronLeft size={20} /> Atrás</button>
+                <button onClick={() => saveStep(2)} disabled={!ineReverso} className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50">Siguiente <ChevronRight size={20} /></button>
               </div>
             </motion.div>
           )}
@@ -344,8 +355,8 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                 <p className="text-amber-700 text-xs font-bold leading-relaxed">Rostro bien iluminado, sin lentes oscuros. Se comparará con tu INE.</p>
               </div>
               <div className="flex gap-4">
-                <button onClick={() => setStep(1)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2"><ChevronLeft size={20} /> Atrás</button>
-                <button onClick={() => setStep(3)} disabled={!selfie} className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50">Siguiente <ChevronRight size={20} /></button>
+                <button onClick={() => saveStep(1)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2"><ChevronLeft size={20} /> Atrás</button>
+                <button onClick={() => saveStep(3)} disabled={!selfie} className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50">Siguiente <ChevronRight size={20} /></button>
               </div>
             </motion.div>
           )}
@@ -357,7 +368,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de vehículo</label>
                 <div className="grid grid-cols-3 gap-3">
                   {[{ id: "moto", label: "Moto", emoji: "🏍️" }, { id: "auto", label: "Auto", emoji: "🚗" }, { id: "bici", label: "Bici", emoji: "🚲" }].map(({ id, label, emoji }) => (
-                    <button key={id} onClick={() => setVehiculoTipo(id)}
+                    <button key={id} onClick={() => saveVTipo(id)}
                       className="py-4 rounded-2xl flex flex-col items-center gap-1 border-2 transition-all font-black text-sm"
                       style={{ borderColor: vehiculoTipo === id ? ACCENT : "#e2e8f0", background: vehiculoTipo === id ? `${ACCENT}15` : "#f8fafc", color: vehiculoTipo === id ? ACCENT : "#64748b" }}>
                       <span className="text-2xl">{emoji}</span>{label}
@@ -372,14 +383,14 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                 ].map(({ value, set, label, placeholder, upper }) => (
                   <div key={label} className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</label>
-                    <input value={value} onChange={e => set(upper ? e.target.value.toUpperCase() : e.target.value)} placeholder={placeholder}
+                    <input value={value} onChange={e => { const v = upper ? e.target.value.toUpperCase() : e.target.value; set(v); if(label==="Teléfono de contacto") saveTel(v); if(label==="Modelo") saveVModelo(v); if(label==="Placas") saveVPlacas(e.target.value.toUpperCase()) }} placeholder={placeholder}
                       className="w-full px-4 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl outline-none text-sm font-medium focus:border-pink-300 transition-all" />
                   </div>
                 ))}
               </div>
               <div className="flex gap-4">
-                <button onClick={() => setStep(2)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2"><ChevronLeft size={20} /> Atrás</button>
-                <button onClick={() => setStep(4)} disabled={!vehiculoModelo || (vehiculoTipo !== "bici" && !vehiculoPlacas) || !telefono}
+                <button onClick={() => saveStep(2)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2"><ChevronLeft size={20} /> Atrás</button>
+                <button onClick={() => saveStep(4)} disabled={!vehiculoModelo || (vehiculoTipo !== "bici" && !vehiculoPlacas) || !telefono}
                   className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50">Siguiente <ChevronRight size={20} /></button>
               </div>
             </motion.div>
@@ -435,10 +446,10 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
               </div>
 
               <div className="flex gap-4">
-                <button onClick={() => setStep(3)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2">
+                <button onClick={() => saveStep(3)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2">
                   <ChevronLeft size={20} /> Atrás
                 </button>
-                <button onClick={() => setStep(5)} disabled={vehiculoTipo !== "bici" && !tarjetaCirc}
+                <button onClick={() => saveStep(5)} disabled={vehiculoTipo !== "bici" && !tarjetaCirc}
                   className="flex-[2] py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50">
                   Siguiente <ChevronRight size={20} />
                 </button>
@@ -466,7 +477,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
               </div>
               {error && <p className="text-red-500 text-sm font-bold text-center bg-red-50 p-4 rounded-2xl border border-red-100">{error}</p>}
               <div className="flex gap-4">
-                <button onClick={() => setStep(4)} disabled={loading} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2"><ChevronLeft size={20} /> Atrás</button>
+                <button onClick={() => saveStep(4)} disabled={loading} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2"><ChevronLeft size={20} /> Atrás</button>
                 <button onClick={handleSubmit} disabled={loading}
                   className="flex-[2] py-4 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 text-lg"
                   style={{ background: loading ? "#94a3b8" : ACCENT }}>
