@@ -50,7 +50,7 @@ export default function App() {
   if (window.location.pathname === "/sso-callback") return <AuthenticateWithRedirectCallback />
 
   if (showSplash) return (
-    <AnimatePresence><SplashScreen onDone={() => setShowSplash(false)} /></AnimatePresence>
+    <><ServerWarmup /><AnimatePresence><SplashScreen onDone={() => setShowSplash(false)} /></AnimatePresence></>
   )
 
   if (window.location.pathname === "/sso-callback") return <><ServerWarmup /><AuthenticateWithRedirectCallback /></>
@@ -64,11 +64,11 @@ export default function App() {
     </div>
   )
 
-  if (status === "pendiente") return <PendingReview />
+  if (status === "pendiente") return <><ServerWarmup /><PendingReview /></>
 
   if (status === "rechazado") return (
-    <Rejected reason={solicitudData?.razon_rechazo}
-      onReapply={() => { setIsReapplying(true); setStatus("setup") }} />
+    <><ServerWarmup /><Rejected reason={solicitudData?.razon_rechazo}
+      onReapply={() => { setIsReapplying(true); setStatus("setup") }} /></>
   )
 
   if (status === "aprobado") return (
