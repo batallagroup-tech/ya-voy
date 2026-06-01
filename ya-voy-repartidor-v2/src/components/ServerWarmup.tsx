@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
 import { warmupAPI } from "../lib/api";
 
+const _API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
 export default function ServerWarmup() {
-  const [estado, setEstado] = useState<"idle"|"cargando"|"fallo">("idle");
+  const [estado, setEstado] = useState<"idle"|"cargando"|"fallo"|"mantenimiento">("idle");
 
   useEffect(() => {
     let done = false;
+    // Verificar mantenimiento primero
+    fetch(_API + "/api/mantenimiento")
+      .then(r => r.json())
+      .then(d => { if (d.mantenimiento) { setEstado("mantenimiento"); done = true; } })
+      .catch(() => {});
     const t = setTimeout(() => { if (!done) setEstado("cargando"); }, 3000);
     warmupAPI().then((ok) => {
+      if (done) return;
       done = true;
       clearTimeout(t);
       if (ok === false) setEstado("fallo");
@@ -18,16 +26,24 @@ export default function ServerWarmup() {
 
   if (estado === "idle") return null;
 
-  if (estado === "fallo") return (
+  if (estado === "mantenimiento" || estado === "fallo") return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-8"
       style={{ background: "linear-gradient(135deg,#7B2FF7 0%,#F107A3 50%,#FF6B00 100%)" }}>
-      <span className="text-7xl mb-6">🛠️</span>
-      <h1 className="text-2xl font-black text-white mb-2 text-center">Mantenimiento</h1>
-      <p className="text-white/70 text-sm text-center mb-6">Estamos mejorando la app para ti. Vuelve en unos minutos.</p>
-      <button onClick={() => { setEstado("idle"); window.location.reload(); }}
-        className="bg-white font-black px-8 py-3 rounded-2xl text-sm" style={{ color: "#7B2FF7" }}>
-        Reintentar
-      </button>
+      <span className="text-7xl mb-6">{estado === "mantenimiento" ? "🔧" : "🛠️"}</span>
+      <h1 className="text-2xl font-black text-white mb-2 text-center">
+        {estado === "mantenimiento" ? "En mantenimiento" : "Mantenimiento"}
+      </h1>
+      <p className="text-white/70 text-sm text-center mb-6">
+        {estado === "mantenimiento"
+          ? "Estamos realizando mejoras. Vuelve en unos minutos."
+          : "Estamos mejorando la app para ti. Vuelve en unos minutos."}
+      </p>
+      {estado === "fallo" && (
+        <button onClick={() => { setEstado("idle"); window.location.reload(); }}
+          className="bg-white font-black px-8 py-3 rounded-2xl text-sm" style={{ color: "#7B2FF7" }}>
+          Reintentar
+        </button>
+      )}
     </div>
   );
 
