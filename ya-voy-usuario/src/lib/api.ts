@@ -1,4 +1,4 @@
-﻿const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API}${path}`, {
@@ -6,7 +6,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     headers: { "Content-Type": "application/json", ...options.headers },
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Error desconocido" }));
+    const err = await res.json().catch(() => ({ error: "Error de conexion, intenta de nuevo" }));
     throw new Error(err.error || "Error en la solicitud");
   }
   return res.json();

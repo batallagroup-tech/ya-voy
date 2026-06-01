@@ -91,7 +91,6 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
   const steps = ["INE Frente", "INE Reverso", "Vehiculo", "Tarjeta", "Confirmar"]
 
   const saveStep = (s: number) => { setStep(s); try { localStorage.setItem("driver_setup_step", String(s)) } catch {} }
-  const saveNombre = (n: string) => { setNombre(n); try { localStorage.setItem("driver_setup_nombre", n) } catch {} }
   const saveVTipo = (v: string) => { setVehiculoTipo(v); try { localStorage.setItem("driver_setup_vtipo", v) } catch {} }
   const saveVModelo = (v: string) => { setVehiculoModelo(v); try { localStorage.setItem("driver_setup_vmodelo", v) } catch {} }
   const saveVPlacas = (v: string) => { setVehiculoPlacas(v); try { localStorage.setItem("driver_setup_vplacas", v) } catch {} }
@@ -163,11 +162,10 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                   <div className="flex gap-2">
                     <label className="flex-1 py-3 bg-red-100 text-red-700 font-black rounded-2xl cursor-pointer flex items-center justify-center gap-2 text-sm hover:bg-red-200 transition-all">
                       <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => e.target.files?.[0] && handleIneFrente(e.target.files[0])} />
-                      Nueva foto
-                    </label>
+                      📷 Nueva foto</label>
                     <label className="flex-1 py-3 bg-red-100 text-red-700 font-black rounded-2xl cursor-pointer flex items-center justify-center gap-2 text-sm hover:bg-red-200 transition-all">
                       <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleIneFrente(e.target.files[0])} />
-                      Galeria
+                      🖼️ Galeria
                     </label>
                   </div>
                 </motion.div>
@@ -180,11 +178,11 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                   <div className="flex gap-3 justify-center">
                     <label className="px-5 py-2.5 bg-slate-100 rounded-2xl cursor-pointer text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">
                       <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => e.target.files?.[0] && handleIneFrente(e.target.files[0])} />
-                      Camara
+                      📷 Camara
                     </label>
                     <label className="px-5 py-2.5 bg-slate-100 rounded-2xl cursor-pointer text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">
                       <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleIneFrente(e.target.files[0])} />
-                      Galeria
+                      🖼️ Galeria
                     </label>
                   </div>
                 </div>
@@ -253,11 +251,9 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                     <p className="text-slate-400 text-sm">Reverso de tu INE</p>
                     <div className="flex gap-2 justify-center">
                       <label className="px-4 py-2 bg-slate-100 rounded-xl cursor-pointer text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">
-                        <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => setIneReverso(e.target.files?.[0] || null)} />Camara
-                      </label>
+                        <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => setIneReverso(e.target.files?.[0] || null)} />📷 Camara                      </label>
                       <label className="px-4 py-2 bg-slate-100 rounded-xl cursor-pointer text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">
-                        <input type="file" className="hidden" accept="image/*" onChange={e => setIneReverso(e.target.files?.[0] || null)} />Galeria
-                      </label>
+                        <input type="file" className="hidden" accept="image/*" onChange={e => setIneReverso(e.target.files?.[0] || null)} />🖼️ Galeria                      </label>
                     </div>
                   </div>
                 )}
@@ -275,11 +271,11 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de vehiculo</label>
                 <div className="grid grid-cols-3 gap-3">
-                  {[{ id: "moto", label: "Moto", emoji: "m" }, { id: "auto", label: "Auto", emoji: "a" }, { id: "bici", label: "Bici", emoji: "b" }].map(({ id, label, emoji }) => (
+                  {[{ id: "moto", label: "Moto", emoji: "🏍️" }, { id: "auto", label: "Auto", emoji: "🚗" }, { id: "bici", label: "Bici", emoji: "🚲" }].map(({ id, label, emoji }) => (
                     <button key={id} onClick={() => saveVTipo(id)}
                       className="py-4 rounded-2xl flex flex-col items-center gap-1 border-2 transition-all font-black text-sm"
                       style={{ borderColor: vehiculoTipo === id ? ACCENT : "#e2e8f0", background: vehiculoTipo === id ? `${ACCENT}15` : "#f8fafc", color: vehiculoTipo === id ? ACCENT : "#64748b" }}>
-                      {label}
+                      <span className="text-2xl">{emoji}</span>{label}
                     </button>
                   ))}
                 </div>
@@ -334,11 +330,9 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
                     </div>
                     <div className="flex gap-2 justify-center">
                       <label className="px-4 py-2 bg-slate-100 rounded-xl cursor-pointer text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">
-                        <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => setTarjetaCirc(e.target.files?.[0] || null)} />Camara
-                      </label>
+                        <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => setTarjetaCirc(e.target.files?.[0] || null)} />📷 Camara                      </label>
                       <label className="px-4 py-2 bg-slate-100 rounded-xl cursor-pointer text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">
-                        <input type="file" className="hidden" accept="image/*" onChange={e => setTarjetaCirc(e.target.files?.[0] || null)} />Galeria
-                      </label>
+                        <input type="file" className="hidden" accept="image/*" onChange={e => setTarjetaCirc(e.target.files?.[0] || null)} />🖼️ Galeria                      </label>
                     </div>
                   </div>
                 )}
