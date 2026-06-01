@@ -801,7 +801,7 @@ export default function App() {
                   try {
                     const r = await fetch(_API + "/api/usuario/cupones/validar", {
                       method: "POST", headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ codigo: cuponCodigo.trim(), total: total + costoEnvio })
+                      body: JSON.stringify({ codigo: cuponCodigo.trim(), total: total + costoEnvio, negocioId: negocioSeleccionado?.id })
                     })
                     const d = await r.json()
                     if (!r.ok) { setCuponError(d.error || "Cupon invalido"); return }

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useClerk } from '@clerk/clerk-react';
 import {
-  LayoutDashboard, ShoppingBag, Utensils, TrendingUp,
+  LayoutDashboard, ShoppingBag, Utensils, TrendingUp, Tag,
   Settings, LogOut, Plus, Edit2, Trash2, X,
   DollarSign, Star, Clock, Power, Loader2, ChevronRight,
   Image as ImageIcon, Save
@@ -18,7 +18,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const { signOut } = useClerk();
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
   const [appConfig, setAppConfig] = useState<Record<string,string>>({})
-  const [tab, setTab] = useState<'overview'|'orders'|'menu'|'profile'|'finance'>('overview');
+  const [tab, setTab] = useState<'overview'|'orders'|'menu'|'finance'|'cupones'|'profile'>('overview');
   const [negocio, setNegocio] = useState<any>(initialNegocio);
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -43,6 +43,11 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const [stripeConectando, setStripeConectando] = useState(false)
   const [stripeConectado, setStripeConectado] = useState(false)
   const [retiros, setRetiros] = useState<any[]>([])
+  const [cupones, setCupones] = useState<any[]>([])
+  const [cuponesLoading, setCuponesLoading] = useState(false)
+  const [cuponForm, setCuponForm] = useState({ nombre: '', codigo: '', tipo: 'porcentaje', valor: '', usos_max: '100', minimo_compra: '', expira_en: '', descripcion: '' })
+  const [creandoCupon, setCreandoCupon] = useState(false)
+  const [cuponError, setCuponError] = useState('')
   const [retirosLoading, setRetirosLoading] = useState(false)
   const [solicitandoRetiro, setSolicitandoRetiro] = useState(false)
   const [retiroMinimo, setRetiroMinimo] = useState(50)
@@ -629,6 +634,84 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
             </motion.div>
           )}
 
+          {tab === 'cupones' && (
+            <motion.div key='cupones' initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className='p-4 space-y-4'>
+              <h2 className='text-xl font-black text-slate-900'>Mis Cupones</h2>
+              {/* FORMULARIO CREAR CUPON */}
+              <div className='bg-white rounded-2xl border border-slate-100 p-4 space-y-3'>
+                <p className='text-xs font-bold text-slate-500 uppercase tracking-wider'>Crear cupon</p>
+                <div className='grid grid-cols-2 gap-3'>
+                  <div className='space-y-1'><label className='text-xs font-bold text-slate-500'>Nombre</label><input value={cuponForm.nombre} onChange={e => setCuponForm(p => ({...p, nombre: e.target.value}))} placeholder='Ej: Descuento bienvenida' className='w-full px-3 py-2 bg-slate-50 rounded-xl text-sm outline-none border border-slate-200 focus:border-orange-400' /></div>
+                  <div className='space-y-1'><label className='text-xs font-bold text-slate-500'>Codigo</label><input value={cuponForm.codigo} onChange={e => setCuponForm(p => ({...p, codigo: e.target.value.toUpperCase()}))} placeholder='Ej: BIENVENIDO20' className='w-full px-3 py-2 bg-slate-50 rounded-xl text-sm outline-none border border-slate-200 focus:border-orange-400 font-black tracking-wider' /></div>
+                  <div className='space-y-1'><label className='text-xs font-bold text-slate-500'>Tipo</label><select value={cuponForm.tipo} onChange={e => setCuponForm(p => ({...p, tipo: e.target.value}))} className='w-full px-3 py-2 bg-slate-50 rounded-xl text-sm outline-none border border-slate-200'><option value='porcentaje'>Porcentaje (%)</option><option value='fijo'>Monto fijo (MXN)</option></select></div>
+                  <div className='space-y-1'><label className='text-xs font-bold text-slate-500'>Valor {cuponForm.tipo === 'porcentaje' ? '(%)' : '(MXN)'}</label><input type='number' value={cuponForm.valor} onChange={e => setCuponForm(p => ({...p, valor: e.target.value}))} placeholder={cuponForm.tipo === 'porcentaje' ? '20' : '50'} className='w-full px-3 py-2 bg-slate-50 rounded-xl text-sm outline-none border border-slate-200 focus:border-orange-400' /></div>
+                  <div className='space-y-1'><label className='text-xs font-bold text-slate-500'>Compra minima (MXN)</label><input type='number' value={cuponForm.minimo_compra} onChange={e => setCuponForm(p => ({...p, minimo_compra: e.target.value}))} placeholder='0' className='w-full px-3 py-2 bg-slate-50 rounded-xl text-sm outline-none border border-slate-200 focus:border-orange-400' /></div>
+                  <div className='space-y-1'><label className='text-xs font-bold text-slate-500'>Usos maximos</label><input type='number' value={cuponForm.usos_max} onChange={e => setCuponForm(p => ({...p, usos_max: e.target.value}))} placeholder='100' className='w-full px-3 py-2 bg-slate-50 rounded-xl text-sm outline-none border border-slate-200 focus:border-orange-400' /></div>
+                  <div className='col-span-2 space-y-1'><label className='text-xs font-bold text-slate-500'>Descripcion (opcional)</label><input value={cuponForm.descripcion} onChange={e => setCuponForm(p => ({...p, descripcion: e.target.value}))} placeholder='Ej: 20% de descuento en tu primera orden' className='w-full px-3 py-2 bg-slate-50 rounded-xl text-sm outline-none border border-slate-200 focus:border-orange-400' /></div>
+                  <div className='col-span-2 space-y-1'><label className='text-xs font-bold text-slate-500'>Fecha expiracion (opcional)</label><input type='datetime-local' value={cuponForm.expira_en} onChange={e => setCuponForm(p => ({...p, expira_en: e.target.value}))} className='w-full px-3 py-2 bg-slate-50 rounded-xl text-sm outline-none border border-slate-200 focus:border-orange-400' /></div>
+                </div>
+                {cuponError && <p className='text-xs text-red-500 font-bold'>{cuponError}</p>}
+                <button onClick={async () => {
+                  if (!cuponForm.codigo || !cuponForm.valor) { setCuponError('Codigo y valor son requeridos'); return }
+                  setCreandoCupon(true); setCuponError('')
+                  try {
+                    const res = await fetch(import.meta.env.VITE_API_URL + '/api/negocios/' + negocio.id + '/cupones', {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ ...cuponForm, valor: parseFloat(cuponForm.valor), usos_max: parseInt(cuponForm.usos_max) || 100, minimo_compra: parseFloat(cuponForm.minimo_compra) || 0 })
+                    })
+                    const d = await res.json()
+                    if (!res.ok) { setCuponError(d.error || 'Error al crear'); return }
+                    setCupones(prev => [d, ...prev])
+                    setCuponForm({ nombre: '', codigo: '', tipo: 'porcentaje', valor: '', usos_max: '100', minimo_compra: '', expira_en: '', descripcion: '' })
+                    toast.success('Cupon creado')
+                  } catch { setCuponError('Error de conexion') }
+                  finally { setCreandoCupon(false) }
+                }} disabled={creandoCupon || !cuponForm.codigo || !cuponForm.valor}
+                  className='w-full py-3 rounded-2xl text-white font-black text-sm disabled:opacity-50 flex items-center justify-center gap-2'
+                  style={{ background: 'linear-gradient(135deg,#FF6B00,#E65F00)' }}>
+                  {creandoCupon ? <Loader2 size={16} className='animate-spin' /> : <Plus size={16} />} Crear cupon
+                </button>
+              </div>
+              {/* LISTA CUPONES */}
+              {cuponesLoading ? <div className='flex justify-center py-8'><Loader2 className='animate-spin text-orange-500' size={28} /></div>
+              : cupones.length === 0 ? <div className='text-center py-8 text-slate-400'><Tag size={32} className='mx-auto mb-2 opacity-30' /><p>Sin cupones creados</p></div>
+              : cupones.map(cup => (
+                <div key={cup.id} className='bg-white rounded-2xl border border-slate-100 p-4'>
+                  <div className='flex items-start justify-between gap-3'>
+                    <div className='flex-1'>
+                      <div className='flex items-center gap-2 mb-1'>
+                        <p className='font-black text-slate-900 tracking-wider'>{cup.codigo}</p>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full text-white ${cup.activo ? 'bg-green-500' : 'bg-slate-400'}`}>{cup.activo ? 'Activo' : 'Inactivo'}</span>
+                        <span className='text-[10px] font-black px-2 py-0.5 rounded-full bg-orange-100 text-orange-700'>{cup.tipo === 'porcentaje' ? cup.valor + '%' : '$' + cup.valor + ' MXN'}</span>
+                      </div>
+                      {cup.nombre && <p className='text-sm font-bold text-slate-700'>{cup.nombre}</p>}
+                      {cup.descripcion && <p className='text-xs text-slate-500'>{cup.descripcion}</p>}
+                      <div className='flex gap-3 mt-1 text-xs text-slate-400'>
+                        <span>Usos: {cup.usos_actual}/{cup.usos_max}</span>
+                        {Number(cup.minimo_compra) > 0 && <span>Min: </span>}
+                        {cup.expira_en && <span>Expira: {new Date(cup.expira_en).toLocaleDateString('es-MX')}</span>}
+                      </div>
+                    </div>
+                    <div className='flex gap-2'>
+                      <button onClick={async () => {
+                        await fetch(import.meta.env.VITE_API_URL + '/api/negocios/' + negocio.id + '/cupones/' + cup.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activo: !cup.activo }) })
+                        setCupones(prev => prev.map(c => c.id === cup.id ? {...c, activo: !cup.activo} : c))
+                      }} className={`text-xs font-black px-3 py-1.5 rounded-xl border ${cup.activo ? 'border-red-200 text-red-500 bg-red-50' : 'border-green-200 text-green-600 bg-green-50'}`}>
+                        {cup.activo ? 'Desactivar' : 'Activar'}
+                      </button>
+                      <button onClick={async () => {
+                        await fetch(import.meta.env.VITE_API_URL + '/api/negocios/' + negocio.id + '/cupones/' + cup.id, { method: 'DELETE' })
+                        setCupones(prev => prev.filter(c => c.id !== cup.id))
+                        toast.success('Cupon eliminado')
+                      }} className='text-xs font-black px-3 py-1.5 rounded-xl border border-red-200 text-red-500 bg-red-50'>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          )}
           {tab === 'profile' && (
             <motion.div key="profile" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               <h2 className="text-xl font-black text-slate-900">Perfil del negocio</h2>
