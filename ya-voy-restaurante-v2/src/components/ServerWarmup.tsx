@@ -7,21 +7,24 @@ export default function ServerWarmup() {
   const [estado, setEstado] = useState<"idle"|"cargando"|"fallo"|"mantenimiento">("idle");
 
   useEffect(() => {
-    let done = false;
-    // Verificar mantenimiento primero
-    fetch(_API + "/api/mantenimiento")
-      .then(r => r.json())
-      .then(d => { if (d.mantenimiento) { setEstado("mantenimiento"); done = true; } })
-      .catch(() => {});
-    const t = setTimeout(() => { if (!done) setEstado("cargando"); }, 3000);
-    warmupAPI().then((ok) => {
-      if (done) return;
-      done = true;
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const r = await fetch(_API + "/api/mantenimiento");
+        const d = await r.json();
+        if (cancelled) return;
+        if (d.mantenimiento === true) { setEstado("mantenimiento"); return; }
+      } catch {}
+      if (cancelled) return;
+      const t = setTimeout(() => { if (!cancelled) setEstado("cargando"); }, 3000);
+      const ok = await warmupAPI();
       clearTimeout(t);
+      if (cancelled) return;
       if (ok === false) setEstado("fallo");
       else setEstado("idle");
-    });
-    return () => { clearTimeout(t); done = true; };
+    };
+    run();
+    return () => { cancelled = true; };
   }, []);
 
   if (estado === "idle") return null;
@@ -31,19 +34,17 @@ export default function ServerWarmup() {
       style={{ background: "linear-gradient(135deg,#FF6B00 0%,#E65F00 50%,#cc4400 100%)" }}>
       <span className="text-7xl mb-6">{estado === "mantenimiento" ? "🔧" : "🛠️"}</span>
       <h1 className="text-2xl font-black text-white mb-2 text-center">
-        {estado === "mantenimiento" ? "En mantenimiento" : "Mantenimiento"}
+        {estado === "mantenimiento" ? "En mantenimiento" : "Sin conexion"}
       </h1>
       <p className="text-white/70 text-sm text-center mb-6">
         {estado === "mantenimiento"
           ? "Estamos realizando mejoras. Vuelve en unos minutos."
-          : "Estamos mejorando la app para ti. Vuelve en unos minutos."}
+          : "No se pudo conectar al servidor. Intenta de nuevo."}
       </p>
-      {estado === "fallo" && (
-        <button onClick={() => { setEstado("idle"); window.location.reload(); }}
-          className="bg-white font-black px-8 py-3 rounded-2xl text-sm" style={{ color: "#FF6B00" }}>
-          Reintentar
-        </button>
-      )}
+      <button onClick={() => { setEstado("idle"); window.location.reload(); }}
+        className="bg-white font-black px-8 py-3 rounded-2xl text-sm" style={{ color: "#FF6B00" }}>
+        Reintentar
+      </button>
     </div>
   );
 
