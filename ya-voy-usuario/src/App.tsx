@@ -381,6 +381,7 @@ export default function App() {
 
   const openNegocio = async (n: any) => {
     setNegocioSeleccionado(n);
+    calcularEnvio(n);
     try { setProductos(await getProductos(n.id) as any[]); } catch {}
   };
 
@@ -584,8 +585,8 @@ export default function App() {
     finally { setTarjetasLoading(false); }
   };
 
-  const calcularEnvio = async () => {
-    if (!negocioSeleccionado?.lat || !negocioSeleccionado?.lng) {
+  const calcularEnvio = async (negocioOverride?: any) => {
+    const negocioRef = negocioOverride ?? negocioSeleccionado; if (!negocioRef?.lat || !negocioRef?.lng) {
       setCostoEnvio(35); return
     }
     const loc = userLocation || (direccionPrincipal?.lat && direccionPrincipal?.lng ? [direccionPrincipal.lat, direccionPrincipal.lng] as [number,number] : null)
@@ -594,7 +595,7 @@ export default function App() {
     try {
       const res = await fetch(_API + "/api/stripe/calcular-envio", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ latUsuario: loc[0], lngUsuario: loc[1], latNegocio: negocioSeleccionado.lat, lngNegocio: negocioSeleccionado.lng })
+        body: JSON.stringify({ latUsuario: loc[0], lngUsuario: loc[1], latNegocio: negocioRef.lat, lngNegocio: negocioRef.lng })
       })
       const d = await res.json()
       if (d.costoEnvio) setCostoEnvio(d.costoEnvio)
@@ -1328,6 +1329,7 @@ export default function App() {
                     e.stopPropagation()
                     const negocio = negocios.find((n:any) => n.id === p.negocio_id) || { id: p.negocio_id, nombre: p.negocio_nombre, imagen: p.negocio_imagen }
                     setNegocioSeleccionado(negocio)
+                    calcularEnvio(negocio)
                     const prods = await fetch(import.meta.env.VITE_API_URL + "/api/productos/" + p.negocio_id).then(r => r.json()).catch(() => [])
                     setProductos(Array.isArray(prods) ? prods : [])
                     const itemsAnteriores = p.items || []
