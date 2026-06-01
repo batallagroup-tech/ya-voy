@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useClerk } from '@clerk/clerk-react';
 import {
-  LayoutDashboard, ShoppingBag, Utensils, TrendingUp, Tag,
+  LayoutDashboard, ShoppingBag, Utensils, TrendingUp, Tag, Bike,
   Settings, LogOut, Plus, Edit2, Trash2, X,
   DollarSign, Star, Clock, Power, Loader2, ChevronRight,
   Image as ImageIcon, Save
@@ -43,6 +43,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const [stripeConectando, setStripeConectando] = useState(false)
   const [stripeConectado, setStripeConectado] = useState(false)
   const [retiros, setRetiros] = useState<any[]>([])
+  const [repartidoresDisponibles, setRepartidoresDisponibles] = useState<{total:number;nombres:string[]}>({total:0,nombres:[]})
   const [cupones, setCupones] = useState<any[]>([])
   const [cuponesLoading, setCuponesLoading] = useState(false)
   const [cuponForm, setCuponForm] = useState({ nombre: '', codigo: '', tipo: 'porcentaje', valor: '', usos_max: '100', minimo_compra: '', expira_en: '', descripcion: '' })
@@ -245,6 +246,16 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{label}</p>
                   </div>
                 ))}
+              </div>
+              <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${repartidoresDisponibles.total > 0 ? 'bg-green-100' : 'bg-slate-100'}`}>
+                  <Bike size={20} className={repartidoresDisponibles.total > 0 ? 'text-green-600' : 'text-slate-400'} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-black text-slate-900 text-sm">{repartidoresDisponibles.total > 0 ? `${repartidoresDisponibles.total} repartidor${repartidoresDisponibles.total > 1 ? 'es' : ''} disponible${repartidoresDisponibles.total > 1 ? 's' : '' }` : 'Sin repartidores disponibles'}</p>
+                  <p className="text-xs text-slate-400">{repartidoresDisponibles.total > 0 ? 'En linea ahora' : 'Puede haber demoras en la entrega'}</p>
+                </div>
+                <div className={`w-3 h-3 rounded-full ${repartidoresDisponibles.total > 0 ? 'bg-green-400 animate-pulse' : 'bg-slate-300'}`} />
               </div>
               <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
