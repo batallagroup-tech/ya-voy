@@ -421,20 +421,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     } catch {}
   }
 
-  const actualizarUbicacion = async (pedidoId: string) => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        await fetch(API + "/api/repartidor/" + userId + "/ubicacion", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude, pedidoId })
-        })
-        setUserLat(pos.coords.latitude)
-        setUserLng(pos.coords.longitude)
-      } catch {}
-    }, () => {})
-  }
+    const actualizarUbicacion = (pedidoId: string) => { const _ws = (window as any)[`loc_ws_${pedidoId}`]; if (_ws) { _ws.close(); delete (window as any)[`loc_ws_${pedidoId}`] }; const _wid = (window as any)[`loc_watch_${pedidoId}`]; if (_wid !== undefined) { navigator.geolocation.clearWatch(_wid); delete (window as any)[`loc_watch_${pedidoId}`] } }
 
   const enviarMensaje = async () => {
     if (!showChat || !mensajeTexto.trim()) return

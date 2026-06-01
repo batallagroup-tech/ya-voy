@@ -1,4 +1,8 @@
-﻿import { StrictMode } from "react";
+import { StrictMode } from "react";
+import * as Sentry from "@sentry/react"
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({ dsn: import.meta.env.VITE_SENTRY_DSN, tracesSampleRate: 0.2, environment: import.meta.env.MODE })
+}
 import { createRoot } from "react-dom/client";
 import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App.tsx";

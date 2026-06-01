@@ -49,6 +49,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
   const [pago, setPago] = useState("efectivo");
   const [card, setCard] = useState({ numero: "", nombre: "", vencimiento: "", cvv: "" });
   const [cardError, setCardError] = useState("");
+  const [tcAceptado, setTcAceptado] = useState(false);
 
   const detectLocation = () => {
     setLocating(true);
@@ -262,8 +263,20 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
                   <p className="text-white text-xs">{pago === "efectivo" ? "Pago en efectivo" : `Tarjeta ···· ${card.numero.slice(-4)}`}</p>
                 </div>
               </div>
-              <button onClick={handleDone}
-                className="w-full bg-white py-5 rounded-2xl font-black text-xl flex items-center justify-center gap-2" style={{ color: "#6C3CE1" }}>
+              <label className="flex items-start gap-3 cursor-pointer mb-2">
+                <input type="checkbox" checked={tcAceptado} onChange={e => setTcAceptado(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded accent-purple-600 shrink-0 cursor-pointer" />
+                <span className="text-white/80 text-xs leading-relaxed">
+                  He leído y acepto los{" "}
+                  <a href="https://batallagroup-tech.github.io/ya-voy/terminos" target="_blank" rel="noopener noreferrer"
+                    className="underline font-bold text-white">Términos y Condiciones</a>{" "}
+                  y la{" "}
+                  <a href="https://batallagroup-tech.github.io/ya-voy/privacidad" target="_blank" rel="noopener noreferrer"
+                    className="underline font-bold text-white">Política de Privacidad</a>.
+                </span>
+              </label>
+              <button onClick={handleDone} disabled={!tcAceptado}
+                className="w-full bg-white py-5 rounded-2xl font-black text-xl flex items-center justify-center gap-2 disabled:opacity-40" style={{ color: "#6C3CE1" }}>
                 <ShoppingBag size={24} /> ¡Empezar a pedir!
               </button>
             </motion.div>

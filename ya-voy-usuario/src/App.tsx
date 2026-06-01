@@ -529,21 +529,21 @@ export default function App() {
   };
 
   const iniciarPollUbicacion = (repartidorId: string) => {
-    const poll = async () => {
+    const wsUrl = _API.replace("http://","ws://").replace("https://","wss://") + "/ws/ubicacion?repartidorId=" + repartidorId + "&rol=cliente"
+    const ws = new WebSocket(wsUrl)
+    ws.onmessage = (e) => {
       try {
-        const res = await fetch(_API + "/api/repartidor/" + repartidorId + "/ubicacion");
-        const data = await res.json();
-        if (data.lat_actual && data.lng_actual) {
-          setRepUbicacion({ lat: Number(data.lat_actual), lng: Number(data.lng_actual) });
-        }
+        const { lat, lng } = JSON.parse(e.data)
+        if (lat && lng) setRepUbicacion({ lat: Number(lat), lng: Number(lng) })
       } catch {}
-    };
-    poll();
-    ubPollRef.current = setInterval(poll, 5000);
+    }
+    ws.onerror = () => {}
+    ;(window as any).__repWs = ws
   };
 
   const detenerPollUbicacion = () => {
-    clearInterval(ubPollRef.current);
+    const ws = (window as any).__repWs
+    if (ws) { ws.close(); delete (window as any).__repWs }
     setRepUbicacion(null);
   };
 

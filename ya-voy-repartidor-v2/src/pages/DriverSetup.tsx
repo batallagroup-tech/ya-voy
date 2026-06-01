@@ -86,6 +86,7 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
   const [vehiculoPlacas, setVehiculoPlacas] = useState(() => initialData?.datos?.vehiculo_placas || localStorage.getItem("driver_setup_vplacas") || "")
   const [telefono, setTelefono] = useState(() => initialData?.datos?.telefono || localStorage.getItem("driver_setup_tel") || "")
   const [nombreLocked, setNombreLocked] = useState(() => !!initialData?.datos?.nombre || localStorage.getItem("driver_setup_nombre_locked") === "1")
+  const [tcAceptado, setTcAceptado] = useState(false)
 
   // steps: 0=INE Frente, 1=INE Reverso, 2=Vehiculo, 3=Tarjeta, 4=Confirmar
   const steps = ["INE Frente", "INE Reverso", "Vehiculo", "Tarjeta", "Confirmar"]
@@ -368,8 +369,20 @@ export default function DriverSetup({ userId, userEmail, initialData, onSubmit, 
               </div>
               {error && <p className="text-red-500 text-sm font-bold text-center bg-red-50 p-4 rounded-2xl border border-red-100">{error}</p>}
               <div className="flex gap-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={tcAceptado} onChange={e => setTcAceptado(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded shrink-0 cursor-pointer" />
+                <span className="text-slate-500 text-xs leading-relaxed">
+                  He le\u00eddo y acepto los{" "}
+                  <a href="https://batallagroup-tech.github.io/ya-voy/terminos" target="_blank" rel="noopener noreferrer"
+                    className="underline font-bold text-slate-700">T\u00e9rminos y Condiciones</a>{" "}
+                  y la{" "}
+                  <a href="https://batallagroup-tech.github.io/ya-voy/privacidad" target="_blank" rel="noopener noreferrer"
+                    className="underline font-bold text-slate-700">Pol\u00edtica de Privacidad</a>.
+                </span>
+              </label>
                 <button onClick={() => saveStep(3)} disabled={loading} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2"><ChevronLeft size={20} /> Atras</button>
-                <button onClick={handleSubmit} disabled={loading}
+                <button onClick={handleSubmit} disabled={loading || !tcAceptado}
                   className="flex-[2] py-4 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 text-lg"
                   style={{ background: loading ? "#94a3b8" : ACCENT }}>
                   {loading ? <><Loader2 className="animate-spin" size={24} /> Subiendo...</> : <><Save size={24} /> Enviar Solicitud</>}
