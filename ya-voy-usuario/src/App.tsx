@@ -5,7 +5,7 @@ import {
   ShoppingBag, Search, Home, Clock, User, MapPin, Star, ChevronRight,
   Plus, Minus, X, Loader2, LogOut, ShoppingCart, Utensils, Store,
   Package, Trash2, CreditCard, Banknote, Bell, HelpCircle, FileText,
-  ChevronDown, Check, ArrowLeft, Mail, Eye, EyeOff, MessageSquare, Send, RefreshCw
+  ChevronDown, Check, ArrowLeft, Mail, Eye, EyeOff, MessageSquare, Send, RefreshCw, Camera
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed } from "./lib/api";
@@ -203,6 +203,8 @@ export default function App() {
   const [costoEnvio, setCostoEnvio] = useState(35)
   const [costoEnvioLoading, setCostoEnvioLoading] = useState(false)
   const [tiempoEstimado, setTiempoEstimado] = useState("")
+  const [fotoPerfil, setFotoPerfil] = useState("")
+  const [subiendoFoto, setSubiendoFoto] = useState(false)
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [pedidoDetalle, setPedidoDetalle] = useState<any>(null);
   const [codigoOpciones, setCodigoOpciones] = useState<string[]>([]);
@@ -1348,8 +1350,28 @@ export default function App() {
             <motion.div key="perfil" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               {/* Header perfil */}
               <div className="bg-white rounded-3xl border border-slate-100 p-6 flex flex-col items-center text-center">
-                <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-purple-200 mb-3">
-                  {user?.imageUrl ? <img src={user.imageUrl} className="w-full h-full object-cover" /> : <User size={36} className="text-purple-600 m-auto mt-3" />}
+                <div className="relative w-20 h-20 mb-3">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-purple-200">
+                    {fotoPerfil ? <img src={fotoPerfil} className="w-full h-full object-cover" /> : user?.imageUrl ? <img src={user.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-purple-100 flex items-center justify-center"><User size={36} className="text-purple-600" /></div>}
+                  </div>
+                  <label className="absolute bottom-0 right-0 w-7 h-7 bg-purple-600 rounded-full flex items-center justify-center cursor-pointer shadow-lg">
+                    {subiendoFoto ? <Loader2 size={14} className="text-white animate-spin" /> : <Camera size={14} className="text-white" />}
+                    <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                      const file = e.target.files?.[0]; if (!file) return
+                      setSubiendoFoto(true)
+                      try {
+                        const fd = new FormData(); fd.append("file", file); fd.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET)
+                        const r = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`, { method: "POST", body: fd })
+                        const d = await r.json()
+                        if (d.secure_url) {
+                          setFotoPerfil(d.secure_url)
+                          await fetch(_API + "/api/usuario/perfil/" + userId, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ foto_perfil: d.secure_url }) })
+                          toast.success("Foto actualizada")
+                        }
+                      } catch { toast.error("Error al subir foto") }
+                      finally { setSubiendoFoto(false) }
+                    }} />
+                  </label>
                 </div>
                 <p className="font-black text-slate-900 text-xl">{user?.fullName || "Usuario"}</p>
                 <p className="text-sm text-slate-500 mt-0.5">{user?.primaryEmailAddress?.emailAddress}</p>
