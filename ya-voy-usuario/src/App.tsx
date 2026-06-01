@@ -5,7 +5,7 @@ import {
   ShoppingBag, Search, Home, Clock, User, MapPin, Star, ChevronRight,
   Plus, Minus, X, Loader2, LogOut, ShoppingCart, Utensils, Store,
   Package, Trash2, CreditCard, Banknote, Bell, HelpCircle, FileText,
-  ChevronDown, Check, ArrowLeft, Mail, Eye, EyeOff, MessageSquare, Send
+  ChevronDown, Check, ArrowLeft, Mail, Eye, EyeOff, MessageSquare, Send, RefreshCw
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed } from "./lib/api";
@@ -1306,7 +1306,8 @@ export default function App() {
                   </button>
                 </div>
               ) : pedidos.map(p => (
-                <button key={p.id} onClick={() => { setPedidoDetalle(p); setCodigoConfirmado(false); if (p.status === 'en_camino') { const pv = p.palabras_verificacion; const ops = (pv && pv.entrega && pv.entrega.length === 3) ? pv.entrega : (() => { const PALABRAS = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]; const falsas = PALABRAS.filter(w => w !== p.codigo_entrega).sort(() => Math.random()-0.5).slice(0,2); return [p.codigo_entrega, falsas[0], falsas[1]].sort(() => Math.random()-0.5); })(); setCodigoOpciones(ops); } }}
+                <div key={p.id} className='w-full space-y-1'>
+                <button onClick={() => { setPedidoDetalle(p); setCodigoConfirmado(false); if (p.status === 'en_camino') { const pv = p.palabras_verificacion; const ops = (pv && pv.entrega && pv.entrega.length === 3) ? pv.entrega : (() => { const PALABRAS = ["TIGRE","LUNA","SOL","PUMA","RAYO","NUBE","MAR","RIO","VIENTO","FUEGO","TIERRA","AGUILA","LOBO","OSO","ZORRO","LEON","TORO","COBRA","FLOR","ROCA","PIEDRA","AGUA","BRISA","MONTE","CIELO"]; const falsas = PALABRAS.filter(w => w !== p.codigo_entrega).sort(() => Math.random()-0.5).slice(0,2); return [p.codigo_entrega, falsas[0], falsas[1]].sort(() => Math.random()-0.5); })(); setCodigoOpciones(ops); } }}
                   className="w-full bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3 text-left hover:shadow-sm transition-all">
                   <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-slate-100">
                     {p.negocio_imagen ? <img src={p.negocio_imagen} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>}
@@ -1320,6 +1321,24 @@ export default function App() {
                     {statusLabel[p.status] || p.status}
                   </span>
                 </button>
+                {p.status === "entregado" && (
+                  <button onClick={async (e) => {
+                    e.stopPropagation()
+                    const negocio = negocios.find((n:any) => n.id === p.negocio_id) || { id: p.negocio_id, nombre: p.negocio_nombre, imagen: p.negocio_imagen }
+                    setNegocioSeleccionado(negocio)
+                    const prods = await fetch(import.meta.env.VITE_API_URL + "/api/productos/" + p.negocio_id).then(r => r.json()).catch(() => [])
+                    setProductos(Array.isArray(prods) ? prods : [])
+                    const itemsAnteriores = p.items || []
+                    const carritoNuevo = itemsAnteriores.map((it:any) => ({ id: it.id || it.nombre, nombre: it.nombre, precio: it.precio, cantidad: it.cantidad || 1, imagen: it.imagen }))
+                    setCart(carritoNuevo)
+                    setShowCart(true)
+                    setTab("home")
+                    toast.success("Pedido anterior cargado al carrito")
+                  }} className="w-full mt-1 py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1" style={{ background: "linear-gradient(135deg,#6C3CE1,#E91E8C)" }}>
+                    <RefreshCw size={12} /> Pedir de nuevo
+                  </button>
+                )}
+                </div>
               ))}
             </motion.div>
           )}
