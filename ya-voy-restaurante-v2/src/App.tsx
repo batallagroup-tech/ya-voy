@@ -26,6 +26,7 @@ export default function App() {
   const [isReapplying, setIsReapplying] = useState(false);
 
   useEffect(() => {
+  const warmupEl = <ServerWarmup />;
     if (!isLoaded || !isSignedIn || !userId || !user) return;
     const init = async () => {
       try { await syncUsuario({
@@ -65,8 +66,9 @@ export default function App() {
     );
   }
 
-  if (window.location.pathname === '/sso-callback') return <AuthenticateWithRedirectCallback />;
-  if (!isLoaded || !isSignedIn) return <Login />;
+  if (window.location.pathname === '/sso-callback') return <><ServerWarmup /><AuthenticateWithRedirectCallback /></>;
+
+  if (!isLoaded || !isSignedIn) return <><ServerWarmup /><Login /></>;
 
   if (status === 'loading') {
     return (
