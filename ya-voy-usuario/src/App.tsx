@@ -1004,16 +1004,30 @@ export default function App() {
         <motion.div initial={{ y: -80 }} animate={{ y: 0 }}
           className="fixed top-0 left-0 right-0 z-[80] bg-amber-500 text-white p-3 shadow-lg">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <p className="font-black text-sm">🛵 El repartidor esta en tu puerta</p>
-              <p className="text-xs opacity-90">Sal a recibir tu pedido — {Math.floor(esperandoTimer/60)}:{String(esperandoTimer%60).padStart(2,"0")} — si no sales, el pedido se marca entregado sin reembolso</p>
+              <p className="text-xs opacity-90">Sal a recibir tu pedido — si no sales en el tiempo indicado, el pedido se marca entregado sin reembolso</p>
             </div>
-            <div className="text-2xl font-black tabular-nums">
+            <div className="text-2xl font-black tabular-nums ml-3">
               {Math.floor(esperandoTimer/60)}:{String(esperandoTimer%60).padStart(2,"0")}
             </div>
           </div>
+          {esperandoTimer > 0 && (
+            <button onClick={async () => {
+              const pedidoEsp = pedidos.find((p: any) => p.status === "esperando_cliente");
+              if (!pedidoEsp) return;
+              try {
+                await fetch(_API + "/api/soporte", { method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ usuarioId: userId, usuarioEmail: user?.primaryEmailAddress?.emailAddress, usuarioNombre: user?.fullName, tipo: "Repartidor no encontrado", comentario: "El repartidor marco llegada pero el cliente no lo ve. Pedido: " + pedidoEsp.id }) });
+                toast.success("Reporte enviado. Estamos revisando.");
+              } catch { toast.error("Error al enviar reporte"); }
+            }}
+              className="mt-2 w-full py-2 bg-white/20 border border-white/40 rounded-xl text-white font-bold text-xs">
+              ⚠️ No veo al repartidor — reportar
+            </button>
+          )}
           {esperandoTimer === 0 && (
-            <p className="text-xs font-bold mt-1 text-amber-100">Tiempo agotado — el pedido se marcó como entregado sin reembolso</p>
+            <p className="text-xs font-bold mt-1 text-amber-100">Tiempo agotado — el pedido se marco como entregado sin reembolso</p>
           )}
         </motion.div>
       )}
