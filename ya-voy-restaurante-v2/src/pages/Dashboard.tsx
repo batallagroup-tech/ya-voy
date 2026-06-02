@@ -213,7 +213,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 flex flex-col">
+    <div className="min-h-[100dvh] bg-slate-50 flex flex-col overflow-x-hidden w-full">
       <div className="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-[#FF6B00] rounded-xl flex items-center justify-center">
