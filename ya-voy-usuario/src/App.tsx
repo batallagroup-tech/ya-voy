@@ -532,7 +532,7 @@ export default function App() {
     chatPollRef.current = setInterval(() => cargarChatMensajes(pedidoId), 3000);
     fetch(_API + "/api/mensajes/" + pedidoId + "/leidos", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lectorTipo: "usuario" })
+      body: JSON.stringify({ lectorTipo: "cliente" })
     }).catch(() => {});
     setChatNoLeidos(prev => ({ ...prev, [pedidoId]: 0 }));
   };
@@ -580,7 +580,7 @@ export default function App() {
     try {
       await fetch(_API + "/api/mensajes", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pedidoId: showChatPedido, remitenteId: userId, remitenteTipo: "usuario", texto: chatTexto })
+        body: JSON.stringify({ pedidoId: showChatPedido, remitenteId: userId, remitenteTipo: "cliente", texto: chatTexto })
       });
       setChatTexto("");
       await cargarChatMensajes(showChatPedido);
@@ -1527,9 +1527,9 @@ export default function App() {
                   <p className="text-center text-slate-400 text-sm py-8">Sin mensajes aún</p>
                 )}
                 {chatMensajes.map(m => (
-                  <div key={m.id} className={`flex ${m.remitente_tipo === "usuario" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm font-medium ${m.remitente_tipo === "usuario" ? "text-white rounded-br-sm" : "bg-slate-100 text-slate-900 rounded-bl-sm"}`}
-                      style={m.remitente_tipo === "usuario" ? { background: GRAD } : {}}>
+                  <div key={m.id} className={`flex ${m.remitente_tipo === "cliente" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm font-medium ${m.remitente_tipo === "cliente" ? "text-white rounded-br-sm" : "bg-slate-100 text-slate-900 rounded-bl-sm"}`}
+                      style={m.remitente_tipo === "cliente" ? { background: GRAD } : {}}>
                       {m.texto}
                     </div>
                   </div>
