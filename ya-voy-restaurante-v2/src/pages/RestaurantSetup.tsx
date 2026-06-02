@@ -71,6 +71,7 @@ export default function RestaurantSetup({ userId, userEmail, initialData, onSubm
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [tcAceptado, setTcAceptado] = useState(false);
   const [error, setError] = useState('');
 
   const searchAddress = async (q: string) => {
@@ -460,11 +461,21 @@ return data.secure_url;
                 </p>
               </div>
               {error && <p className="text-red-500 text-sm font-bold text-center bg-red-50 p-4 rounded-2xl border border-red-100">{error}</p>}
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={tcAceptado} onChange={e => setTcAceptado(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded shrink-0 cursor-pointer" />
+                <span className="text-slate-500 text-xs leading-relaxed">
+                  He leido y acepto los{" "}
+                  <a href="https://batallagroup-tech.github.io/ya-voy/terminos" target="_blank" rel="noopener noreferrer"
+                    className="underline font-bold text-slate-700">Terminos y Condiciones</a>{" "}
+                  y la{" "}
+                  <a href="https://batallagroup-tech.github.io/ya-voy/privacidad" target="_blank" rel="noopener noreferrer"
+                    className="underline font-bold text-slate-700">Politica de Privacidad</a>.
+                </span>
+              </label>
               <div className="flex gap-4 pt-2">
-                <button onClick={() => setStep(3)} disabled={loading} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all">
-                  <ChevronLeft size={20} /> Atrs
-                </button>
-                <button onClick={handleSubmit} disabled={loading || !selfie}
+                <button onClick={() => setStep(3)} disabled={loading} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all"><ChevronLeft size={20} /> Atras</button>
+                <button onClick={handleSubmit} disabled={loading || !selfie || !tcAceptado}
                   className="flex-[2] py-4 bg-[#FF6B00] hover:bg-[#E65F00] text-white font-black rounded-2xl shadow-xl shadow-orange-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-lg">
                   {loading ? <><Loader2 className="animate-spin" size={24} /> Enviando...</> : <><Save size={24} /> Enviar Solicitud</>}
                 </button>
