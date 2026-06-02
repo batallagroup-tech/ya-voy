@@ -26,7 +26,6 @@ export default function App() {
   const [isReapplying, setIsReapplying] = useState(false);
 
   useEffect(() => {
-  const warmupEl = <ServerWarmup />;
     if (!isLoaded || !isSignedIn || !userId || !user) return;
     const init = async () => {
       try { await syncUsuario({

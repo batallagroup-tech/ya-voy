@@ -25,7 +25,6 @@ export default function App() {
   const [isReapplying, setIsReapplying] = useState(false)
 
   useEffect(() => {
-  const warmupEl = <ServerWarmup />;
     if (!isLoaded || !isSignedIn || !userId || !user) return
     const init = async () => {
       try {
@@ -47,7 +46,6 @@ export default function App() {
     init()
   }, [isLoaded, isSignedIn, userId, user])
 
-  if (window.location.pathname === "/sso-callback") return <AuthenticateWithRedirectCallback />
 
   if (showSplash) return (
     <><ServerWarmup /><AnimatePresence><SplashScreen onDone={() => setShowSplash(false)} /></AnimatePresence></>

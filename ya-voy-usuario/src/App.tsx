@@ -1675,14 +1675,14 @@ export default function App() {
                     body: JSON.stringify({ usuarioId: userId, usuarioEmail: user?.primaryEmailAddress?.emailAddress, usuarioNombre: user?.fullName, tipo: soporteTipo, comentario: soporteComentario }) });
                   toast.success("Reporte enviado. Te contactaremos pronto.");
                   setShowSoporte(false); setSoporteTipo(""); setSoporteComentario("");
+                } catch { toast.error("Error al enviar reporte"); }
+                finally { setSoporteLoading(false); }
               {appConfig.whatsapp && (
                 <a href={appConfig.whatsapp} target="_blank" rel="noreferrer"
-                  className="w-full py-4 rounded-2xl font-black text-white flex items-center justify-center gap-2 bg-green-500">
+                  className="w-full py-4 rounded-2xl font-black text-white flex items-center justify-center gap-2 bg-green-500 mb-2">
                   💬 Contactar por WhatsApp
                 </a>
               )}
-                } catch { toast.error("Error al enviar reporte"); }
-                finally { setSoporteLoading(false); }
               }} disabled={!soporteTipo || soporteLoading} style={{ background: GRAD }}
                 className="w-full py-4 text-white font-black rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2">
                 {soporteLoading ? <Loader2 className="animate-spin" size={20} /> : null}
