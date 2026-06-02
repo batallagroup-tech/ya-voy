@@ -37,7 +37,7 @@ function MapUpdater({ center }: { center: [number,number] }) {
 
 interface OnboardingProps {
   userName: string;
-  onDone: (data: { location: [number,number]; address: string; pago: string; cardData?: any }) => void;
+  onDone: (data: { location: [number,number]; address: string; pago: string }) => void;
 }
 
 export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
@@ -47,7 +47,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
   const [locating, setLocating] = useState(false);
   const [locationConfirmed, setLocationConfirmed] = useState(false);
   const [pago, setPago] = useState("efectivo");
-  const [card, setCard] = useState({ numero: "", nombre: "", vencimiento: "", cvv: "" });
+
   const [cardError, setCardError] = useState("");
   const [tcAceptado, setTcAceptado] = useState(false);
 
@@ -83,14 +83,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
     setTimeout(() => setStep(1), 500);
   };
 
-  const validateCard = () => {
-    if (pago === "tarjeta") {
-      if (card.numero.replace(/\s/g,"").length < 16) return "Número de tarjeta inválido";
-      if (!card.nombre) return "Ingresa el nombre del titular";
-      if (card.vencimiento.length < 5) return "Fecha inválida (MM/AA)";
-      if (card.cvv.length < 3) return "CVV inválido";
-    }
-    return "";
+  const validateCard = () => { return ""; };
   };
 
   const handleNext = () => {
@@ -100,7 +93,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
   };
 
   const handleDone = () => {
-    onDone({ location, address: address || "Mi ubicación", pago, cardData: pago === "tarjeta" ? card : null });
+    onDone({ location, address: address || "Mi ubicacion", pago });
   };
 
   const steps = ["Ubicación", "Pago", "¡Listo!"];
@@ -190,50 +183,11 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
                 ))}
               </div>
 
-              {/* Formulario tarjeta */}
               {pago === "tarjeta" && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                  className="bg-white/20 backdrop-blur rounded-2xl p-4 space-y-3 mb-4">
-                  <p className="text-white font-black text-sm">Datos de la tarjeta</p>
-                  <input
-                    value={card.numero}
-                    onChange={e => {
-                      const v = e.target.value.replace(/\D/g,"").slice(0,16);
-                      setCard(c => ({ ...c, numero: v.replace(/(.{4})/g,"$1 ").trim() }));
-                    }}
-                    placeholder="1234 5678 9012 3456"
-                    className="w-full px-4 py-3 bg-white rounded-xl text-slate-900 font-medium text-sm outline-none tracking-widest"
-                    maxLength={19}
-                  />
-                  <input
-                    value={card.nombre}
-                    onChange={e => setCard(c => ({ ...c, nombre: e.target.value.toUpperCase() }))}
-                    placeholder="NOMBRE DEL TITULAR"
-                    className="w-full px-4 py-3 bg-white rounded-xl text-slate-900 font-medium text-sm outline-none uppercase"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      value={card.vencimiento}
-                      onChange={e => {
-                        let v = e.target.value.replace(/\D/g,"").slice(0,4);
-                        if (v.length >= 2) v = v.slice(0,2) + "/" + v.slice(2);
-                        setCard(c => ({ ...c, vencimiento: v }));
-                      }}
-                      placeholder="MM/AA"
-                      className="px-4 py-3 bg-white rounded-xl text-slate-900 font-medium text-sm outline-none"
-                      maxLength={5}
-                    />
-                    <input
-                      value={card.cvv}
-                      onChange={e => setCard(c => ({ ...c, cvv: e.target.value.replace(/\D/g,"").slice(0,4) }))}
-                      placeholder="CVV"
-                      type="password"
-                      className="px-4 py-3 bg-white rounded-xl text-slate-900 font-medium text-sm outline-none"
-                      maxLength={4}
-                    />
-                  </div>
-                  {cardError && <p className="text-red-200 text-xs font-bold">{cardError}</p>}
-                </motion.div>
+                <div className="bg-white/20 backdrop-blur rounded-2xl p-4 mb-4 flex items-center gap-3">
+                  <CreditCard size={20} className="text-white shrink-0" />
+                  <p className="text-white text-xs">Tu tarjeta se agrega de forma segura al realizar tu primer pedido via Stripe.</p>
+                </div>
               )}
 
               <button onClick={handleNext}
@@ -260,7 +214,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   {pago === "efectivo" ? <Banknote size={16} className="text-white" /> : <CreditCard size={16} className="text-white" />}
-                  <p className="text-white text-xs">{pago === "efectivo" ? "Pago en efectivo" : `Tarjeta ···· ${card.numero.slice(-4)}`}</p>
+                  <p className="text-white text-xs">{pago === "efectivo" ? "Pago en efectivo" : "Tarjeta (se agrega al pedir)"}</p>
                 </div>
               </div>
               <label className="flex items-start gap-3 cursor-pointer mb-2">

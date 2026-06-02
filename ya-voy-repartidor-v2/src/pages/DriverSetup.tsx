@@ -6,7 +6,7 @@ import { enviarSolicitudRepartidor } from "../lib/api"
 const ACCENT = "#F107A3"
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
-const OCR_KEY = "K89943602088957"
+const OCR_KEY = import.meta.env.VITE_OCR_KEY
 
 interface Props { userId: string; userEmail: string; initialData?: any; onSubmit: () => void; onCancel?: () => void }
 
