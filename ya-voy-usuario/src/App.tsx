@@ -13,6 +13,11 @@ import OnboardingFlow from "./components/OnboardingFlow";
 const _API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 import DireccionesScreen from "./components/DireccionesScreen";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+L.Icon.Default.mergeOptions({ iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png", iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png", shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png" });
+function MapUpdater({ lat, lng }: { lat: number; lng: number }) { const map = useMap(); useEffect(() => { map.setView([lat, lng], map.getZoom()); }, [lat, lng]); return null; }
 import ServerWarmup from "./components/ServerWarmup"
 import { usePushNotifications } from "./hooks/usePushNotifications"
 import { Stripe, PaymentSheetEventsEnum } from "@capacitor-community/stripe"
@@ -909,14 +914,17 @@ export default function App() {
                     <p className="text-xs font-black text-purple-600 uppercase tracking-wider">En camino</p>
                     <p className="text-sm font-bold text-slate-700">El repartidor va hacia ti</p>
                     <p className="text-xs text-slate-500 mt-0.5">{pedidoDetalle.repartidor_rating && Number(pedidoDetalle.repartidor_rating) < 5 ? "⭐ " + Number(pedidoDetalle.repartidor_rating).toFixed(1) + " calificacion" : "⭐ Nuevo repartidor"}</p>
-                    {repUbicacion ? (
-                      <a href={`https://www.google.com/maps?q=${repUbicacion.lat},${repUbicacion.lng}`} target="_blank" rel="noreferrer"
-                        className="text-xs text-purple-500 font-bold underline mt-0.5 block">
-                        📍 Ver ubicación del repartidor
-                      </a>
-                    ) : (
-                      <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: {pedidoDetalle.tiempo_estimado || "15-30 min"}</p>
-                    )}
+                        {repUbicacion ? (
+                          <div className="mt-2 rounded-xl overflow-hidden border border-purple-200" style={{ height: 160 }}>
+                            <MapContainer center={[repUbicacion.lat, repUbicacion.lng]} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false}>
+                              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                              <Marker position={[repUbicacion.lat, repUbicacion.lng]} />
+                              <MapUpdater lat={repUbicacion.lat} lng={repUbicacion.lng} />
+                            </MapContainer>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: {pedidoDetalle.tiempo_estimado || "15-30 min"}</p>
+                        )}
                   </div>
                 </div>
               )}
@@ -967,18 +975,14 @@ export default function App() {
                   )}
                 </button>
               )}
-              {pedidoDetalle.status === 'en_camino' && !codigoConfirmado && codigoOpciones.length > 0 && (
-                <div className="bg-white rounded-2xl border-2 border-purple-200 p-4">
-                  <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">El repartidor llego — muestra tu palabra</p>
-                  <p className="text-sm text-slate-600 mb-3">Muestra UNA de estas palabras al repartidor. El repartidor la seleccionara en su app para confirmar la entrega:</p>
-                  <div className="space-y-2">
-                    {codigoOpciones.map(op => (
-                      <button key={op} onClick={async () => { await fetch(`${_API}/api/usuario/pedidos/confirmar`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pedidoId: pedidoDetalle.id, codigo: op }) }); if (op === pedidoDetalle.codigo_entrega) { setCodigoConfirmado(true); setPedidoDetalle((p: any) => ({ ...p, status: 'entregado' })); toast.success('¡Pedido entregado!'); setTimeout(() => setShowRating(true), 800); } else { toast.error('Código incorrecto'); } }}
-                        className="w-full py-3 rounded-xl font-black text-lg tracking-widest border-2 border-slate-200 hover:border-purple-500 hover:bg-purple-50 transition-all text-slate-700">
-                        {op}
-                      </button>
-                    ))}
+              {pedidoDetalle.status === 'en_camino' && !codigoConfirmado && pedidoDetalle.codigo_entrega && (
+                <div className="bg-white rounded-2xl border-2 border-purple-200 p-4 text-center">
+                  <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-2">El repartidor llego</p>
+                  <p className="text-sm text-slate-600 mb-4">Muestra esta palabra al repartidor. El la seleccionara en su app para confirmar la entrega:</p>
+                  <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl py-6 px-4 mb-2">
+                    <p className="text-4xl font-black tracking-widest text-purple-700">{pedidoDetalle.codigo_entrega}</p>
                   </div>
+                  <p className="text-xs text-slate-400">Solo muestra esta palabra — no la digas en voz alta</p>
                 </div>
               )}
               {(pedidoDetalle.status === 'entregado' || codigoConfirmado) && (
