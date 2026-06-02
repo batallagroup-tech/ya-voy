@@ -281,12 +281,19 @@
 
 <script>
   function showTab(id, el) {
-    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    el.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+    document.querySelectorAll("nav a").forEach(a => a.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+    if (el) el.classList.add("active");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
+  window.addEventListener("DOMContentLoaded", function() {
+    var tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "terminos" || tab === "privacidad" || tab === "contacto") {
+      var link = document.querySelector("nav a[onclick*=" + tab + "]");
+      showTab(tab, link);
+    }
+  });
 </script>
 
 </body>
