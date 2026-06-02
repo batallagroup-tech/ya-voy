@@ -1542,6 +1542,17 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
                             )}
 
+                                {pedidoSeleccionado.lat_restaurante && pedidoSeleccionado.lat_entrega && (
+                                  <div className="rounded-xl overflow-hidden border border-slate-200">
+                                    <RouteMap restLat={pedidoSeleccionado.lat_restaurante} restLng={pedidoSeleccionado.lng_restaurante} entregaLat={pedidoSeleccionado.lat_entrega} entregaLng={pedidoSeleccionado.lng_entrega} />
+                                  </div>
+                                )}
+                                {pedidoSeleccionado.lat_entrega && (
+                                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${pedidoSeleccionado.lat_entrega},${pedidoSeleccionado.lng_entrega}`} target="_blank"
+                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 font-bold text-sm">
+                                    Navegar al cliente
+                                  </a>
+                                )}
                             <button onClick={() => abrirChat(pedidoSeleccionado.id)}
                               className="w-full py-2.5 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2"
                               style={{ borderColor: "rgba(241,7,163,0.3)", color: "#F107A3" }}>
