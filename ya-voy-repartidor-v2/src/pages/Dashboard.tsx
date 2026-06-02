@@ -13,6 +13,7 @@ import "leaflet/dist/leaflet.css"
 import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft, MessageSquare, Send, Camera, Wallet } from "lucide-react"
 
 import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob"
+import { Browser } from "@capacitor/browser"
 
 import { Toaster, toast } from "sonner"
 
@@ -2067,7 +2068,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
                     const d = await res.json()
 
-                    if (d.url) window.open(d.url, "_blank")
+                    if (d.url) await Browser.open({ url: d.url })
 
                   } catch { toast.error("Error al conectar cuenta") }
 

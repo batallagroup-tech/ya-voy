@@ -9,6 +9,7 @@ import {
   Image as ImageIcon, Save
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { Browser } from '@capacitor/browser';
 
 const CATEGORIES = ['Tacos','Hamburguesas','Pizza','Sushi','Postres','Bebidas','Comida Corrida','Alitas','Ensaladas','Mariscos'];
 
@@ -853,7 +854,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                       body: JSON.stringify({ tipo: "restaurante", actorId: negocio.id, email: negocio.email, nombre: negocio.nombre })
                     })
                     const d = await res.json()
-                    if (d.url) window.open(d.url, "_blank")
+                    if (d.url) await Browser.open({ url: d.url })
                   } catch { toast.error("Error al conectar cuenta") }
                   finally { setStripeConectando(false) }
                 }} disabled={stripeConectado || stripeConectando}

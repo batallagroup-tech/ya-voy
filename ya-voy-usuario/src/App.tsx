@@ -247,10 +247,14 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("ya_voy_location") || "null"); } catch { return null; }
   });
 
-  const direcciones: Direccion[] = (() => {
+  const [direcciones, setDirecciones] = useState<Direccion[]>(() => {
     try { return JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]"); } catch { return []; }
-  })();
+  });
   const direccionPrincipal = direcciones.find(d => d.principal) || direcciones[0];
+
+  const recargarDirecciones = () => {
+    try { setDirecciones(JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]")); } catch {}
+  };
 
   const subCategorias: Record<string, string[]> = {
     comida: ["Todos", "Tacos", "Hamburguesas", "Pizza", "Sushi", "Comida Corrida", "Alitas", "Ensaladas", "Mariscos", "Postres", "Bebidas"],
@@ -261,6 +265,7 @@ export default function App() {
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId || !user) return;
     syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress?.split("@")[0] || "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }).catch(() => {});
+    fetch(_API + "/api/usuario/perfil/" + userId).then(r => r.json()).then(d => { if (d.foto_perfil) setFotoPerfil(d.foto_perfil); }).catch(() => {});
     fetch(_API + "/api/config").then(r => r.json()).then(d => setAppConfig(d)).catch(() => {})
     if (!localStorage.getItem("ya_voy_onboarding_done")) {
       setShowOnboarding(true);
@@ -291,7 +296,12 @@ export default function App() {
     }, 1000);
     return () => clearInterval(iv);
   }, [esperandoTimer]);
-    useEffect(() => { if (tab === "pedidos") loadPedidos(); }, [tab]);
+    useEffect(() => {
+    if (tab !== "pedidos") return;
+    loadPedidos();
+    const iv = setInterval(() => loadPedidos(), 4000);
+    return () => clearInterval(iv);
+  }, [tab]);
 
   const ADMOB_BANNER_ID_USR = "ca-app-pub-3849768825456219/7317936592"
   useEffect(() => { AdMob.initialize().catch(() => {}) }, [])
@@ -676,7 +686,7 @@ export default function App() {
   if (showSplash) return <AnimatePresence><SplashScreen onDone={() => setShowSplash(false)} /></AnimatePresence>;
   if (!isLoaded || !isSignedIn) return <LoginScreen />;
   if (showOnboarding) return <AnimatePresence><OnboardingFlow userName={user?.firstName || "amigo"} onDone={handleOnboardingDone} /></AnimatePresence>;
-  if (showDirecciones) return <DireccionesScreen onBack={() => setShowDirecciones(false)} />;
+  if (showDirecciones) return <DireccionesScreen onBack={() => { setShowDirecciones(false); recargarDirecciones(); }} onSelect={(d) => { const dirs = direcciones.map(x => ({ ...x, principal: x.id === d.id })); setDirecciones(dirs); localStorage.setItem("ya_voy_direcciones", JSON.stringify(dirs)); setShowDirecciones(false); recargarDirecciones(); }} />;
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 flex flex-col">
