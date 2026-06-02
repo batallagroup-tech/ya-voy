@@ -114,6 +114,15 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     }
   }, [load])
   useEffect(() => {
+    const cargarRepartidores = () => {
+      fetch(import.meta.env.VITE_API_URL + "/api/repartidor/disponibles/count")
+        .then(r => r.json()).then(d => setRepartidoresDisponibles({ total: Number(d.total||0), nombres: d.nombres||[] })).catch(() => {})
+    }
+    cargarRepartidores()
+    const iv = setInterval(cargarRepartidores, 30000)
+    return () => clearInterval(iv)
+  }, [])
+  useEffect(() => {
     if (tab !== 'orders' && tab !== 'overview') return;
     const interval = setInterval(() => load(), 3000);
     return () => clearInterval(interval);
@@ -179,7 +188,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
 
   const statsToday = {
     pedidos: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString()).length,
-    ingresos: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString() && o.status === 'entregado').reduce((a, o) => a + ((Number(o.total||0) - Number(o.costo_envio||35)) * 0.82), 0),
+    ingresos: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString() && o.status === 'entregado').reduce((a, o) => a + ((Number(o.total||0) - Number(o.costo_envio||35)) * (1 - comisionPct)), 0),
     nuevos: orders.filter(o => o.status === 'nuevo').length,
   };
 
@@ -188,6 +197,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag, badge: statsToday.nuevos },
     { id: 'menu', label: 'Menu', icon: Utensils },
     { id: 'finance', label: 'Finanzas', icon: TrendingUp },
+    { id: 'cupones', label: 'Cupones', icon: Tag },
     { id: 'profile', label: 'Perfil', icon: Settings },
   ];
 
@@ -518,8 +528,8 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
               })()}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Hoy', value: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString() && o.status === 'entregado').reduce((a, o) => a + ((Number(o.total||0) - Number(o.costo_envio||35)) * 0.82), 0) },
-                  { label: 'Este mes', value: orders.filter(o => new Date(o.creado_en).getMonth() === new Date().getMonth() && o.status === 'entregado').reduce((a, o) => a + ((Number(o.total||0) - Number(o.costo_envio||35)) * 0.82), 0) },
+                  { label: 'Hoy', value: orders.filter(o => new Date(o.creado_en).toDateString() === new Date().toDateString() && o.status === 'entregado').reduce((a, o) => a + ((Number(o.total||0) - Number(o.costo_envio||35)) * (1 - comisionPct)), 0) },
+                  { label: 'Este mes', value: orders.filter(o => new Date(o.creado_en).getMonth() === new Date().getMonth() && o.status === 'entregado').reduce((a, o) => a + ((Number(o.total||0) - Number(o.costo_envio||35)) * (1 - comisionPct)), 0) },
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-white p-4 rounded-2xl border border-slate-100">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</p>
