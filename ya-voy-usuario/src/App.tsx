@@ -53,7 +53,7 @@ export default function App() {
   const { isLoaded, isSignedIn, userId, getToken } = useAuth();
   const { user } = useUser();
   const { signOut } = useClerk();
-  usePushNotifications();
+  usePushNotifications({ userId, getToken });
 
   // Navigation
   const [showSplash, setShowSplash] = useState(true);
