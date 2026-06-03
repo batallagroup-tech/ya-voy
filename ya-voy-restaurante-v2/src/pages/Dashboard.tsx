@@ -36,9 +36,6 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const [uploadingImg, setUploadingImg] = useState(false);
   const [cancelando, setCancelando] = useState<{id:string,numero:any}|null>(null);
   const [razonCancel, setRazonCancel] = useState('');
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ nombre: '', direccion: '', telefono: '', descripcion: '' });
-  const [savingProfile, setSavingProfile] = useState(false);
   const DIAS = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
   const [horarios, setHorarios] = useState<Record<string,{abierto:boolean,desde:string,hasta:string}>>(() => {
     const base: Record<string,{abierto:boolean,desde:string,hasta:string}> = {};

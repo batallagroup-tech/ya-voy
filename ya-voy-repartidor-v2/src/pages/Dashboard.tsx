@@ -420,7 +420,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
         delete timerRefs.current[pedidoId]
 
-        fetch(`${API}/api/repartidor/pedidos/${pedidoId}/expirar-espera`, { method: "PATCH" })
+        getToken().then(token => fetch(`${API}/api/repartidor/pedidos/${pedidoId}/expirar-espera`, { method: "PATCH", headers: { "Authorization": "Bearer " + token } })).catch(() => {})
 
           .then(() => {
 
@@ -520,7 +520,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
     try {
 
-      const todos = (await getPedidosDisponibles() as any[]) || []
+      const token = await getToken()
+      const todos = (await getPedidosDisponibles(token) as any[]) || []
 
       const filtrados = todos.filter((p: any) => {
 
@@ -546,7 +547,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
     try {
 
-      const data = (await getPedidosRepartidor(userId) as any[]) || []
+      const token = await getToken()
+      const data = (await getPedidosRepartidor(userId, token) as any[]) || []
 
       const activos = data.filter((p: any) => p.status === "en_camino" && p.repartidor_id === userId)
 
@@ -650,7 +652,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     if (online && pedidosActivos.length > 0) { toast.error("Tienes pedidos activos. Completa las entregas antes de desconectarte."); return }
     try {
 
-      await toggleStatusRepartidor(userId, !online)
+      const token = await getToken()
+      await toggleStatusRepartidor(userId, !online, token)
 
       setOnline(!online)
 
@@ -670,7 +673,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
     try {
 
-      const updated = await aceptarPedido(pedido.id, userId)
+      const token = await getToken()
+      const updated = await aceptarPedido(pedido.id, userId, token)
 
       const pedidoFinal = { ...pedido, ...updated }
 
@@ -714,7 +718,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
     try {
 
-      await actualizarEstadoPedido(pedido.id, "entregado")
+      const token = await getToken()
+      await actualizarEstadoPedido(pedido.id, "entregado", token)
 
       toast.success("Entrega completada!")
 
@@ -1495,7 +1500,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
                                   toast.success("Recoleccion verificada")
 
-                                  actualizarEstadoPedido(pedidoSeleccionado.id, "en_camino").catch(()=>{})
+                                  getToken().then(tok => actualizarEstadoPedido(pedidoSeleccionado.id, "en_camino", tok)).catch(()=>{})
 
                                 } else {
 
@@ -1507,7 +1512,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
                                     toast.error("Cuenta bloqueada por intentos incorrectos")
 
-                                    fetch(`${API}/api/repartidor/${userId}/status`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({en_linea:false})})
+                                    getToken().then(tok => fetch(`${API}/api/repartidor/${userId}/status`,{method:"PATCH",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},body:JSON.stringify({en_linea:false})})).catch(()=>{})
 
                                   } else { toast.error(`Incorrecto - ${2-ni} intento(s) restante(s)`) }
 
@@ -1682,7 +1687,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
                                     toast.error("Cuenta bloqueada por intentos incorrectos")
 
-                                    fetch(`${API}/api/repartidor/${userId}/status`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({en_linea:false})})
+                                    getToken().then(tok => fetch(`${API}/api/repartidor/${userId}/status`,{method:"PATCH",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},body:JSON.stringify({en_linea:false})})).catch(()=>{})
 
                                   } else { toast.error(`Incorrecto - ${2-ni} intento(s) restante(s)`) }
 
