@@ -2100,11 +2100,29 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
                     const d = await res.json()
 
-                    if (d.url) await Browser.open({ url: d.url })
+                    if (!d.url) { toast.error(d.error || "Error al conectar"); setStripeConectando(false); return }
 
-                  } catch { toast.error("Error al conectar cuenta") }
+                    await Browser.open({ url: d.url })
 
-                  finally { setStripeConectando(false) }
+                    // Detectar cuando el usuario cierra el navegador y re-verificar el status
+                    const listener = await Browser.addListener('browserFinished', async () => {
+                      listener.remove()
+                      try {
+                        const tok = await getToken()
+                        const status = await fetch(API + "/api/stripe/connect/status/repartidor/" + userId, {
+                          headers: { "Authorization": "Bearer " + tok }
+                        }).then(r => r.json())
+                        if (status?.conectado) {
+                          setStripeConectado(true)
+                          toast.success("¡Cuenta bancaria conectada!")
+                        } else {
+                          toast.info("Si completaste el proceso, puede tomar unos minutos en activarse.")
+                        }
+                      } catch {}
+                      setStripeConectando(false)
+                    })
+
+                  } catch { toast.error("Error al conectar cuenta"); setStripeConectando(false) }
 
                 }} disabled={stripeConectado || stripeConectando}
 

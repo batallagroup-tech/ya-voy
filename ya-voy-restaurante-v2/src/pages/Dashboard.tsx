@@ -922,9 +922,26 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                       body: JSON.stringify({ tipo: "restaurante", actorId: negocio.id, email: negocio.email, nombre: negocio.nombre })
                     })
                     const d = await res.json()
-                    if (d.url) await Browser.open({ url: d.url })
-                  } catch { toast.error("Error al conectar cuenta") }
-                  finally { setStripeConectando(false) }
+                    if (!d.url) { toast.error(d.error || "Error al conectar"); return }
+                    await Browser.open({ url: d.url })
+                    // Detectar cuando el usuario cierra el navegador y re-verificar el status
+                    const listener = await Browser.addListener('browserFinished', async () => {
+                      listener.remove()
+                      try {
+                        const tok = await getToken()
+                        const status = await fetch(import.meta.env.VITE_API_URL + "/api/stripe/connect/status/restaurante/" + negocio.id, {
+                          headers: { "Authorization": "Bearer " + tok }
+                        }).then(r => r.json())
+                        if (status?.conectado) {
+                          setStripeConectado(true)
+                          toast.success("¡Cuenta bancaria conectada!")
+                        } else {
+                          toast.info("Si completaste el proceso, puede tomar unos minutos en activarse.")
+                        }
+                      } catch {}
+                      setStripeConectando(false)
+                    })
+                  } catch { toast.error("Error al conectar cuenta"); setStripeConectando(false) }
                 }} disabled={stripeConectado || stripeConectando}
                   className="w-full py-3 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 disabled:opacity-60"
                   style={{ background: stripeConectado ? "#22c55e" : "linear-gradient(135deg,#FF6B00,#E65F00)" }}>
