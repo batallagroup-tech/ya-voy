@@ -858,8 +858,9 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   if (stripeConectado) return
                   setStripeConectando(true)
                   try {
+                    const token = await getToken()
                     const res = await fetch(import.meta.env.VITE_API_URL + "/api/stripe/connect/onboarding", {
-                      method: "POST", headers: { "Content-Type": "application/json" },
+                      method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
                       body: JSON.stringify({ tipo: "restaurante", actorId: negocio.id, email: negocio.email, nombre: negocio.nombre })
                     })
                     const d = await res.json()

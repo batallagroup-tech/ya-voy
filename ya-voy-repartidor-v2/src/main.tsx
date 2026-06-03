@@ -5,17 +5,19 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 }
 import { createRoot } from "react-dom/client"
 import { ClerkProvider } from "@clerk/clerk-react"
-import "./index.css"
 import App from "./App.tsx"
+import ErrorBoundary from "./components/ErrorBoundary.tsx"
+import "./index.css"
 
 const KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 if (!KEY) throw new Error("Missing Clerk key")
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ClerkProvider publishableKey={KEY}>
-      <App />
-    </ClerkProvider>
+    <ErrorBoundary>
+      <ClerkProvider publishableKey={KEY}>
+        <App />
+      </ClerkProvider>
+    </ErrorBoundary>
   </StrictMode>
 )
-

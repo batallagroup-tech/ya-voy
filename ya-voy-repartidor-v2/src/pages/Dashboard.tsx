@@ -841,7 +841,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
       }
 
-    } catch {}
+    } catch (e: any) { console.error("cargarMensajes:", e.message) }
 
   }
 
@@ -925,7 +925,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
       setRetiros(Array.isArray(d) ? d : [])
 
-    } catch {} finally { setRetirosLoading(false) }
+    } catch (e: any) { console.error("cargarRetiros:", e.message) } finally { setRetirosLoading(false) }
 
   }
 
@@ -2076,9 +2076,10 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
                   try {
 
+                    const token = await getToken()
                     const res = await fetch(API + "/api/stripe/connect/onboarding", {
 
-                      method: "POST", headers: { "Content-Type": "application/json" },
+                      method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
 
                       body: JSON.stringify({ tipo: "repartidor", actorId: userId, email: user?.primaryEmailAddress?.emailAddress, nombre: user?.fullName })
 
