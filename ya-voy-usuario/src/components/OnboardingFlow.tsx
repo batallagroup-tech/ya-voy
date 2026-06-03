@@ -84,7 +84,6 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
   };
 
   const validateCard = () => { return ""; };
-  };
 
   const handleNext = () => {
     const err = validateCard();

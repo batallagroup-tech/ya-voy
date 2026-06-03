@@ -1,16 +1,17 @@
 import { Toaster } from 'sonner'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth, useUser, useClerk, AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import { AnimatePresence } from 'motion/react';
 import SplashScreen from './components/SplashScreen';
-import Login from './pages/Login';
-import RestaurantSetup from './pages/RestaurantSetup';
-import PendingReview from './pages/PendingReview';
-import Rejected from './pages/Rejected';
-import Dashboard from './pages/Dashboard';
-import { syncUsuario, getSolicitud, getNegocio } from './lib/api';
 import ServerWarmup from './components/ServerWarmup';
+import { syncUsuario, getSolicitud, getNegocio } from './lib/api';
 import { usePushNotifications } from './hooks/usePushNotifications'
+
+const Login           = lazy(() => import('./pages/Login'));
+const RestaurantSetup = lazy(() => import('./pages/RestaurantSetup'));
+const PendingReview   = lazy(() => import('./pages/PendingReview'));
+const Rejected        = lazy(() => import('./pages/Rejected'));
+const Dashboard       = lazy(() => import('./pages/Dashboard'));
 
 type AppStatus = 'loading' | 'setup' | 'pendiente' | 'rechazado' | 'aprobado';
 
@@ -67,43 +68,46 @@ export default function App() {
 
   if (window.location.pathname === '/sso-callback') return <><ServerWarmup /><AuthenticateWithRedirectCallback /></>;
 
-  if (!isLoaded || !isSignedIn) return <><ServerWarmup /><Login /></>;
-
-  if (status === 'loading') {
-    return (
-      <div className="min-h-[100dvh] bg-slate-50 flex items-center justify-center">
-        <ServerWarmup />
-        <div className="w-12 h-12 border-4 border-[#FF6B00] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (status === 'pendiente') return <PendingReview />;
-
-  if (status === 'rechazado') return (
-    <Rejected
-      reason={solicitudData?.razon_rechazo}
-      onReapply={() => { setIsReapplying(true); setStatus('setup'); }}
-    />
+  const spinner = (
+    <div className="min-h-[100dvh] bg-slate-50 flex items-center justify-center">
+      <div className="w-12 h-12 border-4 border-[#FF6B00] border-t-transparent rounded-full animate-spin" />
+    </div>
   );
 
-  if (status === 'aprobado') return <Dashboard negocio={negocioData} />;
+  if (!isLoaded || !isSignedIn) return <Suspense fallback={spinner}><ServerWarmup /><Login /></Suspense>;
+
+  if (status === 'loading') return <>{spinner}<ServerWarmup /></>;
+
+  if (status === 'pendiente') return <Suspense fallback={spinner}><PendingReview /></Suspense>;
+
+  if (status === 'rechazado') return (
+    <Suspense fallback={spinner}>
+      <Rejected
+        reason={solicitudData?.razon_rechazo}
+        onReapply={() => { setIsReapplying(true); setStatus('setup'); }}
+      />
+    </Suspense>
+  );
+
+  if (status === 'aprobado') return <Suspense fallback={spinner}><Dashboard negocio={negocioData} /></Suspense>;
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => signOut()}
-        className="fixed top-4 right-4 z-50 bg-white border border-slate-200 text-slate-500 text-sm px-4 py-2 rounded-lg shadow-sm hover:bg-slate-50 transition-all"
-      >
-        Cerrar sesion
-      </button>
-      <RestaurantSetup
-        userId={userId}
-        userEmail={user?.primaryEmailAddress?.emailAddress ?? ''}
-        initialData={isReapplying ? solicitudData : null}
-        onSubmit={() => setStatus('pendiente')}
-        onCancel={isReapplying ? () => { setIsReapplying(false); setStatus('rechazado'); } : undefined}
-      />
-    </div>
+    <Suspense fallback={spinner}>
+      <div className="relative">
+        <button
+          onClick={() => signOut()}
+          className="fixed top-4 right-4 z-50 bg-white border border-slate-200 text-slate-500 text-sm px-4 py-2 rounded-lg shadow-sm hover:bg-slate-50 transition-all"
+        >
+          Cerrar sesion
+        </button>
+        <RestaurantSetup
+          userId={userId}
+          userEmail={user?.primaryEmailAddress?.emailAddress ?? ''}
+          initialData={isReapplying ? solicitudData : null}
+          onSubmit={() => setStatus('pendiente')}
+          onCancel={isReapplying ? () => { setIsReapplying(false); setStatus('rechazado'); } : undefined}
+        />
+      </div>
+    </Suspense>
   );
 }

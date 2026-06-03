@@ -1,7 +1,7 @@
 import { toast } from 'sonner'
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useClerk } from '@clerk/clerk-react';
+import { useClerk, useAuth } from '@clerk/clerk-react';
 import {
   LayoutDashboard, ShoppingBag, Utensils, TrendingUp, Tag, Bike,
   Settings, LogOut, Plus, Edit2, Trash2, X,
@@ -17,6 +17,7 @@ interface Props { negocio: any }
 
 export default function Dashboard({ negocio: initialNegocio }: Props) {
   const { signOut } = useClerk();
+  const { getToken } = useAuth();
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
   const [appConfig, setAppConfig] = useState<Record<string,string>>({})
   const [tab, setTab] = useState<'overview'|'orders'|'menu'|'finance'|'cupones'|'profile'>('overview');
@@ -613,14 +614,16 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                       <button onClick={async () => {
                         setSolicitandoRetiro(true)
                         try {
+                          const token = await getToken()
+                          const authHeaders = { "Content-Type": "application/json", "Authorization": "Bearer " + token }
                           const res = await fetch(import.meta.env.VITE_API_URL + "/api/retiros", {
-                            method: "POST", headers: { "Content-Type": "application/json" },
+                            method: "POST", headers: authHeaders,
                             body: JSON.stringify({ tipo_actor: "restaurante", actor_id: initialNegocio?.owner_id, monto: disponible })
                           })
                           const d = await res.json()
                           if (!res.ok) { toast.error(d.error || "Error al solicitar"); return }
                           toast.success("Solicitud enviada. Sera revisada pronto.")
-                          const updated = await fetch(import.meta.env.VITE_API_URL + "/api/retiros/restaurante/" + initialNegocio?.owner_id).then(r=>r.json()).catch(()=>[])
+                          const updated = await fetch(import.meta.env.VITE_API_URL + "/api/retiros/restaurante/" + initialNegocio?.owner_id, { headers: authHeaders }).then(r=>r.json()).catch(()=>[])
                           setRetiros(Array.isArray(updated) ? updated : [])
                         } catch { toast.error("Error de conexion") }
                         finally { setSolicitandoRetiro(false) }

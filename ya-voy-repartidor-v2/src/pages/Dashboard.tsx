@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 
-import { useClerk } from "@clerk/clerk-react"
+import { useClerk, useAuth } from "@clerk/clerk-react"
 
 import { motion, AnimatePresence } from "motion/react"
 
@@ -262,6 +262,7 @@ function FotoEntregaBtn({ pedidoId, apiUrl, cloudName, uploadPreset }: { pedidoI
 export default function Dashboard({ repartidor, userId, user }: { repartidor: any; userId: string; user: any }) {
 
   const { signOut } = useClerk()
+  const { getToken } = useAuth()
 
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
 
@@ -914,7 +915,9 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
     try {
 
-      const r = await fetch(API + "/api/retiros/repartidor/" + userId)
+      const token = await getToken()
+
+      const r = await fetch(API + "/api/retiros/repartidor/" + userId, { headers: { "Authorization": "Bearer " + token } })
 
       const d = await r.json()
 
@@ -938,9 +941,11 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
     try {
 
+      const token = await getToken()
+
       const res = await fetch(API + "/api/retiros", {
 
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
 
         body: JSON.stringify({ tipo_actor: "repartidor", actor_id: userId, monto: disponible })
 
