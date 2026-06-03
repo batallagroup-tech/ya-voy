@@ -392,8 +392,17 @@ export default function App() {
   };
 
   const handleDeleteAccount = async () => {
-    try { await user?.delete(); localStorage.clear(); }
-    catch { toast.error("Error al eliminar cuenta"); }
+    try {
+      // 1. Borrar datos en la DB antes de borrar la cuenta en Clerk
+      const token = await getToken();
+      await fetch(API + "/api/usuario/" + userId, {
+        method: "DELETE",
+        headers: { "Authorization": "Bearer " + token },
+      });
+      // 2. Borrar cuenta en Clerk
+      await user?.delete();
+      localStorage.clear();
+    } catch { toast.error("Error al eliminar cuenta"); }
     setShowDeleteConfirm(false);
   };
 

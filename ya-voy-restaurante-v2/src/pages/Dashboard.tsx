@@ -18,6 +18,10 @@ interface Props { negocio: any }
 export default function Dashboard({ negocio: initialNegocio }: Props) {
   const { signOut } = useClerk();
   const { getToken } = useAuth();
+  const authFetch = async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
+    const token = await getToken();
+    return apiFetch<T>(path, options, token);
+  };
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
   const [appConfig, setAppConfig] = useState<Record<string,string>>({})
   const [tab, setTab] = useState<'overview'|'orders'|'menu'|'finance'|'cupones'|'profile'>('overview');
@@ -83,9 +87,10 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     if (!negocio?.id) return;
     setLoading(true);
     try {
+      const token = await getToken();
       const [ords, prods] = await Promise.all([
-        apiFetch<any[]>(`/api/negocios/${negocio.id}/pedidos`).catch(() => []),
-        apiFetch<any[]>(`/api/negocios/${negocio.id}/productos`).catch(() => []),
+        apiFetch<any[]>(`/api/negocios/${negocio.id}/pedidos`, {}, token).catch(() => []),
+        apiFetch<any[]>(`/api/negocios/${negocio.id}/productos`, {}, token).catch(() => []),
       ]);
       const nuevosActuales = ords.filter((o: any) => o.status === 'nuevo').length;
       if (nuevosActuales > prevNuevosRef.current) playBeep();
@@ -138,7 +143,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
-      await apiFetch(`/api/negocios/pedidos/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      await authFetch(`/api/negocios/pedidos/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
     } catch { toast.error('Ocurrio un error'); }
   };
@@ -160,10 +165,10 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     setSaving(true);
     try {
       if (editingProduct) {
-        const updated = await apiFetch<any>(`/api/negocios/productos/${editingProduct.id}`, { method: 'PUT', body: JSON.stringify({ ...productForm, precio: parseFloat(productForm.precio) }) });
+        const updated = await authFetch<any>(`/api/negocios/productos/${editingProduct.id}`, { method: 'PUT', body: JSON.stringify({ ...productForm, precio: parseFloat(productForm.precio) }) });
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? updated : p));
       } else {
-        const nuevo = await apiFetch<any>('/api/negocios/productos', { method: 'POST', body: JSON.stringify({ ...productForm, precio: parseFloat(productForm.precio), negocio_id: negocio.id }) });
+        const nuevo = await authFetch<any>('/api/negocios/productos', { method: 'POST', body: JSON.stringify({ ...productForm, precio: parseFloat(productForm.precio), negocio_id: negocio.id }) });
         setProducts(prev => [...prev, nuevo]);
       }
       setShowProductForm(false);
@@ -174,14 +179,14 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
 
   const deleteProduct = async (id: string) => {
     try {
-      await apiFetch(`/api/negocios/productos/${id}`, { method: 'DELETE' });
+      await authFetch(`/api/negocios/productos/${id}`, { method: 'DELETE' });
       setProducts(prev => prev.filter(p => p.id !== id));
     } catch { toast.error('Error al eliminar'); }
   };
 
   const toggleActivo = async () => {
     try {
-      const updated = await apiFetch<any>(`/api/negocios/${negocio.id}/toggle`, { method: 'PATCH' });
+      const updated = await authFetch<any>(`/api/negocios/${negocio.id}/toggle`, { method: 'PATCH' });
       setNegocio(updated);
     } catch { toast.error('Error al cambiar estado'); }
   };
@@ -346,7 +351,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                         <button onClick={async () => {
                           if (!window.confirm('Cancelar este pedido?')) return;
                           try {
-                            await apiFetch(`/api/negocios/pedidos/${o.id}/cancelar`, { method: 'PATCH' });
+                            await authFetch(`/api/negocios/pedidos/${o.id}/cancelar`, { method: 'PATCH' });
                             setOrders(prev => prev.map(ord => ord.id === o.id ? { ...ord, status: 'cancelado' } : ord));
                             toast.success('Pedido cancelado');
                           } catch { toast.error('Error al cancelar'); }
@@ -764,7 +769,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                           const r = await fetch('https://api.cloudinary.com/v1_1/' + import.meta.env.VITE_CLOUDINARY_CLOUD_NAME + '/image/upload', { method: 'POST', body: fd });
                           const d = await r.json();
                           if (d.secure_url) {
-                            await apiFetch(`/api/negocios/${negocio.id}/imagen`, { method: 'PATCH', body: JSON.stringify({ imagen_url: d.secure_url }) });
+                            await authFetch(`/api/negocios/${negocio.id}/imagen`, { method: 'PATCH', body: JSON.stringify({ imagen_url: d.secure_url }) });
                             setNegocio((n: any) => ({ ...n, imagen_url: d.secure_url }));
                             toast.success('Foto actualizada');
                           }
@@ -800,7 +805,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   <button onClick={async () => {
                     setSavingHorarios(true);
                     try {
-                      await apiFetch(`/api/negocios/${negocio.id}/horarios`, { method: "PATCH", body: JSON.stringify({ horarios }) });
+                      await authFetch(`/api/negocios/${negocio.id}/horarios`, { method: "PATCH", body: JSON.stringify({ horarios }) });
                       toast.success("Horarios guardados");
                     } catch { toast.error("Error al guardar horarios"); }
                     finally { setSavingHorarios(false); }
@@ -915,7 +920,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                 <button onClick={async () => {
                   if (!razonCancel) { toast.error('Selecciona un motivo'); return; }
                   try {
-                    await apiFetch(`/api/negocios/pedidos/${cancelando.id}/cancelar`, { method: 'PATCH', body: JSON.stringify({ razon: razonCancel }) });
+                    await authFetch(`/api/negocios/pedidos/${cancelando.id}/cancelar`, { method: 'PATCH', body: JSON.stringify({ razon: razonCancel }) });
                     setOrders(prev => prev.map(ord => ord.id === cancelando.id ? { ...ord, status: 'cancelado' } : ord));
                     toast.success('Pedido cancelado');
                     setCancelando(null); setRazonCancel('');

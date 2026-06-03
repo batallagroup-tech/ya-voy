@@ -1,9 +1,13 @@
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function apiFetch<T>(path: string, options: RequestInit = {}, token?: string | null): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+      ...options.headers,
+    },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Error desconocido' }));
