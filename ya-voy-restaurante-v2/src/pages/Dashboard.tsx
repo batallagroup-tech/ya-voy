@@ -102,18 +102,24 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
       if (d.retiro_minimo) setRetiroMinimo(Number(d.retiro_minimo))
       if (d.comision_pct) setComisionPct(Number(d.comision_pct) / 100)
     }).catch(()=>{})
-    // Verificar Stripe Connect
-    if (initialNegocio?.owner_id) {
-      fetch(import.meta.env.VITE_API_URL + "/api/stripe/connect/status/restaurante/" + initialNegocio.id)
-        .then(r=>r.json()).then(d=>setStripeConectado(d.conectado||false)).catch(()=>{})
+
+    const cargarConAuth = async () => {
+      const token = await getToken()
+      const authHeaders = { "Authorization": "Bearer " + token }
+
+      if (initialNegocio?.id) {
+        fetch(import.meta.env.VITE_API_URL + "/api/stripe/connect/status/restaurante/" + initialNegocio.id, { headers: authHeaders })
+          .then(r=>r.json()).then(d=>setStripeConectado(d.conectado||false)).catch(()=>{})
+      }
+
+      if (initialNegocio?.owner_id) {
+        setRetirosLoading(true)
+        fetch(import.meta.env.VITE_API_URL + "/api/retiros/restaurante/" + initialNegocio.owner_id, { headers: authHeaders })
+          .then(r=>r.json()).then(d=>setRetiros(Array.isArray(d)?d:[])).catch(()=>{})
+          .finally(()=>setRetirosLoading(false))
+      }
     }
-    // Cargar retiros del restaurante
-    if (initialNegocio?.owner_id) {
-      setRetirosLoading(true)
-      fetch(import.meta.env.VITE_API_URL + "/api/retiros/restaurante/" + initialNegocio.owner_id)
-        .then(r=>r.json()).then(d=>setRetiros(Array.isArray(d)?d:[])).catch(()=>{})
-        .finally(()=>setRetirosLoading(false))
-    }
+    cargarConAuth()
   }, [load])
   useEffect(() => {
     const cargarRepartidores = () => {

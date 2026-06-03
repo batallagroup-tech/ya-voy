@@ -594,11 +594,12 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
     }).catch(() => {})
 
-    // Verificar Stripe Connect
+    // Verificar Stripe Connect (requiere auth)
 
-    fetch(API + "/api/stripe/connect/status/repartidor/" + userId)
-
-      .then(r => r.json()).then(d => setStripeConectado(d.conectado || false)).catch(() => {})
+    getToken().then(token => {
+      fetch(API + "/api/stripe/connect/status/repartidor/" + userId, { headers: { "Authorization": "Bearer " + token } })
+        .then(r => r.json()).then(d => setStripeConectado(d.conectado || false)).catch(() => {})
+    })
 
   }, [])
 
@@ -761,9 +762,10 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
       if (showContingencia.tipo === 'accidente') body.fotoUrl = contingenciaFoto
 
+      const token = await getToken()
       const res = await fetch(API + '/api/contingencias/' + endpoint, {
 
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body)
 
       })
 
