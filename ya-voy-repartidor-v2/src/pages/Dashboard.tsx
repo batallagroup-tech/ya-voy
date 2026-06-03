@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 
 import { useClerk, useAuth } from "@clerk/clerk-react"
+import { useNetworkStatus } from "../hooks/useNetworkStatus"
 
 import { motion, AnimatePresence } from "motion/react"
 
@@ -263,6 +264,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
   const { signOut } = useClerk()
   const { getToken } = useAuth()
+  const isOnline = useNetworkStatus()
 
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
 
@@ -979,6 +981,12 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
     <div className="min-h-[100dvh] bg-slate-50 flex flex-col overflow-x-hidden w-full">
 
       <Toaster position="top-center" />
+
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-slate-800 text-white text-center text-xs font-bold py-2">
+          📵 Sin conexión — revisa tu internet
+        </div>
+      )}
 
       <div className="sticky top-0 z-40 text-white px-4 py-3 flex items-center justify-between" style={{ background: GRAD }}>
 

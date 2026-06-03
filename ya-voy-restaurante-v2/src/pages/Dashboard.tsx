@@ -9,6 +9,7 @@ import {
   Image as ImageIcon, Save
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { Browser } from '@capacitor/browser';
 
 const CATEGORIES = ['Tacos','Hamburguesas','Pizza','Sushi','Postres','Bebidas','Comida Corrida','Alitas','Ensaladas','Mariscos'];
@@ -18,6 +19,7 @@ interface Props { negocio: any }
 export default function Dashboard({ negocio: initialNegocio }: Props) {
   const { signOut } = useClerk();
   const { getToken } = useAuth();
+  const isOnline = useNetworkStatus();
   const authFetch = async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
     const token = await getToken();
     return apiFetch<T>(path, options, token);
@@ -42,7 +44,10 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'].forEach(d => { base[d] = { abierto: true, desde: '09:00', hasta: '21:00' }; });
     return base;
   });
-  const [savingHorarios, setSavingHorarios] = useState(false);
+  const [savingHorarios, setSavingHorarios] = useState(false)
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [profileForm, setProfileForm] = useState({ nombre: '', direccion: '', telefono: '', descripcion: '' })
+  const [savingProfile, setSavingProfile] = useState(false);
   const [stripeConectando, setStripeConectando] = useState(false)
   const [stripeConectado, setStripeConectado] = useState(false)
   const [retiros, setRetiros] = useState<any[]>([])
@@ -223,6 +228,11 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 flex flex-col overflow-x-hidden w-full">
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-slate-800 text-white text-center text-xs font-bold py-2">
+          📵 Sin conexión — revisa tu internet
+        </div>
+      )}
       <div className="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-[#FF6B00] rounded-xl flex items-center justify-center">
@@ -784,16 +794,61 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                     </div>
                   </div>
                 </div>
-                {[
-                  { label: 'Direccion', value: negocio?.direccion },
-                  { label: 'Telefono', value: negocio?.telefono },
-                  { label: 'Estado', value: negocio?.esta_abierto ? 'Abierto' : 'Cerrado' },
-                ].map(({ label, value }) => (
-                  <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-none">
-                    <span className="text-sm text-slate-500 font-medium">{label}</span>
-                    <span className="text-sm font-bold text-slate-900">{value || '-'}</span>
+                {editingProfile ? (
+                  <div className="space-y-3 pt-2">
+                    {[
+                      { key: 'nombre', label: 'Nombre', type: 'text' },
+                      { key: 'direccion', label: 'Dirección', type: 'text' },
+                      { key: 'telefono', label: 'Teléfono', type: 'tel' },
+                      { key: 'descripcion', label: 'Descripción', type: 'text' },
+                    ].map(({ key, label, type }) => (
+                      <div key={key}>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">{label}</label>
+                        <input type={type} value={(profileForm as any)[key]}
+                          onChange={e => setProfileForm(f => ({ ...f, [key]: e.target.value }))}
+                          className="w-full px-3 py-2 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-[#FF6B00] border border-slate-200" />
+                      </div>
+                    ))}
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => setEditingProfile(false)}
+                        className="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl text-sm">Cancelar</button>
+                      <button disabled={savingProfile} onClick={async () => {
+                        setSavingProfile(true);
+                        try {
+                          const updated = await authFetch<any>(`/api/negocios/${negocio.id}/perfil`, { method: 'PATCH', body: JSON.stringify(profileForm) });
+                          setNegocio((n: any) => ({ ...n, ...updated }));
+                          setEditingProfile(false);
+                          toast.success('Perfil actualizado');
+                        } catch { toast.error('Error al guardar'); }
+                        finally { setSavingProfile(false); }
+                      }} className="flex-1 py-2.5 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-1 disabled:opacity-50"
+                        style={{ background: 'linear-gradient(135deg,#FF6B00,#E65F00)' }}>
+                        {savingProfile ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Guardar
+                      </button>
+                    </div>
                   </div>
-                ))}
+                ) : (
+                  <>
+                    {[
+                      { label: 'Nombre', value: negocio?.nombre },
+                      { label: 'Dirección', value: negocio?.direccion },
+                      { label: 'Teléfono', value: negocio?.telefono },
+                      { label: 'Descripción', value: negocio?.descripcion },
+                      { label: 'Estado', value: negocio?.esta_abierto ? 'Abierto' : 'Cerrado' },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-none">
+                        <span className="text-sm text-slate-500 font-medium">{label}</span>
+                        <span className="text-sm font-bold text-slate-900 text-right max-w-[60%]">{value || '-'}</span>
+                      </div>
+                    ))}
+                    <button onClick={() => {
+                      setProfileForm({ nombre: negocio?.nombre || '', direccion: negocio?.direccion || '', telefono: negocio?.telefono || '', descripcion: negocio?.descripcion || '' });
+                      setEditingProfile(true);
+                    }} className="w-full py-2.5 mt-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 border-2 border-[#FF6B00] text-[#FF6B00]">
+                      <Edit2 size={14} /> Editar perfil
+                    </button>
+                  </>
+                )}
               </div>
               {/* HORARIOS */}
               <div className="bg-white rounded-2xl border border-slate-100 p-4">

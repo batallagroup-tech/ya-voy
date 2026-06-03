@@ -12,6 +12,10 @@ import "./index.css"
 const KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 if (!KEY) throw new Error("Missing Clerk key")
 
+if (localStorage.getItem("ya_voy_dark") === "1") {
+  document.documentElement.classList.add("dark");
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>

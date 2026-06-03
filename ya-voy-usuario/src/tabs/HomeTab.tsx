@@ -3,6 +3,7 @@ import { ShoppingBag, Utensils, Store, Package, Star, ChevronRight, Plus, Loader
 import { GRAD } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
 import type { Negocio, Producto } from "../types";
+import { imgUrl } from "../lib/cloudinary";
 
 const SUB_CATEGORIAS: Record<string, string[]> = {
   comida: ["Todos", "Tacos", "Hamburguesas", "Pizza", "Sushi", "Comida Corrida", "Alitas", "Ensaladas", "Mariscos", "Postres", "Bebidas"],
@@ -75,8 +76,17 @@ export default function HomeTab({ categoria, subCategoria, negocios, productosFe
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="animate-spin" size={32} style={{ color: "#6C3CE1" }} />
+            <div className="space-y-3">
+              {[1,2,3,4].map(i => (
+                <div key={i} className="bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-3 animate-pulse">
+                  <div className="w-20 h-20 rounded-xl bg-slate-200 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-slate-200 rounded-lg w-3/4" />
+                    <div className="h-3 bg-slate-200 rounded-lg w-1/2" />
+                    <div className="h-4 bg-slate-200 rounded-lg w-1/4" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : negociosFiltrados.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
@@ -94,7 +104,7 @@ export default function HomeTab({ categoria, subCategoria, negocios, productosFe
               <div key={p.id} onClick={() => onProductoClick(p)}
                 className="w-full bg-white rounded-2xl border border-slate-100 overflow-hidden mb-3 text-left hover:shadow-md transition-all flex items-center gap-3 p-3 cursor-pointer">
                 <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-slate-100">
-                  {p.imagen_url ? <img src={p.imagen_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>}
+                  {p.imagen_url ? <img src={imgUrl(p.imagen_url, 200)} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-black text-slate-900 truncate">{p.nombre}</h4>
@@ -111,7 +121,7 @@ export default function HomeTab({ categoria, subCategoria, negocios, productosFe
             <button key={n.id} onClick={() => onOpenNegocio(n)}
               className="w-full bg-white rounded-2xl border border-slate-100 overflow-hidden mb-3 text-left hover:shadow-md transition-all flex items-center gap-3 p-3">
               <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0" style={{ background: GRAD }}>
-                {n.imagen_url ? <img src={n.imagen_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-3xl">🏪</div>}
+                {n.imagen_url ? <img src={imgUrl(n.imagen_url, 160)} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-3xl">🏪</div>}
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-black text-slate-900 truncate">{n.nombre}</h4>

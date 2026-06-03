@@ -3,6 +3,7 @@ import { ShoppingBag, ArrowLeft, ShoppingCart, Star, Plus, Minus } from "lucide-
 import { GRAD } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
 import type { Negocio, Producto } from "../types";
+import { imgUrl } from "../lib/cloudinary";
 
 interface Props {
   negocio: Negocio;
@@ -22,7 +23,7 @@ export default function NegocioScreen({ negocio, productos, cart, cartCount, tot
       className="fixed inset-0 bg-white z-50 flex flex-col overflow-hidden">
       <div className="h-48 relative shrink-0" style={{ background: GRAD }}>
         {negocio.imagen_url
-          ? <img src={negocio.imagen_url} className="w-full h-full object-cover" />
+          ? <img src={imgUrl(negocio.imagen_url, 800)} className="w-full h-full object-cover" />
           : <div className="w-full h-full flex items-center justify-center"><ShoppingBag size={64} className="text-white/50" /></div>}
         <button onClick={onClose}
           className="absolute top-4 left-4 w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center">
@@ -58,7 +59,7 @@ export default function NegocioScreen({ negocio, productos, cart, cartCount, tot
             <div key={p.id} className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3">
               <div className="w-16 h-16 bg-slate-100 rounded-xl shrink-0 overflow-hidden">
                 {p.imagen_url
-                  ? <img src={p.imagen_url} className="w-full h-full object-cover" />
+                  ? <img src={imgUrl(p.imagen_url, 160)} className="w-full h-full object-cover" loading="lazy" />
                   : <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>}
               </div>
               <div className="flex-1">

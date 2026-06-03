@@ -19,6 +19,7 @@ import OnboardingFlow from "./components/OnboardingFlow";
 import DireccionesScreen, { type Direccion } from "./components/DireccionesScreen";
 import { usePushNotifications } from "./hooks/usePushNotifications";
 import { usePedidosWS } from "./hooks/usePedidosWS";
+import { useNetworkStatus } from "./hooks/useNetworkStatus";
 
 // Code splitting — se cargan solo cuando se necesitan
 const NegocioScreen    = lazy(() => import("./screens/NegocioScreen"));
@@ -51,6 +52,7 @@ const ADMOB_BANNER_ID = "ca-app-pub-3849768825456219/7317936592";
 
 export default function App() {
   const { isLoaded, isSignedIn, userId, getToken } = useAuth();
+  const isOnline = useNetworkStatus();
   const { user } = useUser();
   const { signOut } = useClerk();
   usePushNotifications({ userId, getToken });
@@ -69,6 +71,7 @@ export default function App() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [appConfig, setAppConfig] = useState<AppConfig>({});
   const [loading, setLoading] = useState(false);
+  const [pedidosLoading, setPedidosLoading] = useState(false);
 
   // Cart / negocio
   const [negocioSeleccionado, setNegocioSeleccionado] = useState<Negocio | null>(null);
@@ -220,6 +223,7 @@ export default function App() {
 
   const loadPedidos = useCallback(async () => {
     if (!userId) return;
+    setPedidosLoading(true);
     try {
       const data = await getPedidos(userId) as any[];
       setPedidos(data);
@@ -242,6 +246,7 @@ export default function App() {
         setEsperandoTimer(null);
       }
     } catch (e: any) { console.error("loadPedidos:", e.message); }
+    finally { setPedidosLoading(false); }
   }, [userId]);
 
   // ── Cart ──────────────────────────────────────────────────────────────────
@@ -436,6 +441,11 @@ export default function App() {
     <div className="min-h-[100dvh] bg-slate-50 flex flex-col">
       <Toaster position="top-center" />
       <ServerWarmup />
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-slate-800 text-white text-center text-xs font-bold py-2 flex items-center justify-center gap-2">
+          <span>📵</span> Sin conexión — revisa tu internet
+        </div>
+      )}
 
       <Suspense fallback={null}>
       {esperandoTimer !== null && (
@@ -639,6 +649,7 @@ export default function App() {
               pedidos={pedidos}
               negocios={negocios}
               chatNoLeidos={chatNoLeidos}
+              loading={pedidosLoading}
               onGoHome={() => setTab("home")}
               onPedidoClick={handlePedidoClick}
               onSetProductos={setProductos}

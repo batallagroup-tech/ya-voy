@@ -11,6 +11,7 @@ interface Props {
   pedidos: Pedido[];
   negocios: Negocio[];
   chatNoLeidos: Record<string, number>;
+  loading?: boolean;
   onGoHome: () => void;
   onPedidoClick: (pedido: any) => void;
   onSetProductos: (ps: any[]) => void;
@@ -21,7 +22,7 @@ interface Props {
   calcularEnvio: (n: any) => void;
 }
 
-export default function PedidosTab({ pedidos, negocios, chatNoLeidos, onGoHome, onPedidoClick, onSetProductos, onSetCart, onSetNegocioSeleccionado, onSetShowCart, onSetTab, calcularEnvio }: Props) {
+export default function PedidosTab({ pedidos, negocios, chatNoLeidos, loading, onGoHome, onPedidoClick, onSetProductos, onSetCart, onSetNegocioSeleccionado, onSetShowCart, onSetTab, calcularEnvio }: Props) {
   const handlePedidoClick = (p: any) => {
     if (p.status === "en_camino") {
       const pv = p.palabras_verificacion;
@@ -54,7 +55,21 @@ export default function PedidosTab({ pedidos, negocios, chatNoLeidos, onGoHome, 
   return (
     <motion.div key="pedidos" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-3">
       <h2 className="text-2xl font-black text-slate-900">Tus Pedidos</h2>
-      {pedidos.length === 0 ? (
+      {loading ? (
+        <div className="space-y-3">
+          {[1,2,3].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3 animate-pulse">
+              <div className="w-14 h-14 rounded-xl bg-slate-200 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-slate-200 rounded-lg w-1/2" />
+                <div className="h-3 bg-slate-200 rounded-lg w-1/3" />
+                <div className="h-3 bg-slate-200 rounded-lg w-1/4" />
+              </div>
+              <div className="w-16 h-6 bg-slate-200 rounded-full" />
+            </div>
+          ))}
+        </div>
+      ) : pedidos.length === 0 ? (
         <div className="text-center py-12 text-slate-400">
           <Clock size={40} className="mx-auto mb-3 opacity-30" />
           <p className="font-medium">Sin pedidos aún</p>
