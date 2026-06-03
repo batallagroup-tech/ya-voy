@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ShoppingBag, Utensils, Store, Package, Star, ChevronRight, Plus, Loader2 } from "lucide-react";
+import { ShoppingBag, Utensils, Store, Package, Star, ChevronRight, Plus } from "lucide-react";
 import { GRAD } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
 import type { Negocio, Producto } from "../types";

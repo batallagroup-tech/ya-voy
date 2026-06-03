@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { imgUrl } from '../lib/cloudinary';
 import { Browser } from '@capacitor/browser';
 
 const CATEGORIES = ['Tacos','Hamburguesas','Pizza','Sushi','Postres','Bebidas','Comida Corrida','Alitas','Ensaladas','Mariscos'];
@@ -398,7 +399,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden shrink-0 flex items-center justify-center">
-                      {productForm.imagen_url ? <img src={productForm.imagen_url} className="w-full h-full object-cover" /> : <span className="text-2xl">🍽️</span>}
+                      {productForm.imagen_url ? <img src={imgUrl(productForm.imagen_url, 200)} className="w-full h-full object-cover" /> : <span className="text-2xl">🍽️</span>}
                     </div>
                     <label className="flex-1 cursor-pointer">
                       <div className="px-4 py-2.5 bg-slate-100 rounded-xl text-sm font-bold text-slate-600 text-center hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
@@ -452,7 +453,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   {products.map(p => (
                     <div key={p.id} className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3">
                       <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
-                        {p.imagen_url ? <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover" /> : <ImageIcon size={20} className="text-slate-400" />}
+                        {p.imagen_url ? <img src={imgUrl(p.imagen_url, 160)} alt={p.nombre} className="w-full h-full object-cover" loading="lazy" /> : <ImageIcon size={20} className="text-slate-400" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -762,7 +763,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                 <div className="flex items-center gap-4 pb-3 border-b border-slate-50">
                   <div className="relative">
                     <div className="w-16 h-16 bg-orange-100 rounded-2xl overflow-hidden flex items-center justify-center">
-                      {negocio?.imagen_url ? <img src={negocio.imagen_url} className="w-full h-full object-cover" /> : <Utensils size={28} className="text-[#FF6B00]" />}
+                      {negocio?.imagen_url ? <img src={imgUrl(negocio.imagen_url, 200)} className="w-full h-full object-cover" /> : <Utensils size={28} className="text-[#FF6B00]" />}
                     </div>
                     <label className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#FF6B00] rounded-full flex items-center justify-center cursor-pointer shadow-md">
                       {uploadingImg ? <Loader2 size={12} className="text-white animate-spin" /> : <ImageIcon size={12} className="text-white" />}

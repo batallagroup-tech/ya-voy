@@ -169,8 +169,12 @@ export default function App() {
         if (t <= 1) {
           const pedidoEsp = pedidos.find((p: any) => p.status === "esperando_cliente");
           if (pedidoEsp) {
-            fetch(API + "/api/repartidor/pedidos/" + pedidoEsp.id + "/expirar-espera", { method: "PATCH" })
-              .then(() => loadPedidos()).catch(() => {});
+            getToken().then(token =>
+              fetch(API + "/api/repartidor/pedidos/" + pedidoEsp.id + "/expirar-espera", {
+                method: "PATCH",
+                headers: { "Authorization": "Bearer " + token },
+              }).then(() => loadPedidos()).catch(() => {})
+            );
           }
           return 0;
         }
