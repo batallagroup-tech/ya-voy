@@ -17,6 +17,7 @@ import SplashScreen from "./components/SplashScreen";
 import ServerWarmup from "./components/ServerWarmup";
 import OnboardingFlow from "./components/OnboardingFlow";
 import DireccionesScreen, { type Direccion } from "./components/DireccionesScreen";
+import { TabErrorBoundary } from "./components/ErrorBoundary";
 import { usePushNotifications } from "./hooks/usePushNotifications";
 import { usePedidosWS } from "./hooks/usePedidosWS";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
@@ -98,7 +99,7 @@ export default function App() {
   const [costoEnvio, setCostoEnvio] = useState(35);
   const [costoEnvioLoading, setCostoEnvioLoading] = useState(false);
   const [tiempoEstimado, setTiempoEstimado] = useState("");
-  const [stripePaymentData, setStripePaymentData] = useState<{ clientSecret: string; pedidoData: any } | null>(null);
+  const [stripePaymentData, setStripePaymentData] = useState<{ clientSecret: string; pedidoData: any; token: string } | null>(null);
   const [tarjetas, setTarjetas] = useState<any[]>([]);
 
   // Favoritos
@@ -425,12 +426,12 @@ export default function App() {
           await Stripe.createPaymentSheet({ paymentIntentClientSecret: data.clientSecret, merchantDisplayName: "Ya Voy Batalla Group", style: "alwaysLight" });
           const result = await Stripe.presentPaymentSheet();
           if (result.paymentResult === PaymentSheetEventsEnum.Completed) {
-            await crearPedido(pedidoData);
+            await crearPedido(pedidoData, token!);
             setCart([]); setShowCart(false); setNegocioSeleccionado(null);
             toast.success("¡Pedido enviado!"); setTab("pedidos");
           } else { toast.error("Pago cancelado"); }
         } else {
-          setStripePaymentData({ clientSecret: data.clientSecret, pedidoData });
+          setStripePaymentData({ clientSecret: data.clientSecret, pedidoData, token: token! });
           setShowCart(false);
           setShowStripeModal(true);
         }
@@ -441,7 +442,8 @@ export default function App() {
 
     setLoading(true);
     try {
-      await crearPedido(pedidoData);
+      const token = await getToken();
+      await crearPedido(pedidoData, token!);
       setCart([]); setShowCart(false); setNegocioSeleccionado(null);
       toast.success("¡Pedido enviado!"); setTab("pedidos");
     } catch (e: any) { toast.error(e.message); }
@@ -621,6 +623,7 @@ export default function App() {
           <StripePagoModal
             clientSecret={stripePaymentData.clientSecret}
             pedidoData={stripePaymentData.pedidoData}
+            token={stripePaymentData.token}
             onSuccess={handleStripeSuccess}
             onClose={() => { setShowStripeModal(false); setStripePaymentData(null); }}
           />
@@ -739,7 +742,7 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait">
           {tab === "home" && (
-            <HomeTab
+            <TabErrorBoundary><HomeTab
               categoria={categoria}
               subCategoria={subCategoria}
               negocios={negocios}
@@ -754,13 +757,13 @@ export default function App() {
               onAddToCart={addToCart}
               onProductoClick={setProductoSeleccionado}
               onToggleFavorito={toggleFavorito}
-            />
+            /></TabErrorBoundary>
           )}
           {tab === "explorar" && (
-            <ExplorarTab negocios={negocios} onOpenNegocio={openNegocio} />
+            <TabErrorBoundary><ExplorarTab negocios={negocios} onOpenNegocio={openNegocio} /></TabErrorBoundary>
           )}
           {tab === "pedidos" && (
-            <PedidosTab
+            <TabErrorBoundary><PedidosTab
               pedidos={pedidos}
               negocios={negocios}
               chatNoLeidos={chatNoLeidos}
@@ -774,10 +777,10 @@ export default function App() {
               onSetShowCart={setShowCart}
               onSetTab={setTab}
               calcularEnvio={calcularEnvio}
-            />
+            /></TabErrorBoundary>
           )}
           {tab === "perfil" && (
-            <PerfilTab
+            <TabErrorBoundary><PerfilTab
               userId={userId || ""}
               user={user}
               fotoPerfil={fotoPerfil}
@@ -791,7 +794,7 @@ export default function App() {
               onShowSoporte={() => setShowSoporte(true)}
               onShowDeleteConfirm={() => setShowDeleteConfirm(true)}
               onSignOut={() => signOut()}
-            />
+            /></TabErrorBoundary>
           )}
         </AnimatePresence>
         </Suspense>

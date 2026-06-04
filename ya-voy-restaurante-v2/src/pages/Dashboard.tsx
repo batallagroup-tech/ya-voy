@@ -814,15 +814,27 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
                   </div>
                 </div>
                 <p className="text-[10px] text-slate-400 px-4 py-2 bg-amber-50 border-b border-amber-100">⚠️ El historial se elimina automaticamente despues de 90 dias. Descarga periodicamente.</p>
-                {orders.filter(o => o.status === 'entregado').map(o => (
-                  <div key={o.id} className="px-4 py-3 border-b border-slate-50 last:border-none flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">Pedido #{o.numero ?? o.id?.slice(-6).toUpperCase()}</p>
-                      <p className="text-xs text-slate-500">{new Date(o.creado_en).toLocaleDateString()}</p>
+                {orders.filter(o => o.status === 'entregado').map(o => {
+                  const subtotal = Number(o.total || 0) - Number(o.costo_envio || 35);
+                  const comision = subtotal * comisionPct;
+                  const neto = subtotal - comision;
+                  return (
+                    <div key={o.id} className="px-4 py-3 border-b border-slate-50 last:border-none">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">Pedido #{o.numero ?? o.id?.slice(-6).toUpperCase()}</p>
+                          <p className="text-xs text-slate-500">{new Date(o.creado_en).toLocaleDateString()}</p>
+                        </div>
+                        <p className="font-black text-green-600">${neto.toFixed(2)}</p>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-[10px] text-slate-400">Total: ${Number(o.total || 0).toFixed(2)}</span>
+                        <span className="text-[10px] text-red-400">Comisión: -${comision.toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-400">Envío: -${Number(o.costo_envio || 35).toFixed(2)}</span>
+                      </div>
                     </div>
-                    <p className="font-black text-green-600">${Number(o.total || 0).toFixed(2)}</p>
-                  </div>
-                ))}
+                  );
+                })}
                 {orders.filter(o => o.status === 'entregado').length === 0 && (
                   <div className="p-8 text-center text-slate-400">
                     <DollarSign size={32} className="mx-auto mb-2 opacity-30" />

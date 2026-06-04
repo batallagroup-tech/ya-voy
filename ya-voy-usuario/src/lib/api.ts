@@ -22,8 +22,8 @@ export const getNegocioById = (id: string) => apiFetch(`/api/usuario/negocios/${
 
 export const getProductos = (negocioId: string) => apiFetch(`/api/usuario/negocios/${negocioId}/productos`);
 
-export const crearPedido = (data: any) =>
-  apiFetch("/api/usuario/pedidos", { method: "POST", body: JSON.stringify(data) });
+export const crearPedido = (data: any, token: string) =>
+  apiFetch("/api/usuario/pedidos", { method: "POST", body: JSON.stringify(data), headers: { Authorization: "Bearer " + token } });
 
 export const getPedidos = (userId: string) => apiFetch(`/api/usuario/pedidos/${userId}`);
 

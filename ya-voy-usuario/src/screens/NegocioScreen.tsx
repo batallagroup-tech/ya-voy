@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ShoppingBag, ArrowLeft, ShoppingCart, Star, Plus, Minus, Clock } from "lucide-react";
+import { ShoppingBag, ArrowLeft, ShoppingCart, Star, Plus, Minus, Clock, MapPin } from "lucide-react";
 import { GRAD } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
 import type { Negocio, Producto } from "../types";
@@ -68,6 +68,11 @@ export default function NegocioScreen({ negocio, productos, cart, cartCount, tot
           <span className="text-sm text-slate-500">Envío $35</span>
           {negocio.horarios && <><span className="text-slate-300">·</span><HorarioHoy horarios={negocio.horarios} /></>}
         </div>
+        {negocio.direccion && (
+          <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+            <MapPin size={11} className="shrink-0" />{negocio.direccion}
+          </p>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-28">

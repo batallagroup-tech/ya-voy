@@ -11,11 +11,12 @@ const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "";
 interface Props {
   clientSecret: string;
   pedidoData: any;
+  token: string;
   onSuccess: () => void;
   onClose: () => void;
 }
 
-export default function StripePagoModal({ clientSecret, pedidoData, onSuccess, onClose }: Props) {
+export default function StripePagoModal({ clientSecret, pedidoData, token, onSuccess, onClose }: Props) {
   const [stripeInstance, setStripeInstance] = useState<any>(null);
   const [cardElement, setCardElement] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -44,7 +45,7 @@ export default function StripePagoModal({ clientSecret, pedidoData, onSuccess, o
       });
       if (error) { toast.error(error.message || "Error en el pago"); return; }
       if (paymentIntent?.status === "succeeded") {
-        await crearPedido(pedidoData);
+        await crearPedido(pedidoData, token);
         toast.success("¡Pago exitoso! Pedido enviado.");
         onSuccess();
       }
