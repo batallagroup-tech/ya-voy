@@ -60,20 +60,25 @@ export default function CartSheet({ cart, total, costoEnvio, costoEnvioLoading, 
 
         <div className="space-y-3 mb-4">
           {cart.map(item => (
-            <div key={item.productoId} className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <button onClick={() => onRemoveFromCart(item.productoId)} className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
+            <div key={item.cartKey} className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                  <button onClick={() => onRemoveFromCart(item.cartKey)} className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
                     <Minus size={12} className="text-purple-600" />
                   </button>
                   <span className="font-black text-slate-900 w-5 text-center text-sm">{item.cantidad}</span>
-                  <button onClick={() => onAddToCart({ id: item.productoId, nombre: item.nombre, precio: item.precio })} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: GRAD }}>
+                  <button onClick={() => onAddToCart(item)} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: GRAD }}>
                     <Plus size={12} className="text-white" />
                   </button>
                 </div>
-                <span className="text-sm font-medium text-slate-700">{item.nombre}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-700">{item.nombre}</p>
+                  {item.opciones?.length ? (
+                    <p className="text-xs text-slate-400 leading-relaxed">{item.opciones.map(o => o.nombre).join(' · ')}</p>
+                  ) : null}
+                </div>
               </div>
-              <span className="font-bold">${(item.precio * item.cantidad).toFixed(2)}</span>
+              <span className="font-bold shrink-0 pt-0.5">${(item.precio * item.cantidad).toFixed(2)}</span>
             </div>
           ))}
         </div>

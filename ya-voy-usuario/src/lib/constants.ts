@@ -12,9 +12,12 @@ export const STATUS_LABEL: Record<string, string> = {
 };
 
 export interface CartItem {
+  cartKey: string;
   productoId: string;
   nombre: string;
   precio: number;
+  precioBase: number;
   cantidad: number;
   negocioId: string;
+  opciones?: { grupoNombre: string; nombre: string; precio: number }[];
 }

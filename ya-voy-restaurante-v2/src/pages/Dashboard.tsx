@@ -35,7 +35,8 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const [saving, setSaving] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [productForm, setProductForm] = useState({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false });
+  type OpcionGrupoForm = { id: string; nombre: string; tipo: 'unico'|'multiple'; requerido: boolean; opciones: { id: string; nombre: string; precio: string }[] };
+  const [productForm, setProductForm] = useState({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false, opciones: [] as OpcionGrupoForm[] });
   const [uploadingImg, setUploadingImg] = useState(false);
   const [cancelando, setCancelando] = useState<{id:string,numero:any}|null>(null);
   const [razonCancel, setRazonCancel] = useState('');
@@ -167,16 +168,21 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     if (!productForm.nombre || !productForm.precio) return;
     setSaving(true);
     try {
+      const opcionesNorm = productForm.opciones.map(g => ({
+        ...g,
+        opciones: g.opciones.map(o => ({ ...o, precio: parseFloat(o.precio) || 0 })),
+      }));
+      const payload = { ...productForm, precio: parseFloat(productForm.precio), opciones: opcionesNorm };
       if (editingProduct) {
-        const updated = await authFetch<any>(`/api/negocios/productos/${editingProduct.id}`, { method: 'PUT', body: JSON.stringify({ ...productForm, precio: parseFloat(productForm.precio) }) });
+        const updated = await authFetch<any>(`/api/negocios/productos/${editingProduct.id}`, { method: 'PUT', body: JSON.stringify(payload) });
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? updated : p));
       } else {
-        const nuevo = await authFetch<any>('/api/negocios/productos', { method: 'POST', body: JSON.stringify({ ...productForm, precio: parseFloat(productForm.precio), negocio_id: negocio.id }) });
+        const nuevo = await authFetch<any>('/api/negocios/productos', { method: 'POST', body: JSON.stringify({ ...payload, negocio_id: negocio.id }) });
         setProducts(prev => [...prev, nuevo]);
       }
       setShowProductForm(false);
       setEditingProduct(null);
-      setProductForm({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false });
+      setProductForm({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false, opciones: [] });
     } catch { toast.error('Error al guardar'); } finally { setSaving(false); }
   };
 
@@ -337,11 +343,16 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                       {orderStatusConfig[o.status]?.label || o.status}
                     </span>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     {o.items?.map((item: any, i: number) => (
-                      <div key={i} className="flex justify-between text-sm">
-                        <span className="text-slate-600">{item.cantidad}x {item.nombre}</span>
-                        <span className="font-bold text-slate-900">${(item.precio * item.cantidad).toFixed(2)}</span>
+                      <div key={i}>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-600 font-medium">{item.cantidad}x {item.nombre}</span>
+                          <span className="font-bold text-slate-900">${(item.precio * item.cantidad).toFixed(2)}</span>
+                        </div>
+                        {item.opciones?.length > 0 && (
+                          <p className="text-xs text-slate-400 pl-4">{item.opciones.map((o: any) => o.nombre).join(' · ')}</p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -429,6 +440,57 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                       Destacado
                     </label>
                   </div>
+
+                  {/* ── OPCIONES DE PERSONALIZACIÓN ── */}
+                  <div className="border-t border-slate-100 pt-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Personalización</p>
+                      <button type="button" onClick={() => setProductForm(p => ({
+                        ...p,
+                        opciones: [...p.opciones, { id: Date.now().toString(), nombre: '', tipo: 'unico', requerido: false, opciones: [{ id: Date.now().toString() + '1', nombre: '', precio: '0' }] }]
+                      }))} className="text-xs font-black px-3 py-1.5 rounded-xl border border-[#FF6B00] text-[#FF6B00] hover:bg-orange-50 transition-all">
+                        + Agregar grupo
+                      </button>
+                    </div>
+                    {productForm.opciones.map((grupo, gi) => (
+                      <div key={grupo.id} className="bg-slate-50 rounded-xl p-3 mb-2 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input value={grupo.nombre} onChange={e => setProductForm(p => ({ ...p, opciones: p.opciones.map((g, i) => i === gi ? { ...g, nombre: e.target.value } : g) }))}
+                            placeholder="Ej: ¿Con queso?" className="flex-1 px-3 py-1.5 bg-white rounded-lg text-sm outline-none border border-slate-200 focus:border-orange-400 font-bold" />
+                          <select value={grupo.tipo} onChange={e => setProductForm(p => ({ ...p, opciones: p.opciones.map((g, i) => i === gi ? { ...g, tipo: e.target.value as 'unico'|'multiple' } : g) }))}
+                            className="px-2 py-1.5 bg-white rounded-lg text-xs outline-none border border-slate-200">
+                            <option value="unico">Único</option>
+                            <option value="multiple">Múltiple</option>
+                          </select>
+                          <label className="flex items-center gap-1 text-xs text-slate-500 cursor-pointer whitespace-nowrap">
+                            <input type="checkbox" checked={grupo.requerido} onChange={e => setProductForm(p => ({ ...p, opciones: p.opciones.map((g, i) => i === gi ? { ...g, requerido: e.target.checked } : g) }))} className="rounded" />
+                            Requerido
+                          </label>
+                          <button type="button" onClick={() => setProductForm(p => ({ ...p, opciones: p.opciones.filter((_, i) => i !== gi) }))}
+                            className="p-1 text-red-400 hover:text-red-600 transition-colors"><X size={14} /></button>
+                        </div>
+                        {grupo.opciones.map((opc, oi) => (
+                          <div key={opc.id} className="flex items-center gap-2 pl-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                            <input value={opc.nombre} onChange={e => setProductForm(p => ({ ...p, opciones: p.opciones.map((g, gi2) => gi2 !== gi ? g : { ...g, opciones: g.opciones.map((o, oi2) => oi2 === oi ? { ...o, nombre: e.target.value } : o) }) }))}
+                              placeholder="Ej: Con queso" className="flex-1 px-3 py-1.5 bg-white rounded-lg text-sm outline-none border border-slate-200 focus:border-orange-400" />
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="text-xs text-slate-400">$</span>
+                              <input type="number" value={opc.precio} onChange={e => setProductForm(p => ({ ...p, opciones: p.opciones.map((g, gi2) => gi2 !== gi ? g : { ...g, opciones: g.opciones.map((o, oi2) => oi2 === oi ? { ...o, precio: e.target.value } : o) }) }))}
+                                placeholder="0" className="w-16 px-2 py-1.5 bg-white rounded-lg text-sm outline-none border border-slate-200 focus:border-orange-400" />
+                            </div>
+                            <button type="button" onClick={() => setProductForm(p => ({ ...p, opciones: p.opciones.map((g, gi2) => gi2 !== gi ? g : { ...g, opciones: g.opciones.filter((_, oi2) => oi2 !== oi) }) }))}
+                              className="p-1 text-slate-300 hover:text-red-400 transition-colors"><X size={12} /></button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => setProductForm(p => ({ ...p, opciones: p.opciones.map((g, i) => i !== gi ? g : { ...g, opciones: [...g.opciones, { id: Date.now().toString(), nombre: '', precio: '0' }] }) }))}
+                          className="text-xs font-bold text-[#FF6B00] pl-4 hover:underline">+ Opción</button>
+                      </div>
+                    ))}
+                    {productForm.opciones.length === 0 && (
+                      <p className="text-xs text-slate-400 text-center py-2">Sin grupos de personalización. Agrega uno si tu producto tiene opciones (ej: tamaño, extras, ingredientes).</p>
+                    )}
+                  </div>
                   <div className="flex gap-3">
                     <button onClick={() => setShowProductForm(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl text-sm hover:bg-slate-200 transition-all">
                       Cancelar
@@ -464,7 +526,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                       </div>
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${p.disponible ? 'bg-green-500' : 'bg-slate-300'}`} />
-                        <button onClick={() => { setEditingProduct(p); setProductForm({ nombre: p.nombre, descripcion: p.descripcion || '', precio: p.precio.toString(), categoria: p.categoria, disponible: p.disponible, imagen_url: p.imagen_url || '', destacado: p.destacado }); setShowProductForm(true); }}
+                        <button onClick={() => { setEditingProduct(p); setProductForm({ nombre: p.nombre, descripcion: p.descripcion || '', precio: p.precio.toString(), categoria: p.categoria, disponible: p.disponible, imagen_url: p.imagen_url || '', destacado: p.destacado, opciones: (p.opciones||[]).map((g: any) => ({ ...g, opciones: g.opciones.map((o: any) => ({ ...o, precio: String(o.precio) })) })) }); setShowProductForm(true); }}
                           className="p-2 text-slate-400 hover:text-[#FF6B00] transition-colors"><Edit2 size={16} /></button>
                         <button onClick={() => deleteProduct(p.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                       </div>

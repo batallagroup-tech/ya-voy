@@ -119,6 +119,30 @@ export default function App() {
 
   const prevPedidosStatusRef = useRef<Record<string, string>>({});
 
+  const [duplicadoCuenta, setDuplicadoCuenta] = useState<any>(null);
+  const [fusionarLoading, setFusionarLoading] = useState(false);
+  const [fusionarError, setFusionarError] = useState("");
+
+  const handleFusionar = async () => {
+    if (!duplicadoCuenta) return;
+    setFusionarLoading(true);
+    setFusionarError("");
+    try {
+      const token = await getToken();
+      const res = await fetch(API + "/api/auth/fusionar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({ duplicadoId: duplicadoCuenta.id }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Error al fusionar");
+      window.location.reload();
+    } catch (e: any) {
+      setFusionarError(e.message);
+      setFusionarLoading(false);
+    }
+  };
+
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId || !user) return;
@@ -129,6 +153,18 @@ export default function App() {
       setShowOnboarding(true);
     } else {
       loadNegocios();
+    }
+    if (!sessionStorage.getItem("ya_voy_dup_check")) {
+      sessionStorage.setItem("ya_voy_dup_check", "1");
+      const email = user.primaryEmailAddress?.emailAddress;
+      if (email) {
+        getToken().then(token => {
+          if (!token) return;
+          fetch(API + "/api/auth/verificar-duplicado?email=" + encodeURIComponent(email), {
+            headers: { "Authorization": "Bearer " + token },
+          }).then(r => r.json()).then(d => { if (d.duplicado) setDuplicadoCuenta(d.duplicado); }).catch(() => {});
+        });
+      }
     }
   }, [isLoaded, isSignedIn, userId]);
 
@@ -254,26 +290,36 @@ export default function App() {
   }, [userId]);
 
   // ── Cart ──────────────────────────────────────────────────────────────────
-  const addToCart = (p: any) => {
+  const addToCart = (p: any, opcionesSeleccionadas?: { grupoNombre: string; nombre: string; precio: number }[]) => {
+    // Incrementar item existente desde el carrito (p ya tiene cartKey)
+    if (p.cartKey) {
+      setCart(prev => prev.map(i => i.cartKey === p.cartKey ? { ...i, cantidad: i.cantidad + 1 } : i));
+      return;
+    }
     const pNegocioId = p.negocioId || p.negocio_id || negocioSeleccionado?.id || "";
     if (cart.length > 0 && cart[0].negocioId !== pNegocioId) {
       toast.error("Solo puedes pedir de un restaurante a la vez");
       return;
     }
+    const extrasTotal = (opcionesSeleccionadas || []).reduce((a, o) => a + o.precio, 0);
+    const precioFinal = Number(p.precio) + extrasTotal;
+    const cartKey = opcionesSeleccionadas?.length
+      ? `${p.id}-${opcionesSeleccionadas.map(o => o.nombre).sort().join('-')}`
+      : String(p.id);
     setCart(prev => {
-      const exists = prev.find(i => i.productoId === p.id);
-      if (exists) return prev.map(i => i.productoId === p.id ? { ...i, cantidad: i.cantidad + 1 } : i);
-      return [...prev, { productoId: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1, negocioId: pNegocioId }];
+      const exists = prev.find(i => i.cartKey === cartKey);
+      if (exists) return prev.map(i => i.cartKey === cartKey ? { ...i, cantidad: i.cantidad + 1 } : i);
+      return [...prev, { cartKey, productoId: p.id, nombre: p.nombre, precio: precioFinal, precioBase: Number(p.precio), cantidad: 1, negocioId: pNegocioId, opciones: opcionesSeleccionadas }];
     });
     toast.success(`${p.nombre} agregado`);
   };
 
-  const removeFromCart = (productoId: string) => {
+  const removeFromCart = (cartKey: string) => {
     setCart(prev => {
-      const item = prev.find(i => i.productoId === productoId);
+      const item = prev.find(i => i.cartKey === cartKey);
       if (!item) return prev;
-      if (item.cantidad === 1) return prev.filter(i => i.productoId !== productoId);
-      return prev.map(i => i.productoId === productoId ? { ...i, cantidad: i.cantidad - 1 } : i);
+      if (item.cantidad === 1) return prev.filter(i => i.cartKey !== cartKey);
+      return prev.map(i => i.cartKey === cartKey ? { ...i, cantidad: i.cantidad - 1 } : i);
     });
   };
 
@@ -474,6 +520,7 @@ export default function App() {
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}
             onViewCart={() => setShowCart(true)}
+            onOpenProducto={setProductoSeleccionado}
           />
         )}
       </AnimatePresence>
@@ -702,6 +749,38 @@ export default function App() {
           ))}
         </div>
       </div>
+
+      {duplicadoCuenta && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="text-center mb-5">
+              <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">🔀</span>
+              </div>
+              <h2 className="text-xl font-black text-slate-900">Cuenta duplicada</h2>
+              <p className="text-slate-500 text-sm mt-1">Encontramos otra cuenta con tu mismo correo</p>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-4 mb-4 text-sm">
+              <p className="font-bold text-slate-700">{duplicadoCuenta.nombre || "Sin nombre"}</p>
+              <p className="text-slate-500">{duplicadoCuenta.email}</p>
+            </div>
+            <p className="text-slate-400 text-xs text-center mb-4">
+              Al fusionar, todo el historial de la cuenta anterior pasará a tu cuenta actual. Esta acción no se puede deshacer.
+            </p>
+            {fusionarError && <p className="text-red-500 text-sm text-center mb-3">{fusionarError}</p>}
+            <button onClick={handleFusionar} disabled={fusionarLoading}
+              className="w-full py-3.5 rounded-2xl font-black text-white mb-3 flex items-center justify-center gap-2 disabled:opacity-60"
+              style={{ background: GRAD }}>
+              {fusionarLoading && <Loader2 className="animate-spin" size={18} />}
+              Fusionar cuentas
+            </button>
+            <button onClick={() => { setDuplicadoCuenta(null); sessionStorage.setItem("ya_voy_dup_ignored", "1"); }}
+              className="w-full py-2.5 rounded-2xl text-slate-500 font-medium text-sm">
+              No por ahora
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -13,11 +13,12 @@ interface Props {
   total: number;
   onClose: () => void;
   onAddToCart: (p: any) => void;
-  onRemoveFromCart: (id: string) => void;
+  onRemoveFromCart: (cartKey: string) => void;
   onViewCart: () => void;
+  onOpenProducto: (p: Producto) => void;
 }
 
-export default function NegocioScreen({ negocio, productos, cart, cartCount, total, onClose, onAddToCart, onRemoveFromCart, onViewCart }: Props) {
+export default function NegocioScreen({ negocio, productos, cart, cartCount, total, onClose, onAddToCart, onRemoveFromCart, onViewCart, onOpenProducto }: Props) {
   return (
     <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }}
       className="fixed inset-0 bg-white z-50 flex flex-col overflow-hidden">
@@ -68,17 +69,40 @@ export default function NegocioScreen({ negocio, productos, cart, cartCount, tot
                 <p className="font-black mt-1" style={{ color: "#6C3CE1" }}>${Number(p.precio).toFixed(2)}</p>
               </div>
               <div className="flex items-center gap-2">
-                {cart.find(i => i.productoId === p.id) && (
-                  <>
-                    <button onClick={() => onRemoveFromCart(p.id)} className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                      <Minus size={14} className="text-purple-600" />
-                    </button>
-                    <span className="font-black text-slate-900 w-4 text-center">{cart.find(i => i.productoId === p.id)?.cantidad}</span>
-                  </>
-                )}
-                <button onClick={() => onAddToCart(p)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GRAD }}>
-                  <Plus size={14} className="text-white" />
-                </button>
+                {(() => {
+                  const tieneOpciones = (p.opciones?.length ?? 0) > 0;
+                  const itemsEnCarrito = cart.filter(i => i.productoId === p.id);
+                  const cantidadTotal = itemsEnCarrito.reduce((a, i) => a + i.cantidad, 0);
+                  const itemSimple = itemsEnCarrito.find(i => !i.opciones?.length);
+                  if (tieneOpciones) {
+                    return (
+                      <>
+                        {cantidadTotal > 0 && (
+                          <span className="text-xs font-black text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">{cantidadTotal}</span>
+                        )}
+                        <button onClick={() => onOpenProducto(p)}
+                          className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GRAD }}>
+                          <Plus size={14} className="text-white" />
+                        </button>
+                      </>
+                    );
+                  }
+                  return (
+                    <>
+                      {itemSimple && (
+                        <>
+                          <button onClick={() => onRemoveFromCart(itemSimple.cartKey)} className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                            <Minus size={14} className="text-purple-600" />
+                          </button>
+                          <span className="font-black text-slate-900 w-4 text-center">{itemSimple.cantidad}</span>
+                        </>
+                      )}
+                      <button onClick={() => onAddToCart(p)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GRAD }}>
+                        <Plus size={14} className="text-white" />
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           ))}

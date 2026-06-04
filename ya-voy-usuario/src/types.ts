@@ -10,6 +10,26 @@ export interface Negocio {
   bloqueado?: boolean;
 }
 
+export interface OpcionItem {
+  id: string;
+  nombre: string;
+  precio: number;
+}
+
+export interface OpcionGrupo {
+  id: string;
+  nombre: string;
+  tipo: 'unico' | 'multiple';
+  requerido: boolean;
+  opciones: OpcionItem[];
+}
+
+export interface OpcionSeleccionada {
+  grupoNombre: string;
+  nombre: string;
+  precio: number;
+}
+
 export interface Producto {
   id: string;
   negocio_id: string;
@@ -22,6 +42,7 @@ export interface Producto {
   imagen_url?: string;
   categoria?: string;
   disponible?: boolean;
+  opciones?: OpcionGrupo[];
 }
 
 export type PedidoStatus =
