@@ -2,7 +2,7 @@ export const API = import.meta.env.VITE_API_URL || "http://localhost:3001"
 
 async function apiFetch(path: string, opts?: RequestInit, token?: string | null) {
   const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), 30000);
+  const tid = setTimeout(() => controller.abort(), 60000);
   try {
     const r = await fetch(`${API}${path}`, {
       signal: controller.signal,
