@@ -1,5 +1,6 @@
+import { useState, useRef } from "react";
 import { motion } from "motion/react";
-import { Clock, RefreshCw } from "lucide-react";
+import { Clock, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { GRAD, STATUS_COLOR, STATUS_LABEL, API } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
@@ -12,6 +13,7 @@ interface Props {
   negocios: Negocio[];
   chatNoLeidos: Record<string, number>;
   loading?: boolean;
+  onRefresh?: () => void;
   onGoHome: () => void;
   onPedidoClick: (pedido: any) => void;
   onSetProductos: (ps: any[]) => void;
@@ -22,7 +24,26 @@ interface Props {
   calcularEnvio: (n: any) => void;
 }
 
-export default function PedidosTab({ pedidos, negocios, chatNoLeidos, loading, onGoHome, onPedidoClick, onSetProductos, onSetCart, onSetNegocioSeleccionado, onSetShowCart, onSetTab, calcularEnvio }: Props) {
+export default function PedidosTab({ pedidos, negocios, chatNoLeidos, loading, onRefresh, onGoHome, onPedidoClick, onSetProductos, onSetCart, onSetNegocioSeleccionado, onSetShowCart, onSetTab, calcularEnvio }: Props) {
+  const [pullY, setPullY] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+
+  const onTouchStart = (e: React.TouchEvent) => { touchStartY.current = e.touches[0].clientY; };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const el = e.currentTarget as HTMLElement;
+    if (el.scrollTop > 0) return;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (dy > 0) setPullY(Math.min(dy * 0.4, 60));
+  };
+  const onTouchEnd = async () => {
+    if (pullY > 45 && onRefresh && !refreshing) {
+      setRefreshing(true);
+      await onRefresh();
+      setRefreshing(false);
+    }
+    setPullY(0);
+  };
   const handlePedidoClick = (p: any) => {
     if (p.status === "en_camino") {
       const pv = p.palabras_verificacion;
@@ -61,7 +82,13 @@ export default function PedidosTab({ pedidos, negocios, chatNoLeidos, loading, o
   };
 
   return (
-    <motion.div key="pedidos" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-3">
+    <motion.div key="pedidos" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-3"
+      onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      {pullY > 0 && (
+        <div className="flex justify-center -mt-2 mb-1" style={{ height: pullY }}>
+          <Loader2 size={20} className={`text-purple-400 transition-all ${pullY > 45 ? "animate-spin" : ""}`} style={{ marginTop: pullY / 2 - 10 }} />
+        </div>
+      )}
       <h2 className="text-2xl font-black text-slate-900">Tus Pedidos</h2>
       {loading ? (
         <div className="space-y-3">

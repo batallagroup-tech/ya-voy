@@ -41,6 +41,10 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
   const [uploadingImg, setUploadingImg] = useState(false);
   const [cancelando, setCancelando] = useState<{id:string,numero:any}|null>(null);
   const [razonCancel, setRazonCancel] = useState('');
+  const [confirmandoPedido, setConfirmandoPedido] = useState<{id:string,numero:any}|null>(null);
+  const [tiempoAceptar, setTiempoAceptar] = useState('30 min');
+  const [rechazandoPedido, setRechazandoPedido] = useState<{id:string,numero:any}|null>(null);
+  const [razonRechazo, setRazonRechazo] = useState('');
   const DIAS = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
   const [horarios, setHorarios] = useState<Record<string,{abierto:boolean,desde:string,hasta:string}>>(() => {
     const base: Record<string,{abierto:boolean,desde:string,hasta:string}> = {};
@@ -177,6 +181,27 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
     } catch { toast.error('Ocurrio un error'); }
   };
 
+  const aceptarConTiempo = async () => {
+    if (!confirmandoPedido) return;
+    try {
+      await authFetch(`/api/negocios/pedidos/${confirmandoPedido.id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'preparando', tiempo_estimado: tiempoAceptar }) });
+      setOrders(prev => prev.map(o => o.id === confirmandoPedido.id ? { ...o, status: 'preparando', tiempo_estimado: tiempoAceptar } : o));
+      toast.success('Pedido aceptado');
+    } catch { toast.error('Error al aceptar'); }
+    setConfirmandoPedido(null);
+  };
+
+  const rechazarPedidoConfirm = async () => {
+    if (!rechazandoPedido) return;
+    try {
+      await authFetch(`/api/negocios/pedidos/${rechazandoPedido.id}/rechazar`, { method: 'PATCH', body: JSON.stringify({ razon: razonRechazo || 'No disponible en este momento' }) });
+      setOrders(prev => prev.filter(o => o.id !== rechazandoPedido.id));
+      toast.success('Pedido rechazado');
+    } catch { toast.error('Error al rechazar'); }
+    setRechazandoPedido(null);
+    setRazonRechazo('');
+  };
+
   const uploadImg = async (file: File) => {
     setUploadingImg(true);
     try {
@@ -255,11 +280,11 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
   ];
 
   const orderStatusConfig: Record<string, { label: string; color: string; next?: string; nextLabel?: string }> = {
-    pendiente:  { label: 'Nuevo',      color: 'bg-blue-500',   next: 'preparando', nextLabel: 'Aceptar pedido' },
-    preparando: { label: 'Preparando', color: 'bg-orange-500', next: 'listo',      nextLabel: 'Marcar listo' },
+    pendiente:  { label: 'Nuevo',      color: 'bg-blue-500' },
+    preparando: { label: 'Preparando', color: 'bg-orange-500', next: 'listo', nextLabel: 'Marcar listo' },
     listo:      { label: 'Listo',      color: 'bg-green-500' },
     en_camino:  { label: 'En Camino',  color: 'bg-purple-500' },
-    nuevo:      { label: 'Nuevo',      color: 'bg-blue-500',   next: 'preparando', nextLabel: 'Aceptar pedido' },
+    nuevo:      { label: 'Nuevo',      color: 'bg-blue-500' },
     entregado:  { label: 'Entregado',  color: 'bg-slate-400' },
     cancelado:  { label: 'Cancelado',  color: 'bg-red-500' },
   };
@@ -415,7 +440,19 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
                           <p className="text-lg font-black text-green-700 tracking-widest">{o.codigo_restaurante}</p>
                         </div>
                       )}
-                      {(o.status === 'nuevo' || o.status === 'preparando') && (
+                      {o.status === 'nuevo' && (
+                        <>
+                          <button onClick={() => { setRechazandoPedido({ id: o.id, numero: o.numero ?? o.id?.slice(-6).toUpperCase() }); setRazonRechazo(''); }}
+                            className="px-3 py-2 bg-red-50 text-red-500 text-xs font-black rounded-xl border border-red-200 hover:bg-red-100 transition-all whitespace-nowrap">
+                            Rechazar
+                          </button>
+                          <button onClick={() => { setConfirmandoPedido({ id: o.id, numero: o.numero ?? o.id?.slice(-6).toUpperCase() }); setTiempoAceptar('30 min'); }}
+                            className="px-4 py-2 bg-[#FF6B00] text-white text-xs font-black rounded-xl hover:bg-[#E65F00] transition-all whitespace-nowrap">
+                            Aceptar
+                          </button>
+                        </>
+                      )}
+                      {o.status === 'preparando' && (
                         <button onClick={async () => {
                           if (!window.confirm('Cancelar este pedido?')) return;
                           try {
@@ -1072,6 +1109,61 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
 
         </AnimatePresence>
       </div>
+
+      {/* MODAL ACEPTAR PEDIDO */}
+      <AnimatePresence>
+        {confirmandoPedido && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-50 flex items-end">
+            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} className="bg-white w-full rounded-t-3xl p-6 space-y-4">
+              <h3 className="font-black text-slate-900 text-lg">Aceptar Pedido #{confirmandoPedido.numero}</h3>
+              <div>
+                <p className="text-sm font-bold text-slate-500 mb-3">¿Cuánto tiempo de preparación?</p>
+                <div className="flex flex-wrap gap-2">
+                  {['10 min','15 min','20 min','30 min','45 min','60 min'].map(t => (
+                    <button key={t} onClick={() => setTiempoAceptar(t)}
+                      className={`px-4 py-2 rounded-xl text-sm font-black border-2 transition-all ${tiempoAceptar === t ? 'border-[#FF6B00] bg-orange-50 text-[#FF6B00]' : 'border-slate-200 text-slate-500'}`}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setConfirmandoPedido(null)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl">Cancelar</button>
+                <button onClick={aceptarConTiempo} className="flex-1 py-3 bg-[#FF6B00] text-white font-black rounded-2xl">Aceptar — {tiempoAceptar}</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL RECHAZAR PEDIDO */}
+      <AnimatePresence>
+        {rechazandoPedido && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-50 flex items-end">
+            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} className="bg-white w-full rounded-t-3xl p-6 space-y-4">
+              <h3 className="font-black text-slate-900 text-lg">Rechazar Pedido #{rechazandoPedido.numero}</h3>
+              <div>
+                <p className="text-sm font-bold text-slate-500 mb-3">Motivo (opcional)</p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {['Sin ingredientes','Cocina cerrada','Demasiados pedidos','Otro'].map(r => (
+                    <button key={r} onClick={() => setRazonRechazo(r)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${razonRechazo === r ? 'border-red-400 bg-red-50 text-red-600' : 'border-slate-200 text-slate-500'}`}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <input value={razonRechazo} onChange={e => setRazonRechazo(e.target.value)}
+                  placeholder="O escribe el motivo..."
+                  className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-300" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setRechazandoPedido(null)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl">Volver</button>
+                <button onClick={rechazarPedidoConfirm} className="flex-1 py-3 bg-red-500 text-white font-black rounded-2xl">Rechazar pedido</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* MODAL RATINGS */}
       <AnimatePresence>

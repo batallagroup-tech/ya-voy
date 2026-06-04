@@ -5,13 +5,13 @@ import { useNetworkStatus } from "../hooks/useNetworkStatus"
 
 import { motion, AnimatePresence } from "motion/react"
 
-import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet"
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet"
 
 import L from "leaflet"
 
 import "leaflet/dist/leaflet.css"
 
-import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft, MessageSquare, Send, Camera, Wallet } from "lucide-react"
+import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft, MessageSquare, Send, Camera, Wallet, Phone } from "lucide-react"
 
 import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob"
 import { Browser } from "@capacitor/browser"
@@ -60,92 +60,174 @@ const statusLabel: Record<string, string> = {
 
 
 
-function RouteMap({ restLat, restLng, entregaLat, entregaLng }: { restLat: number; restLng: number; entregaLat: number; entregaLng: number }) {
+// ── Helpers de mapa ──────────────────────────────────────────────────────────
 
-  const [coords, setCoords] = useState<[number,number][]>([])
+function MapSeguir({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap()
+  useEffect(() => { map.setView([lat, lng], 17, { animate: true }) }, [lat, lng])
+  return null
+}
 
+function MapAjustar({ pts }: { pts: [number, number][] }) {
+  const map = useMap()
+  useEffect(() => {
+    if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [50, 50], maxZoom: 16 })
+  }, [pts.length])
+  return null
+}
+
+function distM(la1: number, ln1: number, la2: number, ln2: number) {
+  const R = 6371000, dL = (la2 - la1) * Math.PI / 180, dN = (ln2 - ln1) * Math.PI / 180
+  return R * 2 * Math.atan2(Math.sqrt(Math.sin(dL/2)**2 + Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dN/2)**2), Math.sqrt(1 - (Math.sin(dL/2)**2 + Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dN/2)**2)))
+}
+
+function instrEsp(step: any): string {
+  const t = step.maneuver?.type || "", m = step.maneuver?.modifier || ""
+  const calle = step.name ? `hacia ${step.name}` : ""
+  const d = step.distance < 50 ? "" : step.distance < 1000 ? `en ${Math.round(step.distance / 10) * 10} m ` : `en ${(step.distance / 1000).toFixed(1)} km `
+  if (t === "depart") return `Comienza ${calle}`
+  if (t === "arrive") return "Llegaste a tu destino"
+  if (m === "left" || m === "sharp left") return `${d}Gira a la izquierda ${calle}`
+  if (m === "right" || m === "sharp right") return `${d}Gira a la derecha ${calle}`
+  if (m === "slight left") return `${d}Ligeramente izquierda ${calle}`
+  if (m === "slight right") return `${d}Ligeramente derecha ${calle}`
+  if (m === "uturn") return `${d}Da vuelta en U`
+  if (t === "roundabout" || t === "rotary") return `${d}Toma la rotonda ${calle}`
+  return `${d}Continúa ${calle}`
+}
+
+function iconoEsp(type: string, mod?: string): string {
+  if (type === "arrive") return "📍"
+  if (type === "depart") return "🏁"
+  if (type === "roundabout" || type === "rotary") return "🔄"
+  if (mod === "uturn") return "↩️"
+  if (mod?.includes("right")) return "➡️"
+  if (mod?.includes("left")) return "⬅️"
+  return "⬆️"
+}
+
+// ── NavMapa ───────────────────────────────────────────────────────────────────
+
+interface NavMapaProps {
+  mode: "preview" | "nav"
+  repLat?: number | null; repLng?: number | null
+  destLat: number; destLng: number
+  destLabel?: string
+  viaLat?: number; viaLng?: number   // waypoint intermedio (para preview: restaurante)
+  voiceEnabled?: boolean
+  onVoiceToggle?: () => void
+  height?: number
+}
+
+function NavMapa({ mode, repLat, repLng, destLat, destLng, destLabel, viaLat, viaLng, voiceEnabled, onVoiceToggle, height = 230 }: NavMapaProps) {
+  const [ruta, setRuta] = useState<[number, number][]>([])
+  const [steps, setSteps] = useState<any[]>([])
+  const [stepIdx, setStepIdx] = useState(0)
   const [info, setInfo] = useState<{ dist: string; time: string } | null>(null)
+  const [cargando, setCargando] = useState(true)
+  const spokenRef = useRef<Set<number>>(new Set())
 
-  const compact = false
+  const repIcon = useMemo(() => L.divIcon({ html: '<div style="background:#F107A3;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(241,7,163,0.7)"></div>', iconSize: [20,20], iconAnchor: [10,10], className: "" }), [])
+  const restIcon = useMemo(() => L.divIcon({ html: '<div style="background:#FF6B00;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconSize: [16,16], iconAnchor: [8,8], className: "" }), [])
+  const clienteIcon = useMemo(() => L.divIcon({ html: '<div style="background:#7B2FF7;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconSize: [16,16], iconAnchor: [8,8], className: "" }), [])
 
   useEffect(() => {
-
-    const fetchRoute = async () => {
-
-      try {
-
-        const r = await fetch(`http://router.project-osrm.org/route/v1/driving/${restLng},${restLat};${entregaLng},${entregaLat}?overview=full&geometries=geojson`)
-
-        const d = await r.json()
-
+    setCargando(true); setSteps([]); setStepIdx(0); spokenRef.current = new Set()
+    const wps: string[] = []
+    if (repLat && repLng) wps.push(`${repLng},${repLat}`)
+    if (viaLat && viaLng) wps.push(`${viaLng},${viaLat}`)
+    wps.push(`${destLng},${destLat}`)
+    if (wps.length < 2) { setCargando(false); return }
+    fetch(`https://router.project-osrm.org/route/v1/driving/${wps.join(";")}?overview=full&steps=true&geometries=geojson`)
+      .then(r => r.json())
+      .then(d => {
         if (d.routes?.[0]) {
-
-          setCoords(d.routes[0].geometry.coordinates.map(([lng, lat]: number[]) => [lat, lng] as [number,number]))
-
+          setRuta(d.routes[0].geometry.coordinates.map(([ln, la]: number[]) => [la, ln] as [number, number]))
+          const allSteps = d.routes[0].legs.flatMap((leg: any) => leg.steps || [])
+          setSteps(allSteps)
           setInfo({ dist: (d.routes[0].distance / 1000).toFixed(1) + " km", time: "~" + Math.ceil(d.routes[0].duration / 60) + " min" })
-
         }
+      })
+      .catch(() => { if (repLat && repLng) setRuta([[repLat, repLng], [destLat, destLng]]); else setRuta([[destLat, destLng]]) })
+      .finally(() => setCargando(false))
+  }, [repLat, repLng, destLat, destLng, viaLat, viaLng])
 
-      } catch { setCoords([[restLat, restLng], [entregaLat, entregaLng]]) }
-
+  // Avanzar paso según posición
+  useEffect(() => {
+    if (!steps.length || !repLat || !repLng || mode !== "nav") return
+    let closest = stepIdx
+    for (let i = stepIdx; i < Math.min(stepIdx + 5, steps.length); i++) {
+      const [sLng, sLat] = steps[i].maneuver?.location || [0, 0]
+      if (distM(repLat, repLng, sLat, sLng) < 80) { closest = Math.min(i + 1, steps.length - 1); break }
     }
+    if (closest !== stepIdx) setStepIdx(closest)
+  }, [repLat, repLng])
 
-    fetchRoute()
+  // Voz
+  useEffect(() => {
+    if (!voiceEnabled || !steps[stepIdx] || spokenRef.current.has(stepIdx)) return
+    const texto = instrEsp(steps[stepIdx])
+    if (!texto || texto.startsWith("Continúa") && stepIdx > 0) return
+    spokenRef.current.add(stepIdx)
+    const u = new SpeechSynthesisUtterance(texto)
+    u.lang = "es-MX"; u.rate = 1.05
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(u)
+  }, [stepIdx, voiceEnabled])
 
-  }, [restLat, restLng, entregaLat, entregaLng])
+  const step = steps[stepIdx]
+  const icono = step ? iconoEsp(step.maneuver?.type, step.maneuver?.modifier) : "⬆️"
+  const instruccion = step ? instrEsp(step) : (cargando ? "Calculando ruta..." : "Sigue la ruta")
+  const distProxima = step?.distance > 0 ? (step.distance < 1000 ? `${Math.round(step.distance / 10) * 10} m` : `${(step.distance / 1000).toFixed(1)} km`) : ""
 
-  const restauranteIcon = L.divIcon({ html: '<div style="background:#FF6B00;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconSize: [14,14], iconAnchor: [7,7], className: "" })
+  const fitsPoints: [number, number][] = [[destLat, destLng]]
+  if (repLat && repLng) fitsPoints.push([repLat, repLng])
+  if (viaLat && viaLng) fitsPoints.push([viaLat, viaLng])
 
-  const clienteIcon = L.divIcon({ html: '<div style="background:#7B2FF7;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconSize: [14,14], iconAnchor: [7,7], className: "" })
-
-  const center: [number,number] = [(restLat + entregaLat) / 2, (restLng + entregaLng) / 2]
+  const center: [number, number] = (repLat && repLng && mode === "nav") ? [repLat, repLng] : [(destLat + (viaLat || destLat)) / 2, (destLng + (viaLng || destLng)) / 2]
 
   return (
-
-    <div>
-
-      <div style={{ height: 180 }}>
-
-        <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={false}>
-
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-          <Marker position={[restLat, restLng]} icon={restauranteIcon} />
-
-          <Marker position={[entregaLat, entregaLng]} icon={clienteIcon} />
-
-          {coords.length > 0 && <Polyline positions={coords} color="#F107A3" weight={5} opacity={0.85} />}
-
-        </MapContainer>
-
-      </div>
-
-      {info && (
-
-        <div className="flex items-center gap-4 px-4 py-2 bg-slate-50 border-b border-slate-100 text-sm">
-
-          <div className="flex items-center gap-1.5"><span className="text-slate-400 text-xs uppercase font-bold">Dist.</span><span className="font-black text-slate-900">{info.dist}</span></div>
-
-          <div className="w-px h-4 bg-slate-200" />
-
-          <div className="flex items-center gap-1.5"><span className="text-slate-400 text-xs uppercase font-bold">Tiempo</span><span className="font-black text-slate-900">{info.time}</span></div>
-
-          <div className="flex items-center gap-3 ml-auto">
-
-            <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-orange-500" /><span className="text-xs text-slate-500">Restaurante</span></div>
-
-            <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-purple-600" /><span className="text-xs text-slate-500">Cliente</span></div>
-
+    <div className="rounded-xl overflow-hidden border border-slate-200">
+      {mode === "nav" && (
+        <div className="bg-slate-900 text-white px-4 py-3 flex items-center gap-3">
+          <span className="text-2xl shrink-0">{icono}</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-sm leading-tight truncate">{instruccion}</p>
+            {distProxima && <p className="text-xs text-slate-400 font-bold mt-0.5">{distProxima}</p>}
           </div>
-
+          {onVoiceToggle && (
+            <button onClick={onVoiceToggle} className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all ${voiceEnabled ? "bg-pink-500 text-white" : "bg-slate-700 text-slate-300"}`}>
+              {voiceEnabled ? "🔊" : "🔇"}
+            </button>
+          )}
         </div>
-
       )}
-
+      <div style={{ height }}>
+        <MapContainer center={center} zoom={mode === "nav" ? 16 : 13} style={{ height: "100%", width: "100%" }} zoomControl={false}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+          {repLat && repLng && <Marker position={[repLat, repLng]} icon={repIcon} />}
+          {viaLat && viaLng && <Marker position={[viaLat, viaLng]} icon={restIcon} />}
+          <Marker position={[destLat, destLng]} icon={mode === "preview" && !viaLat ? restIcon : clienteIcon} />
+          {ruta.length > 0 && <Polyline positions={ruta} color="#F107A3" weight={5} opacity={0.9} />}
+          {mode === "nav" && repLat && repLng && <MapSeguir lat={repLat} lng={repLng} />}
+          {mode === "preview" && <MapAjustar pts={fitsPoints} />}
+        </MapContainer>
+      </div>
+      {info && (
+        <div className="flex items-center gap-4 px-4 py-2 bg-slate-50 text-sm">
+          <span className="text-xs font-bold text-slate-500">DIST</span><span className="font-black text-slate-900">{info.dist}</span>
+          <div className="w-px h-4 bg-slate-200" />
+          <span className="text-xs font-bold text-slate-500">TIEMPO</span><span className="font-black text-slate-900">{info.time}</span>
+          {mode === "preview" && (
+            <div className="flex items-center gap-3 ml-auto">
+              {viaLat && <span className="flex items-center gap-1 text-xs text-slate-500"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block" /> Restaurante</span>}
+              <span className="flex items-center gap-1 text-xs text-slate-500"><span className="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block" /> Cliente</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
-
   )
-
 }
 
 
@@ -325,6 +407,8 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
   const [stripeConectando, setStripeConectando] = useState(false)
 
   const [stripeConectado, setStripeConectado] = useState(false)
+
+  const [voiceEnabled, setVoiceEnabled] = useState(false)
 
   const [contingenciaDesc, setContingenciaDesc] = useState('')
 
@@ -1066,11 +1150,13 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
               </div>
 
               {confirmando.lat_restaurante && confirmando.lat_entrega && (
-
-                <RouteMap restLat={confirmando.lat_restaurante} restLng={confirmando.lng_restaurante}
-
-                  entregaLat={confirmando.lat_entrega} entregaLng={confirmando.lng_entrega} />
-
+                <NavMapa
+                  mode="preview"
+                  repLat={userLat} repLng={userLng}
+                  viaLat={confirmando.lat_restaurante} viaLng={confirmando.lng_restaurante}
+                  destLat={confirmando.lat_entrega} destLng={confirmando.lng_entrega}
+                  height={200}
+                />
               )}
 
               <div className="p-4 space-y-4">
@@ -1469,16 +1555,16 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
                             <p className="text-sm font-black text-orange-600">Paso 1 - Ir al restaurante</p>
 
-                            {pedidoSeleccionado.lat_restaurante && pedidoSeleccionado.lat_entrega && (
-
-                              <div className="rounded-xl overflow-hidden border border-slate-200">
-
-                                <RouteMap restLat={pedidoSeleccionado.lat_restaurante} restLng={pedidoSeleccionado.lng_restaurante}
-
-                                  entregaLat={pedidoSeleccionado.lat_entrega} entregaLng={pedidoSeleccionado.lng_entrega} />
-
-                              </div>
-
+                            {pedidoSeleccionado.lat_restaurante && (
+                              <NavMapa
+                                mode="nav"
+                                repLat={userLat} repLng={userLng}
+                                destLat={pedidoSeleccionado.lat_restaurante} destLng={pedidoSeleccionado.lng_restaurante}
+                                destLabel="restaurante"
+                                voiceEnabled={voiceEnabled}
+                                onVoiceToggle={() => setVoiceEnabled(v => !v)}
+                                height={260}
+                              />
                             )}
 
                             {pedidoSeleccionado.lat_restaurante && (
@@ -1593,23 +1679,31 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
                             )}
 
-                                {pedidoSeleccionado.lat_restaurante && pedidoSeleccionado.lat_entrega && (
-                                  <div className="rounded-xl overflow-hidden border border-slate-200">
-                                    <RouteMap restLat={pedidoSeleccionado.lat_restaurante} restLng={pedidoSeleccionado.lng_restaurante} entregaLat={pedidoSeleccionado.lat_entrega} entregaLng={pedidoSeleccionado.lng_entrega} />
-                                  </div>
-                                )}
                                 {pedidoSeleccionado.lat_entrega && (
-                                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${pedidoSeleccionado.lat_entrega},${pedidoSeleccionado.lng_entrega}`} target="_blank"
-                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 font-bold text-sm">
-                                    Navegar al cliente
-                                  </a>
+                                  <NavMapa
+                                    mode="nav"
+                                    repLat={userLat} repLng={userLng}
+                                    destLat={pedidoSeleccionado.lat_entrega} destLng={pedidoSeleccionado.lng_entrega}
+                                    destLabel="cliente"
+                                    voiceEnabled={voiceEnabled}
+                                    onVoiceToggle={() => setVoiceEnabled(v => !v)}
+                                    height={260}
+                                  />
                                 )}
-                            <button onClick={() => abrirChat(pedidoSeleccionado.id)}
-                              className="w-full py-2.5 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2"
-                              style={{ borderColor: "rgba(241,7,163,0.3)", color: "#F107A3" }}>
-                              <MessageSquare size={16} /> Chat con cliente
-                              {(mensajesNoLeidos[pedidoSeleccionado.id] || 0) > 0 && <span className="w-5 h-5 bg-pink-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">{mensajesNoLeidos[pedidoSeleccionado.id]}</span>}
-                            </button>
+                            <div className="flex gap-2">
+                              <button onClick={() => abrirChat(pedidoSeleccionado.id)}
+                                className="flex-1 py-2.5 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2"
+                                style={{ borderColor: "rgba(241,7,163,0.3)", color: "#F107A3" }}>
+                                <MessageSquare size={16} /> Chat
+                                {(mensajesNoLeidos[pedidoSeleccionado.id] || 0) > 0 && <span className="w-5 h-5 bg-pink-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">{mensajesNoLeidos[pedidoSeleccionado.id]}</span>}
+                              </button>
+                              {pedidoSeleccionado.cliente_telefono && (
+                                <a href={`tel:${pedidoSeleccionado.cliente_telefono}`}
+                                  className="py-2.5 px-4 rounded-xl border-2 border-green-200 text-green-600 font-bold text-sm flex items-center justify-center gap-1">
+                                  <Phone size={16} /> Llamar
+                                </a>
+                              )}
+                            </div>
                             <button onClick={() => setEstado(pedidoSeleccionado.id, { deliveryStep: "at_client" })}
 
                               className="w-full py-4 rounded-2xl text-white font-black text-base" style={{ background: GRAD }}>
@@ -1638,12 +1732,20 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
                                 navigator.geolocation.getCurrentPosition(async pos => {
 
-                            <button onClick={() => abrirChat(pedidoSeleccionado.id)}
-                              className="w-full py-2.5 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2"
-                              style={{ borderColor: "rgba(241,7,163,0.3)", color: "#F107A3" }}>
-                              <MessageSquare size={16} /> Chat con cliente
-                              {(mensajesNoLeidos[pedidoSeleccionado.id] || 0) > 0 && <span className="w-5 h-5 bg-pink-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">{mensajesNoLeidos[pedidoSeleccionado.id]}</span>}
-                            </button>
+                            <div className="flex gap-2">
+                              <button onClick={() => abrirChat(pedidoSeleccionado.id)}
+                                className="flex-1 py-2.5 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2"
+                                style={{ borderColor: "rgba(241,7,163,0.3)", color: "#F107A3" }}>
+                                <MessageSquare size={16} /> Chat
+                                {(mensajesNoLeidos[pedidoSeleccionado.id] || 0) > 0 && <span className="w-5 h-5 bg-pink-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">{mensajesNoLeidos[pedidoSeleccionado.id]}</span>}
+                              </button>
+                              {pedidoSeleccionado.cliente_telefono && (
+                                <a href={`tel:${pedidoSeleccionado.cliente_telefono}`}
+                                  className="py-2.5 px-4 rounded-xl border-2 border-green-200 text-green-600 font-bold text-sm flex items-center justify-center gap-1">
+                                  <Phone size={16} /> Llamar
+                                </a>
+                              )}
+                            </div>
                                   try {
 
                                     const r = await fetch(`${API}/api/repartidor/pedidos/${pedidoSeleccionado.id}/esperando`,

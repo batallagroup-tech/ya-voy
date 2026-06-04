@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { X, Minus, Plus, Banknote, CreditCard, MapPin, Loader2 } from "lucide-react";
+import { X, Minus, Plus, Banknote, CreditCard, MapPin, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { GRAD, API } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
@@ -21,10 +21,11 @@ interface Props {
   onAddToCart: (item: any) => void;
   onRemoveFromCart: (id: string) => void;
   onPedir: (cuponAplicado: CuponAplicado | null) => void;
+  onClearCart: () => void;
   onClose: () => void;
 }
 
-export default function CartSheet({ cart, total, costoEnvio, costoEnvioLoading, metodoPago, onMetodoPagoChange, direccionPrincipal, loading, negocioId, onAddToCart, onRemoveFromCart, onPedir, onClose }: Props) {
+export default function CartSheet({ cart, total, costoEnvio, costoEnvioLoading, metodoPago, onMetodoPagoChange, direccionPrincipal, loading, negocioId, onAddToCart, onRemoveFromCart, onPedir, onClearCart, onClose }: Props) {
   const [cuponCodigo, setCuponCodigo] = useState("");
   const [cuponAplicado, setCuponAplicado] = useState<CuponAplicado | null>(null);
   const [cuponLoading, setCuponLoading] = useState(false);
@@ -55,7 +56,14 @@ export default function CartSheet({ cart, total, costoEnvio, costoEnvioLoading, 
         className="bg-white w-full rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-black">Tu pedido</h3>
-          <button onClick={onClose}><X size={24} className="text-slate-400" /></button>
+          <div className="flex items-center gap-2">
+            {cart.length > 0 && (
+              <button onClick={() => { onClearCart(); onClose(); }} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-red-500 bg-red-50 hover:bg-red-100 transition-all">
+                <Trash2 size={13} /> Vaciar
+              </button>
+            )}
+            <button onClick={onClose}><X size={24} className="text-slate-400" /></button>
+          </div>
         </div>
 
         <div className="space-y-3 mb-4">

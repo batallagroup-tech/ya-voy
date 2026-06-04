@@ -610,6 +610,7 @@ export default function App() {
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}
             onPedir={handlePedir}
+            onClearCart={() => { setCart([]); setNegocioSeleccionado(null); }}
             onClose={() => setShowCart(false)}
           />
         )}
@@ -764,6 +765,7 @@ export default function App() {
               negocios={negocios}
               chatNoLeidos={chatNoLeidos}
               loading={pedidosLoading}
+              onRefresh={loadPedidos}
               onGoHome={() => setTab("home")}
               onPedidoClick={handlePedidoClick}
               onSetProductos={setProductos}
@@ -798,18 +800,26 @@ export default function App() {
       {/* BOTTOM NAV */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-2 pt-2 z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
         <div className="flex justify-around">
-          {([
-            { id: "home", label: "¡YA VOY!", icon: ShoppingBag },
-            { id: "explorar", label: "Explorar", icon: Search },
-            { id: "pedidos", label: "Pedidos", icon: Clock },
-            { id: "perfil", label: "Perfil", icon: User },
-          ] as const).map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => { setTab(id); if (id === "home") { loadProductosFeed(); loadNegocios(); } }}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-all ${tab === id ? "text-purple-600" : "text-slate-400"}`}>
-              <Icon size={22} strokeWidth={tab === id ? 2.5 : 2} />
-              <span className={`text-[9px] font-black uppercase tracking-tight ${tab === id ? "opacity-100" : "opacity-60"}`}>{label}</span>
-            </button>
-          ))}
+          {(() => {
+            const pedidoActivo = pedidos.find(p => !["entregado", "cancelado"].includes(p.status));
+            return ([
+              { id: "home", label: "¡YA VOY!", icon: ShoppingBag },
+              { id: "explorar", label: "Explorar", icon: Search },
+              { id: "pedidos", label: "Pedidos", icon: Clock },
+              { id: "perfil", label: "Perfil", icon: User },
+            ] as const).map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => { setTab(id); if (id === "home") { loadProductosFeed(); loadNegocios(); } }}
+                className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-all relative ${tab === id ? "text-purple-600" : "text-slate-400"}`}>
+                <div className="relative">
+                  <Icon size={22} strokeWidth={tab === id ? 2.5 : 2} />
+                  {id === "pedidos" && pedidoActivo && tab !== "pedidos" && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />
+                  )}
+                </div>
+                <span className={`text-[9px] font-black uppercase tracking-tight ${tab === id ? "opacity-100" : "opacity-60"}`}>{label}</span>
+              </button>
+            ));
+          })()}
         </div>
       </div>
 
