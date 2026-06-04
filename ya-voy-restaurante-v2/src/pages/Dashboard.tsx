@@ -10,14 +10,15 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { usePedidosWS } from '../hooks/usePedidosWS';
 import { imgUrl } from '../lib/cloudinary';
 import { Browser } from '@capacitor/browser';
 
 const CATEGORIES = ['Tacos','Hamburguesas','Pizza','Sushi','Postres','Bebidas','Comida Corrida','Alitas','Ensaladas','Mariscos'];
 
-interface Props { negocio: any }
+interface Props { negocio: any; notifPedidoId?: string | null; onNotifHandled?: () => void; }
 
-export default function Dashboard({ negocio: initialNegocio }: Props) {
+export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNotifHandled }: Props) {
   const { signOut } = useClerk();
   const { getToken } = useAuth();
   const isOnline = useNetworkStatus();
@@ -65,6 +66,12 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const [retiroMinimo, setRetiroMinimo] = useState(50)
   const [comisionPct, setComisionPct] = useState(0.18)
   const prevNuevosRef = useRef(0);
+
+  useEffect(() => {
+    if (!notifPedidoId) return;
+    setTab('orders');
+    onNotifHandled?.();
+  }, [notifPedidoId]);
 
   const playBeep = () => {
     try {
@@ -140,9 +147,17 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     const iv = setInterval(cargarRepartidores, 30000)
     return () => clearInterval(iv)
   }, [])
+  usePedidosWS(negocio?.owner_id, (nuevoPedido) => {
+    setOrders(prev => {
+      if (prev.find(o => o.id === nuevoPedido.id)) return prev;
+      playBeep();
+      return [nuevoPedido, ...prev];
+    });
+  });
+
   useEffect(() => {
     if (tab !== 'orders' && tab !== 'overview') return;
-    const interval = setInterval(() => load(), 3000);
+    const interval = setInterval(() => load(), 30000);
     return () => clearInterval(interval);
   }, [load, tab]);
 
@@ -378,6 +393,12 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                       </div>
                     ))}
                   </div>
+                  {o.notas?.trim() && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-start gap-2">
+                      <span className="text-amber-500 text-sm shrink-0">📝</span>
+                      <p className="text-sm font-bold text-amber-800">{o.notas}</p>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between pt-2 border-t border-slate-50">
                     <div>
                       <p className="font-black text-slate-900">Total: ${Number(o.total || 0).toFixed(2)}</p>

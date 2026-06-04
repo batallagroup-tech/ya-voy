@@ -260,7 +260,7 @@ function FotoEntregaBtn({ pedidoId, apiUrl, cloudName, uploadPreset }: { pedidoI
 
 
 
-export default function Dashboard({ repartidor, userId, user }: { repartidor: any; userId: string; user: any }) {
+export default function Dashboard({ repartidor, userId, user, notifPedidoId, onNotifHandled }: { repartidor: any; userId: string; user: any; notifPedidoId?: string | null; onNotifHandled?: () => void }) {
 
   const { signOut } = useClerk()
   const { getToken } = useAuth()
@@ -335,6 +335,14 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
   const timerRefs = useRef<Record<string, any>>({})
 
 
+
+  useEffect(() => {
+    if (!notifPedidoId) return;
+    const pedido = [...disponibles, ...pedidosActivos].find(p => p.id === notifPedidoId);
+    if (pedido) { setPedidoSeleccionado(pedido); setTab("activo"); }
+    else { setTab("pedidos"); }
+    onNotifHandled?.();
+  }, [notifPedidoId]);
 
   const getEstado = (id: string): EstadoPedido => {
 
@@ -1198,6 +1206,26 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                 <h2 className="text-xl font-black text-slate-900">Pedidos disponibles</h2>
 
                 {loading && <Loader2 className="animate-spin" size={18} style={{ color: TEAL }} />}
+
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+
+                <div className="bg-white rounded-2xl border border-slate-100 p-3 text-center">
+
+                  <p className="font-black text-xl" style={{ color: TEAL }}>${Number(gananciasHoy).toFixed(0)}</p>
+
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">Ganancias hoy</p>
+
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-100 p-3 text-center">
+
+                  <p className="font-black text-xl text-yellow-500">⭐ {repartidor?.rating ? Number(repartidor.rating).toFixed(1) : "—"}</p>
+
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">Tu rating</p>
+
+                </div>
 
               </div>
 

@@ -137,27 +137,33 @@ export default function HomeTab({ categoria, subCategoria, negocios, productosFe
                 </button>
               </div>
             ))
-          ) : negociosFiltrados.map(n => (
-            <div key={n.id} className="w-full bg-white rounded-2xl border border-slate-100 overflow-hidden mb-3 flex items-center gap-3 p-3 hover:shadow-md transition-all">
-              <button onClick={() => onOpenNegocio(n)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0" style={{ background: GRAD }}>
-                  {n.imagen_url ? <img src={imgUrl(n.imagen_url, 160)} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-3xl">🏪</div>}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-black text-slate-900 truncate">{n.nombre}</h4>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <div className="flex items-center gap-1"><Star size={11} className="text-yellow-400 fill-yellow-400" /><span className="text-xs font-bold text-slate-600">{Number(n.rating || 0).toFixed(1)}</span></div>
-                    <span className="text-slate-300">·</span>
-                    <span className="text-xs text-slate-500">Envío $35</span>
+          ) : negociosFiltrados.map(n => {
+            const pausado = n.aceptando_pedidos === false;
+            return (
+              <div key={n.id} className={`w-full bg-white rounded-2xl border border-slate-100 overflow-hidden mb-3 flex items-center gap-3 p-3 hover:shadow-md transition-all ${pausado ? "opacity-70" : ""}`}>
+                <button onClick={() => onOpenNegocio(n)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 relative" style={{ background: GRAD }}>
+                    {n.imagen_url ? <img src={imgUrl(n.imagen_url, 160)} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-3xl">🏪</div>}
+                    {pausado && <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl"><span className="text-white text-[9px] font-black">PAUSADO</span></div>}
                   </div>
-                </div>
-              </button>
-              <button onClick={e => { e.stopPropagation(); onToggleFavorito(n); }}
-                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-50 transition-all">
-                <Heart size={18} className={favoritosIds.has(n.id) ? "fill-red-500 text-red-500" : "text-slate-300"} />
-              </button>
-            </div>
-          ))}
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-black text-slate-900 truncate">{n.nombre}</h4>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex items-center gap-1"><Star size={11} className="text-yellow-400 fill-yellow-400" /><span className="text-xs font-bold text-slate-600">{Number(n.rating || 0).toFixed(1)}</span></div>
+                      <span className="text-slate-300">·</span>
+                      {pausado
+                        ? <span className="text-xs font-bold text-yellow-600">Pausado temporalmente</span>
+                        : <span className="text-xs text-slate-500">Envío $35</span>}
+                    </div>
+                  </div>
+                </button>
+                <button onClick={e => { e.stopPropagation(); onToggleFavorito(n); }}
+                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-50 transition-all">
+                  <Heart size={18} className={favoritosIds.has(n.id) ? "fill-red-500 text-red-500" : "text-slate-300"} />
+                </button>
+              </div>
+            );
+          })}
         </>
       )}
     </motion.div>

@@ -55,7 +55,21 @@ export default function App() {
   const isOnline = useNetworkStatus();
   const { user } = useUser();
   const { signOut } = useClerk();
-  usePushNotifications({ userId, getToken });
+  usePushNotifications({
+    userId,
+    getToken,
+    onNotification: async (data) => {
+      const pedidoId = data?.pedidoId;
+      if (!pedidoId) return;
+      let pedido = pedidos.find(p => p.id === pedidoId);
+      if (!pedido) {
+        try { pedido = await import("./lib/api").then(m => m.getPedidoById(pedidoId)) as any; } catch { return; }
+      }
+      if (!pedido) return;
+      setTab("pedidos");
+      handlePedidoClick(pedido);
+    },
+  });
 
   // Navigation
   const [showSplash, setShowSplash] = useState(true);

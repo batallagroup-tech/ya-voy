@@ -19,7 +19,8 @@ type AppStatus = 'loading' | 'setup' | 'pendiente' | 'rechazado' | 'aprobado';
 export default function App() {
   const { isLoaded, isSignedIn, userId, getToken } = useAuth();
   const { user } = useUser()
-  usePushNotifications({ userId, getToken });
+  const [notifPedidoId, setNotifPedidoId] = useState<string | null>(null);
+  usePushNotifications({ userId, getToken, onNotification: (data) => { if (data?.pedidoId) setNotifPedidoId(data.pedidoId); } });
   const { signOut } = useClerk();
   const [showSplash, setShowSplash] = useState(true)
   const [status, setStatus] = useState<AppStatus>('loading');
@@ -168,7 +169,7 @@ export default function App() {
   if (status === 'aprobado') return (
     <>
       {fusionarModal}
-      <Suspense fallback={spinner}><Dashboard negocio={negocioData} /></Suspense>
+      <Suspense fallback={spinner}><Dashboard negocio={negocioData} notifPedidoId={notifPedidoId} onNotifHandled={() => setNotifPedidoId(null)} /></Suspense>
     </>
   );
 

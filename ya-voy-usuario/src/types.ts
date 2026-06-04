@@ -6,6 +6,9 @@ export interface Negocio {
   rating?: number;
   lat?: number;
   lng?: number;
+  esta_abierto?: boolean;
+  aceptando_pedidos?: boolean;
+  horarios?: Record<string, { abierto: boolean; desde: string; hasta: string }>;
   suspendido?: boolean;
   bloqueado?: boolean;
 }

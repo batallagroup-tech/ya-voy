@@ -40,12 +40,20 @@ export default function PedidosTab({ pedidos, negocios, chatNoLeidos, loading, o
 
   const pedirDeNuevo = async (p: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    const negocio = negocios.find((n: any) => n.id === p.negocio_id) || { id: p.negocio_id, nombre: p.negocio_nombre, imagen: p.negocio_imagen };
+    const negocio = negocios.find((n: any) => n.id === p.negocio_id) || { id: p.negocio_id, nombre: p.negocio_nombre, imagen_url: p.negocio_imagen };
     onSetNegocioSeleccionado(negocio);
     calcularEnvio(negocio);
-    const prods = await fetch(API + "/api/productos/" + p.negocio_id).then(r => r.json()).catch(() => []);
+    const prods = await fetch(API + `/api/usuario/negocios/${p.negocio_id}/productos`).then(r => r.json()).catch(() => []);
     onSetProductos(Array.isArray(prods) ? prods : []);
-    const carritoNuevo = (p.items || []).map((it: any) => ({ id: it.id || it.nombre, nombre: it.nombre, precio: it.precio, cantidad: it.cantidad || 1 }));
+    const carritoNuevo: CartItem[] = (p.items || []).map((it: any) => ({
+      cartKey: `${it.nombre}-${Date.now()}-${Math.random()}`,
+      productoId: it.id || it.nombre,
+      nombre: it.nombre,
+      precio: it.precio,
+      precioBase: it.precio,
+      cantidad: it.cantidad || 1,
+      negocioId: p.negocio_id,
+    }));
     onSetCart(carritoNuevo);
     onSetShowCart(true);
     onSetTab("home");

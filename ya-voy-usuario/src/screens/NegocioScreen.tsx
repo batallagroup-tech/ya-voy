@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ShoppingBag, ArrowLeft, ShoppingCart, Star, Plus, Minus } from "lucide-react";
+import { ShoppingBag, ArrowLeft, ShoppingCart, Star, Plus, Minus, Clock } from "lucide-react";
 import { GRAD } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
 import type { Negocio, Producto } from "../types";
@@ -16,6 +16,17 @@ interface Props {
   onRemoveFromCart: (cartKey: string) => void;
   onViewCart: () => void;
   onOpenProducto: (p: Producto) => void;
+}
+
+const DIAS_MAP = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+
+function HorarioHoy({ horarios }: { horarios?: Negocio['horarios'] }) {
+  if (!horarios) return null;
+  const diaKey = DIAS_MAP[new Date().getDay()];
+  const hoy = horarios[diaKey];
+  if (!hoy) return null;
+  if (!hoy.abierto) return <span className="text-xs font-bold text-red-500">No atiende hoy</span>;
+  return <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={11} className="inline" /> Hoy {hoy.desde} – {hoy.hasta}</span>;
 }
 
 export default function NegocioScreen({ negocio, productos, cart, cartCount, total, onClose, onAddToCart, onRemoveFromCart, onViewCart, onOpenProducto }: Props) {
@@ -40,8 +51,13 @@ export default function NegocioScreen({ negocio, productos, cart, cartCount, tot
       </div>
 
       <div className="p-4 border-b border-slate-100 shrink-0">
-        <h2 className="text-xl font-black text-slate-900">{negocio.nombre}</h2>
-        <div className="flex items-center gap-3 mt-1">
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="text-xl font-black text-slate-900">{negocio.nombre}</h2>
+          {negocio.aceptando_pedidos === false && (
+            <span className="text-[10px] font-black px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 shrink-0">PAUSADO</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mt-1 flex-wrap">
           <div className="flex items-center gap-1">
             <Star size={14} className="text-yellow-400 fill-yellow-400" />
             <span className="text-sm font-bold">{Number(negocio.rating || 0).toFixed(1)}</span>
@@ -50,6 +66,7 @@ export default function NegocioScreen({ negocio, productos, cart, cartCount, tot
           <span className="text-sm text-slate-500">{negocio.tipo}</span>
           <span className="text-slate-300">·</span>
           <span className="text-sm text-slate-500">Envío $35</span>
+          {negocio.horarios && <><span className="text-slate-300">·</span><HorarioHoy horarios={negocio.horarios} /></>}
         </div>
       </div>
 
