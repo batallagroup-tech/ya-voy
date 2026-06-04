@@ -1,5 +1,7 @@
 html, body { overflow-x: hidden; max-width: 100vw; }
 @import "tailwindcss";
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 /* ===== MOBILE GLOBAL FIXES ===== */
 *, *::before, *::after {
   -webkit-tap-highlight-color: transparent;

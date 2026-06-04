@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
 import { motion } from "motion/react";
-import { Clock, RefreshCw, Loader2 } from "lucide-react";
+import { Clock, RefreshCw, Loader2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { GRAD, STATUS_COLOR, STATUS_LABEL, API } from "../lib/constants";
+import { imgUrl } from "../lib/cloudinary";
 import type { CartItem } from "../lib/constants";
 import type { Negocio, Pedido } from "../types";
 
@@ -13,7 +14,10 @@ interface Props {
   negocios: Negocio[];
   chatNoLeidos: Record<string, number>;
   loading?: boolean;
+  hayMas?: boolean;
+  masLoading?: boolean;
   onRefresh?: () => void;
+  onLoadMore?: () => void;
   onGoHome: () => void;
   onPedidoClick: (pedido: any) => void;
   onSetProductos: (ps: any[]) => void;
@@ -24,7 +28,7 @@ interface Props {
   calcularEnvio: (n: any) => void;
 }
 
-export default function PedidosTab({ pedidos, negocios, chatNoLeidos, loading, onRefresh, onGoHome, onPedidoClick, onSetProductos, onSetCart, onSetNegocioSeleccionado, onSetShowCart, onSetTab, calcularEnvio }: Props) {
+export default function PedidosTab({ pedidos, negocios, chatNoLeidos, loading, hayMas, masLoading, onRefresh, onLoadMore, onGoHome, onPedidoClick, onSetProductos, onSetCart, onSetNegocioSeleccionado, onSetShowCart, onSetTab, calcularEnvio }: Props) {
   const [pullY, setPullY] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef(0);
@@ -45,7 +49,7 @@ export default function PedidosTab({ pedidos, negocios, chatNoLeidos, loading, o
     setPullY(0);
   };
   const handlePedidoClick = (p: any) => {
-    if (p.status === "en_camino") {
+    if (["en_camino", "esperando_cliente"].includes(p.status)) {
       const pv = p.palabras_verificacion;
       const ops = (pv && pv.entrega && pv.entrega.length === 3)
         ? pv.entrega
@@ -112,37 +116,55 @@ export default function PedidosTab({ pedidos, negocios, chatNoLeidos, loading, o
             Pedir ahora
           </button>
         </div>
-      ) : pedidos.map(p => (
-        <div key={p.id} className="w-full space-y-1">
-          <button onClick={() => handlePedidoClick(p)}
-            className="w-full bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3 text-left hover:shadow-sm transition-all">
-            <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-slate-100">
-              {p.negocio_imagen ? <img src={p.negocio_imagen} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-black text-slate-900 truncate">{p.negocio_nombre || "Negocio"}</p>
-              <p className="text-xs text-slate-500">{new Date(p.creado_en).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
-              <p className="text-xs font-bold text-slate-700 mt-0.5">${Number(p.total).toFixed(2)}</p>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full text-white shrink-0 ${STATUS_COLOR[p.status] || "bg-slate-400"}`}>
-                {STATUS_LABEL[p.status] || p.status}
-              </span>
-              {(chatNoLeidos[p.id] || 0) > 0 && (
-                <span className="w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-black flex items-center justify-center">
-                  {chatNoLeidos[p.id]}
-                </span>
+      ) : (
+        <>
+          {pedidos.map(p => (
+            <div key={p.id} className="w-full space-y-1">
+              <button onClick={() => handlePedidoClick(p)}
+                className="w-full bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3 text-left hover:shadow-sm transition-all">
+                <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-slate-100">
+                  {p.negocio_imagen ? <img src={imgUrl(p.negocio_imagen, 112)} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-slate-900 truncate">{p.negocio_nombre || "Negocio"}</p>
+                  <p className="text-xs text-slate-500">{new Date(p.creado_en).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                  <p className="text-xs font-bold text-slate-700 mt-0.5">${Number(p.total).toFixed(2)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full text-white shrink-0 ${STATUS_COLOR[p.status] || "bg-slate-400"}`}>
+                    {STATUS_LABEL[p.status] || p.status}
+                  </span>
+                  {(chatNoLeidos[p.id] || 0) > 0 && (
+                    <span className="w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-black flex items-center justify-center">
+                      {chatNoLeidos[p.id]}
+                    </span>
+                  )}
+                </div>
+              </button>
+              {p.status === "entregado" && (
+                <button onClick={(e) => pedirDeNuevo(p, e)}
+                  className="w-full mt-1 py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1" style={{ background: GRAD }}>
+                  <RefreshCw size={12} /> Pedir de nuevo
+                </button>
+              )}
+              {p.status === "pago_fallido" && (
+                <button onClick={(e) => { e.stopPropagation(); window.location.href = "#reintentar-" + p.id; onGoHome(); }}
+                  className="w-full mt-1 py-2 rounded-xl text-xs font-black text-white bg-red-500 flex items-center justify-center gap-1">
+                  💳 Reintentar pago
+                </button>
               )}
             </div>
-          </button>
-          {p.status === "entregado" && (
-            <button onClick={(e) => pedirDeNuevo(p, e)}
-              className="w-full mt-1 py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1" style={{ background: GRAD }}>
-              <RefreshCw size={12} /> Pedir de nuevo
+          ))}
+
+          {hayMas && (
+            <button onClick={onLoadMore} disabled={masLoading}
+              className="w-full py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-500 bg-white flex items-center justify-center gap-2 disabled:opacity-60 mt-2">
+              {masLoading ? <Loader2 size={16} className="animate-spin text-purple-400" /> : <ChevronDown size={16} />}
+              {masLoading ? "Cargando..." : "Ver más pedidos"}
             </button>
           )}
-        </div>
-      ))}
+        </>
+      )}
     </motion.div>
   );
 }

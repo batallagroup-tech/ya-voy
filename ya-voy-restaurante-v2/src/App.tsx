@@ -61,7 +61,6 @@ export default function App() {
         fotoUrl: user.imageUrl ?? '',
         rol: 'negocio',
       }); } catch {}
-
       try {
         const negocio: any = await getNegocio(userId).catch(() => null);
         if (negocio) {

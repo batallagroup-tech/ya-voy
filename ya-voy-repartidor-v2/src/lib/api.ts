@@ -1,15 +1,24 @@
 export const API = import.meta.env.VITE_API_URL || "http://localhost:3001"
 
 async function apiFetch(path: string, opts?: RequestInit, token?: string | null) {
-  const r = await fetch(`${API}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { "Authorization": "Bearer " + token } : {}),
-    },
-    ...opts,
-  })
-  if (!r.ok) throw new Error(await r.text())
-  return r.json()
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 30000);
+  try {
+    const r = await fetch(`${API}${path}`, {
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": "Bearer " + token } : {}),
+      },
+      ...opts,
+    })
+    clearTimeout(tid);
+    if (!r.ok) throw new Error(await r.text())
+    return r.json()
+  } catch (e) {
+    clearTimeout(tid);
+    throw e;
+  }
 }
 
 export const syncUsuario = (body: any) =>

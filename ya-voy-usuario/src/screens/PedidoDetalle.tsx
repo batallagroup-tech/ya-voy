@@ -156,7 +156,7 @@ export default function PedidoDetalle({ pedido, codigoConfirmado, repUbicacion, 
           </button>
         )}
 
-        {pedido.status === "en_camino" && !codigoConfirmado && pedido.codigo_entrega && (
+        {["en_camino", "esperando_cliente"].includes(pedido.status) && !codigoConfirmado && pedido.codigo_entrega && (
           <div className="bg-white rounded-2xl border-2 border-purple-200 p-4 text-center">
             <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-2">El repartidor llegó</p>
             <p className="text-sm text-slate-600 mb-4">Muestra esta palabra al repartidor. Él la seleccionará en su app para confirmar la entrega:</p>

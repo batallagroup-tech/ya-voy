@@ -19,6 +19,7 @@ import { Browser } from "@capacitor/browser"
 import { Toaster, toast } from "sonner"
 
 import { getPedidosDisponibles, aceptarPedido, actualizarEstadoPedido, getPedidosRepartidor, toggleStatusRepartidor } from "../lib/api"
+import { hapticSuccess, hapticMedium } from "../lib/haptics"
 
 
 
@@ -125,6 +126,8 @@ function NavMapa({ mode, repLat, repLng, destLat, destLng, destLabel, viaLat, vi
   const [stepIdx, setStepIdx] = useState(0)
   const [info, setInfo] = useState<{ dist: string; time: string } | null>(null)
   const [cargando, setCargando] = useState(true)
+  const [rutaFallo, setRutaFallo] = useState(false)
+  const [rutaKey, setRutaKey] = useState(0)
   const spokenRef = useRef<Set<number>>(new Set())
 
   const repIcon = useMemo(() => L.divIcon({ html: '<div style="background:#F107A3;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(241,7,163,0.7)"></div>', iconSize: [20,20], iconAnchor: [10,10], className: "" }), [])
@@ -132,7 +135,7 @@ function NavMapa({ mode, repLat, repLng, destLat, destLng, destLabel, viaLat, vi
   const clienteIcon = useMemo(() => L.divIcon({ html: '<div style="background:#7B2FF7;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconSize: [16,16], iconAnchor: [8,8], className: "" }), [])
 
   useEffect(() => {
-    setCargando(true); setSteps([]); setStepIdx(0); spokenRef.current = new Set()
+    setCargando(true); setSteps([]); setStepIdx(0); setRutaFallo(false); spokenRef.current = new Set()
     const wps: string[] = []
     if (repLat && repLng) wps.push(`${repLng},${repLat}`)
     if (viaLat && viaLng) wps.push(`${viaLng},${viaLat}`)
@@ -148,9 +151,12 @@ function NavMapa({ mode, repLat, repLng, destLat, destLng, destLabel, viaLat, vi
           setInfo({ dist: (d.routes[0].distance / 1000).toFixed(1) + " km", time: "~" + Math.ceil(d.routes[0].duration / 60) + " min" })
         }
       })
-      .catch(() => { if (repLat && repLng) setRuta([[repLat, repLng], [destLat, destLng]]); else setRuta([[destLat, destLng]]) })
+      .catch(() => {
+        setRutaFallo(true)
+        if (repLat && repLng) setRuta([[repLat, repLng], [destLat, destLng]]); else setRuta([[destLat, destLng]])
+      })
       .finally(() => setCargando(false))
-  }, [repLat, repLng, destLat, destLng, viaLat, viaLng])
+  }, [repLat, repLng, destLat, destLng, viaLat, viaLng, rutaKey])
 
   // Avanzar paso según posición
   useEffect(() => {
@@ -200,6 +206,15 @@ function NavMapa({ mode, repLat, repLng, destLat, destLng, destLabel, viaLat, vi
               {voiceEnabled ? "🔊" : "🔇"}
             </button>
           )}
+        </div>
+      )}
+      {rutaFallo && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border-b border-yellow-200 text-xs text-yellow-700 font-bold">
+          <span>⚠️</span>
+          <span className="flex-1">Sin instrucciones — sigue el mapa</span>
+          <button onClick={() => setRutaKey(k => k + 1)} className="px-2 py-1 bg-yellow-100 rounded-lg border border-yellow-300 font-black text-yellow-800">
+            Reintentar
+          </button>
         </div>
       )}
       <div style={{ height }}>
@@ -377,6 +392,7 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
   const [userLng, setUserLng] = useState<number | null>(null)
 
   const pollRef = useRef<any>(null)
+  const wsDisponiblesRef = useRef<WebSocket | null>(null)
 
   const [esperandoTimers, setEsperandoTimers] = useState<Record<string, number>>({})
 
@@ -389,6 +405,8 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
   const [enviandoMensaje, setEnviandoMensaje] = useState(false)
 
   const [mensajesNoLeidos, setMensajesNoLeidos] = useState<Record<string, number>>({})
+
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   const chatPollRef = useRef<any>(null)
 
@@ -704,15 +722,45 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
 
   useEffect(() => {
-
     cargarDisponibles()
 
+    // ── WebSocket para recibir pedidos disponibles en tiempo real ─────────
+    let reconectarIntentos = 0
+    const conectarWS = async () => {
+      if (wsDisponiblesRef.current?.readyState === WebSocket.OPEN) return
+      const token = await getToken()
+      const wsUrl = API.replace("https://","wss://").replace("http://","ws://")
+        + "/ws/pedidos?userId=" + userId
+        + (token ? "&token=" + encodeURIComponent(token) : "")
+      const ws = new WebSocket(wsUrl)
+      wsDisponiblesRef.current = ws
+      ws.onopen = () => { reconectarIntentos = 0 }
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data)
+          if (msg.tipo === "pedido_disponible") cargarDisponibles()
+        } catch {}
+      }
+      ws.onclose = () => {
+        if (online && reconectarIntentos < 10) {
+          const delay = Math.min(1000 * Math.pow(2, reconectarIntentos), 30000)
+          reconectarIntentos++
+          setTimeout(conectarWS, delay)
+        }
+      }
+      ws.onerror = () => {}
+    }
+    if (online) conectarWS()
+
+    // ── Fallback: recargar cada 60s por si el WS pierde algún evento ─────
     clearInterval(pollRef.current)
+    if (online) pollRef.current = setInterval(cargarDisponibles, 60000)
 
-    pollRef.current = setInterval(cargarDisponibles, 2000)
-
-    return () => clearInterval(pollRef.current)
-
+    return () => {
+      clearInterval(pollRef.current)
+      wsDisponiblesRef.current?.close()
+      wsDisponiblesRef.current = null
+    }
   }, [online])
 
 
@@ -755,6 +803,7 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
       localStorage.setItem('rep_online', String(!online))
 
+      hapticMedium()
       toast.success(!online ? "Ahora estas en linea" : "Ahora estas desconectado")
 
     } catch { toast.error("Error al cambiar estado") }
@@ -784,6 +833,7 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
       setPedidoSeleccionado(pedidoFinal)
 
+      hapticSuccess()
       toast.success("Pedido aceptado!")
 
       setDisponibles(prev => prev.filter(p => p.id !== pedido.id))
@@ -837,7 +887,7 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
         clearInterval(pollRef.current)
 
-        pollRef.current = setInterval(cargarDisponibles, 2000)
+        pollRef.current = setInterval(cargarDisponibles, 60000)
 
       }
 
@@ -948,7 +998,26 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
 
 
-  const actualizarUbicacion = (pedidoId: string) => { const wsUrl = API.replace("https://","wss://").replace("http://","ws://") + "/ws/ubicacion?repartidorId=" + userId + "&rol=repartidor"; const existing = (window as any)[`loc_ws_${pedidoId}`]; if (existing && existing.readyState === WebSocket.OPEN) { navigator.geolocation.getCurrentPosition(pos => { existing.send(JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })) }, () => {}) } else { const ws = new WebSocket(wsUrl); (window as any)[`loc_ws_${pedidoId}`] = ws; ws.onopen = () => { navigator.geolocation.getCurrentPosition(pos => { ws.send(JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })) }, () => {}) } } }
+  const actualizarUbicacion = async (pedidoId: string) => {
+    const existing = (window as any)[`loc_ws_${pedidoId}`]
+    if (existing && existing.readyState === WebSocket.OPEN) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        existing.send(JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }))
+      }, () => {})
+    } else {
+      const token = await getToken()
+      const wsUrl = API.replace("https://","wss://").replace("http://","ws://")
+        + "/ws/ubicacion?repartidorId=" + userId + "&rol=repartidor"
+        + (token ? "&token=" + encodeURIComponent(token) : "")
+      const ws = new WebSocket(wsUrl)
+      ;(window as any)[`loc_ws_${pedidoId}`] = ws
+      ws.onopen = () => {
+        navigator.geolocation.getCurrentPosition(pos => {
+          ws.send(JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }))
+        }, () => {})
+      }
+    }
+  }
 
 
 
@@ -984,7 +1053,7 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
     .filter(p => new Date(p.creado_en).toDateString() === new Date().toDateString() && p.status === "entregado")
 
-    .reduce((a, p) => a + Number(p.costo_envio || 0), 0)
+    .reduce((a, p) => a + Number(p.costo_envio || 0) + Number(p.propina || 0), 0)
 
 
 
@@ -1000,7 +1069,7 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
     })
 
-    .reduce((a, p) => a + Number(p.costo_envio || 0), 0)
+    .reduce((a, p) => a + Number(p.costo_envio || 0) + Number(p.propina || 0), 0)
 
 
 
@@ -1008,7 +1077,7 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
     .filter(p => p.status === "entregado")
 
-    .reduce((a, p) => a + Number(p.costo_envio || 0), 0)
+    .reduce((a, p) => a + Number(p.costo_envio || 0) + Number(p.propina || 0), 0)
 
 
 
@@ -1241,9 +1310,13 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
                   <div>
 
-                    <p className="text-xs text-green-600 font-bold uppercase">Tu ganancia (envio)</p>
+                    <p className="text-xs text-green-600 font-bold uppercase">Tu ganancia</p>
 
-                    <p className="font-black text-2xl text-green-700">${Number(confirmando.costo_envio || 35).toFixed(2)}</p>
+                    <p className="font-black text-2xl text-green-700">${(Number(confirmando.costo_envio || 35) + Number(confirmando.propina || 0)).toFixed(2)}</p>
+
+                    {Number(confirmando.propina) > 0 && (
+                      <p className="text-xs text-purple-600 font-bold">Incluye ${Number(confirmando.propina).toFixed(2)} de propina</p>
+                    )}
 
                   </div>
 
@@ -1942,16 +2015,52 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
                 <div className="bg-white rounded-2xl border border-slate-100 p-3 text-center">
                   <p className="font-black text-lg text-slate-900">${Number(gananciasHoy).toFixed(0)}</p>
                   <p className="text-[10px] text-slate-500 font-bold uppercase">Hoy</p>
+                  <p className="text-[10px] text-slate-400">{historial.filter(p => new Date(p.creado_en).toDateString() === new Date().toDateString() && p.status === "entregado").length} entregas</p>
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-100 p-3 text-center">
                   <p className="font-black text-lg text-slate-900">${Number(gananciasMes).toFixed(0)}</p>
                   <p className="text-[10px] text-slate-500 font-bold uppercase">Este mes</p>
+                  <p className="text-[10px] text-slate-400">{historial.filter(p => { const d = new Date(p.creado_en); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear() && p.status === "entregado"; }).length} entregas</p>
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-100 p-3 text-center">
                   <p className="font-black text-lg text-slate-900">${Number(gananciasTotal).toFixed(0)}</p>
                   <p className="text-[10px] text-slate-500 font-bold uppercase">Total</p>
+                  <p className="text-[10px] text-slate-400">{historial.filter(p => p.status === "entregado").length} entregas</p>
                 </div>
               </div>
+
+              {/* Desglose propinas */}
+              {(() => {
+                const propinasMes = historial.filter(p => { const d = new Date(p.creado_en); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear() && p.status === "entregado"; }).reduce((a, p) => a + Number(p.propina || 0), 0)
+                const enviosMes = historial.filter(p => { const d = new Date(p.creado_en); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear() && p.status === "entregado"; }).reduce((a, p) => a + Number(p.costo_envio || 0), 0)
+                return propinasMes > 0 ? (
+                  <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4">
+                    <p className="text-xs font-black text-purple-700 uppercase tracking-wider mb-2">Desglose este mes</p>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-slate-600">Envíos</span>
+                      <span className="font-bold">${enviosMes.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-purple-600">Propinas</span>
+                      <span className="font-bold text-purple-600">+${propinasMes.toFixed(2)}</span>
+                    </div>
+                  </div>
+                ) : null
+              })()}
+
+              {/* Rating actual */}
+              {repartidor?.rating && (
+                <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Tu calificación</p>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <p className="font-black text-2xl text-slate-900">{Number(repartidor.rating).toFixed(1)}</p>
+                      <span className="text-yellow-400 text-lg">★</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-400">{repartidor.entregas_count || 0} entregas</p>
+                </div>
+              )}
 
               {/* Deuda comisión efectivo */}
               {(repartidor?.deuda_efectivo ?? 0) > 0 && (
@@ -2283,7 +2392,7 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
               </div>
 
-              <button onClick={() => signOut()}
+              <button onClick={() => setShowLogoutConfirm(true)}
 
                 className="w-full py-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-center gap-2 text-slate-600 font-bold hover:bg-slate-50">
 
@@ -2581,6 +2690,20 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
         );
       })()}
     </AnimatePresence>
+
+    {showLogoutConfirm && (
+      <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl">
+          <h3 className="font-black text-slate-900 text-lg mb-1">¿Cerrar sesión?</h3>
+          <p className="text-slate-500 text-sm mb-6">Tendrás que iniciar sesión nuevamente para acceder.</p>
+          <div className="flex gap-3">
+            <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-2xl">Cancelar</button>
+            <button onClick={() => signOut()} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl">Cerrar sesión</button>
+          </div>
+        </div>
+      </div>
+    )}
+
     </>
 
   )

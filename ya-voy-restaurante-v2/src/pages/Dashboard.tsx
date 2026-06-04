@@ -9,6 +9,7 @@ import {
   Image as ImageIcon, Save
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { hapticSuccess, hapticMedium } from '../lib/haptics';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { usePedidosWS } from '../hooks/usePedidosWS';
 import { imgUrl } from '../lib/cloudinary';
@@ -65,8 +66,10 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
   const [cuponForm, setCuponForm] = useState({ nombre: '', codigo: '', tipo: 'porcentaje', valor: '', usos_max: '100', minimo_compra: '', expira_en: '', descripcion: '' })
   const [creandoCupon, setCreandoCupon] = useState(false)
   const [cuponError, setCuponError] = useState('')
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [retirosLoading, setRetirosLoading] = useState(false)
   const [solicitandoRetiro, setSolicitandoRetiro] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
   const [retiroMinimo, setRetiroMinimo] = useState(50)
   const [comisionPct, setComisionPct] = useState(0.18)
   const prevNuevosRef = useRef(0);
@@ -151,10 +154,11 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
     const iv = setInterval(cargarRepartidores, 30000)
     return () => clearInterval(iv)
   }, [])
-  usePedidosWS(negocio?.owner_id, (nuevoPedido) => {
+  usePedidosWS(negocio?.owner_id, getToken, (nuevoPedido) => {
     setOrders(prev => {
       if (prev.find(o => o.id === nuevoPedido.id)) return prev;
       playBeep();
+      hapticMedium();
       return [nuevoPedido, ...prev];
     });
   });
@@ -175,31 +179,38 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
   }, [tab, negocio?.id]);
 
   const updateOrderStatus = async (orderId: string, status: string) => {
+    if (actionLoading) return;
+    setActionLoading(true);
     try {
       await authFetch(`/api/negocios/pedidos/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
     } catch { toast.error('Ocurrio un error'); }
+    finally { setActionLoading(false); }
   };
 
   const aceptarConTiempo = async () => {
-    if (!confirmandoPedido) return;
+    if (!confirmandoPedido || actionLoading) return;
+    setActionLoading(true);
     try {
       await authFetch(`/api/negocios/pedidos/${confirmandoPedido.id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'preparando', tiempo_estimado: tiempoAceptar }) });
       setOrders(prev => prev.map(o => o.id === confirmandoPedido.id ? { ...o, status: 'preparando', tiempo_estimado: tiempoAceptar } : o));
       toast.success('Pedido aceptado');
+      setConfirmandoPedido(null);
     } catch { toast.error('Error al aceptar'); }
-    setConfirmandoPedido(null);
+    finally { setActionLoading(false); }
   };
 
   const rechazarPedidoConfirm = async () => {
-    if (!rechazandoPedido) return;
+    if (!rechazandoPedido || actionLoading) return;
+    setActionLoading(true);
     try {
       await authFetch(`/api/negocios/pedidos/${rechazandoPedido.id}/rechazar`, { method: 'PATCH', body: JSON.stringify({ razon: razonRechazo || 'No disponible en este momento' }) });
       setOrders(prev => prev.filter(o => o.id !== rechazandoPedido.id));
       toast.success('Pedido rechazado');
+      setRechazandoPedido(null);
+      setRazonRechazo('');
     } catch { toast.error('Error al rechazar'); }
-    setRechazandoPedido(null);
-    setRazonRechazo('');
+    finally { setActionLoading(false); }
   };
 
   const uploadImg = async (file: File) => {
@@ -318,7 +329,7 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
           <button onClick={toggleActivo} className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${negocio?.esta_abierto ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
             <Power size={14} className="inline mr-1" />{negocio?.esta_abierto ? 'Abierto' : 'Cerrado'}
           </button>
-          <button onClick={() => signOut()} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+          <button onClick={() => setShowLogoutConfirm(true)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
             <LogOut size={18} />
           </button>
         </div>
@@ -442,31 +453,25 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
                       )}
                       {o.status === 'nuevo' && (
                         <>
-                          <button onClick={() => { setRechazandoPedido({ id: o.id, numero: o.numero ?? o.id?.slice(-6).toUpperCase() }); setRazonRechazo(''); }}
-                            className="px-3 py-2 bg-red-50 text-red-500 text-xs font-black rounded-xl border border-red-200 hover:bg-red-100 transition-all whitespace-nowrap">
+                          <button disabled={actionLoading} onClick={() => { setRechazandoPedido({ id: o.id, numero: o.numero ?? o.id?.slice(-6).toUpperCase() }); setRazonRechazo(''); }}
+                            className="px-3 py-2 bg-red-50 text-red-500 text-xs font-black rounded-xl border border-red-200 hover:bg-red-100 transition-all whitespace-nowrap disabled:opacity-50">
                             Rechazar
                           </button>
-                          <button onClick={() => { setConfirmandoPedido({ id: o.id, numero: o.numero ?? o.id?.slice(-6).toUpperCase() }); setTiempoAceptar('30 min'); }}
-                            className="px-4 py-2 bg-[#FF6B00] text-white text-xs font-black rounded-xl hover:bg-[#E65F00] transition-all whitespace-nowrap">
+                          <button disabled={actionLoading} onClick={() => { setConfirmandoPedido({ id: o.id, numero: o.numero ?? o.id?.slice(-6).toUpperCase() }); setTiempoAceptar('30 min'); }}
+                            className="px-4 py-2 bg-[#FF6B00] text-white text-xs font-black rounded-xl hover:bg-[#E65F00] transition-all whitespace-nowrap disabled:opacity-50">
                             Aceptar
                           </button>
                         </>
                       )}
                       {o.status === 'preparando' && (
-                        <button onClick={async () => {
-                          if (!window.confirm('Cancelar este pedido?')) return;
-                          try {
-                            await authFetch(`/api/negocios/pedidos/${o.id}/cancelar`, { method: 'PATCH' });
-                            setOrders(prev => prev.map(ord => ord.id === o.id ? { ...ord, status: 'cancelado' } : ord));
-                            toast.success('Pedido cancelado');
-                          } catch { toast.error('Error al cancelar'); }
-                        }} className="px-3 py-2 bg-red-50 text-red-500 text-xs font-black rounded-xl border border-red-200 hover:bg-red-100 transition-all whitespace-nowrap">
+                        <button disabled={actionLoading} onClick={() => setCancelando({ id: o.id, numero: o.numero ?? o.id?.slice(-6).toUpperCase() })}
+                          className="px-3 py-2 bg-red-50 text-red-500 text-xs font-black rounded-xl border border-red-200 hover:bg-red-100 transition-all whitespace-nowrap disabled:opacity-50">
                           Cancelar
                         </button>
                       )}
                       {orderStatusConfig[o.status]?.next && (
-                        <button onClick={() => updateOrderStatus(o.id, orderStatusConfig[o.status].next!)}
-                          className="px-4 py-2 bg-[#FF6B00] text-white text-xs font-black rounded-xl hover:bg-[#E65F00] transition-all whitespace-nowrap">
+                        <button disabled={actionLoading} onClick={() => updateOrderStatus(o.id, orderStatusConfig[o.status].next!)}
+                          className="px-4 py-2 bg-[#FF6B00] text-white text-xs font-black rounded-xl hover:bg-[#E65F00] transition-all whitespace-nowrap disabled:opacity-50">
                           {orderStatusConfig[o.status].nextLabel}
                         </button>
                       )}
@@ -611,8 +616,15 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
                         </div>
                         <p className="text-xs text-slate-500">{p.categoria} · ${p.precio}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${p.disponible ? 'bg-green-500' : 'bg-slate-300'}`} />
+                      <div className="flex items-center gap-1">
+                        {p.agotado && <span className="text-[9px] bg-red-100 text-red-600 font-black px-1.5 py-0.5 rounded-full">Agotado</span>}
+                        <button onClick={async () => {
+                          await authFetch(`/api/negocios/productos/${p.id}/agotado`, { method: 'PATCH' });
+                          setProducts(ps => ps.map(x => x.id === p.id ? { ...x, agotado: !x.agotado } : x));
+                        }} title={p.agotado ? "Marcar disponible" : "Marcar agotado"}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-black border transition-all ${p.agotado ? 'border-green-200 text-green-600 bg-green-50' : 'border-red-200 text-red-500 bg-red-50'}`}>
+                          {p.agotado ? '✓ Reponer' : '✕ Agotado'}
+                        </button>
                         <button onClick={() => { setEditingProduct(p); setProductForm({ nombre: p.nombre, descripcion: p.descripcion || '', precio: p.precio.toString(), categoria: p.categoria, disponible: p.disponible, imagen_url: p.imagen_url || '', destacado: p.destacado, opciones: (p.opciones||[]).map((g: any) => ({ ...g, opciones: g.opciones.map((o: any) => ({ ...o, precio: String(o.precio) })) })) }); setShowProductForm(true); }}
                           className="p-2 text-slate-400 hover:text-[#FF6B00] transition-colors"><Edit2 size={16} /></button>
                         <button onClick={() => deleteProduct(p.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
@@ -1113,7 +1125,7 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
                 </a>
               )}
 
-              <button onClick={() => signOut()} className="w-full py-4 bg-red-50 text-red-500 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
+              <button onClick={() => setShowLogoutConfirm(true)} className="w-full py-4 bg-red-50 text-red-500 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
                 <LogOut size={18} /> Cerrar sesion
               </button>
             </motion.div>
@@ -1140,8 +1152,11 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setConfirmandoPedido(null)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl">Cancelar</button>
-                <button onClick={aceptarConTiempo} className="flex-1 py-3 bg-[#FF6B00] text-white font-black rounded-2xl">Aceptar — {tiempoAceptar}</button>
+                <button onClick={() => setConfirmandoPedido(null)} disabled={actionLoading} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl disabled:opacity-50">Cancelar</button>
+                <button onClick={aceptarConTiempo} disabled={actionLoading} className="flex-1 py-3 bg-[#FF6B00] text-white font-black rounded-2xl flex items-center justify-center gap-2 disabled:opacity-60">
+                  {actionLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+                  Aceptar — {tiempoAceptar}
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -1169,8 +1184,11 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
                   className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-300" />
               </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setRechazandoPedido(null)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl">Volver</button>
-                <button onClick={rechazarPedidoConfirm} className="flex-1 py-3 bg-red-500 text-white font-black rounded-2xl">Rechazar pedido</button>
+                <button onClick={() => setRechazandoPedido(null)} disabled={actionLoading} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl disabled:opacity-50">Volver</button>
+                <button onClick={rechazarPedidoConfirm} disabled={actionLoading} className="flex-1 py-3 bg-red-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 disabled:opacity-60">
+                  {actionLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+                  Rechazar pedido
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -1267,16 +1285,19 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
                 ))}
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setCancelando(null)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl text-sm">Volver</button>
+                <button onClick={() => setCancelando(null)} disabled={actionLoading} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl text-sm disabled:opacity-50">Volver</button>
                 <button onClick={async () => {
                   if (!razonCancel) { toast.error('Selecciona un motivo'); return; }
+                  setActionLoading(true);
                   try {
                     await authFetch(`/api/negocios/pedidos/${cancelando.id}/cancelar`, { method: 'PATCH', body: JSON.stringify({ razon: razonCancel }) });
                     setOrders(prev => prev.map(ord => ord.id === cancelando.id ? { ...ord, status: 'cancelado' } : ord));
                     toast.success('Pedido cancelado');
                     setCancelando(null); setRazonCancel('');
                   } catch { toast.error('Error al cancelar'); }
-                }} disabled={!razonCancel} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm disabled:opacity-50">
+                  finally { setActionLoading(false); }
+                }} disabled={!razonCancel || actionLoading} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                  {actionLoading ? <Loader2 size={14} className="animate-spin" /> : null}
                   Confirmar
                 </button>
               </div>
@@ -1302,6 +1323,19 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
           ))}
         </div>
       </div>
+
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-6">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="font-black text-slate-900 text-lg mb-1">¿Cerrar sesión?</h3>
+            <p className="text-slate-500 text-sm mb-6">Tendrás que iniciar sesión nuevamente para acceder.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-2xl">Cancelar</button>
+              <button onClick={() => signOut()} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl">Cerrar sesión</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

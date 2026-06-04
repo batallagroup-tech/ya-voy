@@ -25,9 +25,11 @@ export const getProductos = (negocioId: string) => apiFetch(`/api/usuario/negoci
 export const crearPedido = (data: any, token: string) =>
   apiFetch("/api/usuario/pedidos", { method: "POST", body: JSON.stringify(data), headers: { Authorization: "Bearer " + token } });
 
-export const getPedidos = (userId: string) => apiFetch(`/api/usuario/pedidos/${userId}`);
+export const getPedidos = (userId: string, token: string, offset = 0) =>
+  apiFetch(`/api/usuario/pedidos/${userId}?limit=20&offset=${offset}`, { headers: { Authorization: "Bearer " + token } });
 
-export const getPedidoById = (id: string) => apiFetch(`/api/usuario/pedidos/detalle/${id}`);
+export const getPedidoById = (id: string, token: string) =>
+  apiFetch(`/api/usuario/pedidos/detalle/${id}`, { headers: { Authorization: "Bearer " + token } });
 
 export const getDirecciones = (userId: string, token: string) =>
   apiFetch<any[]>(`/api/usuario/direcciones/${userId}`, { headers: { Authorization: "Bearer " + token } });

@@ -1,8 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
-import { Search, ChevronRight, Star, X, Clock } from "lucide-react";
-import { GRAD } from "../lib/constants";
+import { Search, ChevronRight, Star, X, Clock, SlidersHorizontal } from "lucide-react";
+import { GRAD, API } from "../lib/constants";
+import { imgUrl } from "../lib/cloudinary";
 import type { Negocio } from "../types";
+
+function SkeletonCard() {
+  return (
+    <div className="w-full bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-3 animate-pulse">
+      <div className="w-12 h-12 rounded-xl bg-slate-200 shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="h-3 bg-slate-200 rounded w-3/4" />
+        <div className="h-2 bg-slate-200 rounded w-1/2" />
+        <div className="h-2 bg-slate-200 rounded w-1/3" />
+      </div>
+    </div>
+  );
+}
 
 const MAX_HISTORIAL = 5;
 const KEY = "ya_voy_busquedas";
@@ -18,6 +32,8 @@ function guardarBusqueda(q: string) {
 
 function borrarHistorial() { localStorage.removeItem(KEY); }
 
+type FiltroTipo = "todos" | "comida" | "tienda";
+
 interface Props {
   negocios: Negocio[];
   onOpenNegocio: (n: Negocio) => void;
@@ -27,8 +43,34 @@ export default function ExplorarTab({ negocios, onOpenNegocio }: Props) {
   const [search, setSearch] = useState("");
   const [historial, setHistorial] = useState<string[]>(getHistorial);
   const [focused, setFocused] = useState(false);
+  const [resultados, setResultados] = useState<{ negocios: Negocio[], productos: any[] } | null>(null);
+  const [buscando, setBuscando] = useState(false);
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>("todos");
+  const [ordenRating, setOrdenRating] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filtrados = negocios.filter(n => n.nombre?.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (search.trim().length < 2) { setResultados(null); return; }
+    setBuscando(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`${API}/api/usuario/buscar?q=${encodeURIComponent(search.trim())}`);
+        const data = await r.json();
+        setResultados(data);
+      } catch { setResultados(null); }
+      finally { setBuscando(false); }
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
+
+  const base = resultados
+    ? resultados.negocios as Negocio[]
+    : negocios.filter(n => n.nombre?.toLowerCase().includes(search.toLowerCase()));
+
+  const filtrados = base
+    .filter(n => filtroTipo === "todos" || n.tipo?.toLowerCase() === filtroTipo)
+    .sort((a, b) => ordenRating ? Number(b.rating || 0) - Number(a.rating || 0) : 0);
 
   const buscar = (q: string) => {
     setSearch(q);
@@ -42,6 +84,8 @@ export default function ExplorarTab({ negocios, onOpenNegocio }: Props) {
   const limpiarHistorial = () => { borrarHistorial(); setHistorial([]); };
 
   const mostrarHistorial = focused && !search && historial.length > 0;
+
+  const hayFiltros = filtroTipo !== "todos" || ordenRating;
 
   return (
     <motion.div key="explorar" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
@@ -58,10 +102,13 @@ export default function ExplorarTab({ negocios, onOpenNegocio }: Props) {
           placeholder="Busca comida, tiendas o productos..."
           className="w-full pl-12 pr-10 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-purple-400 shadow-sm"
         />
-        {search && (
+        {search && !buscando && (
           <button onClick={() => setSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
             <X size={16} />
           </button>
+        )}
+        {buscando && (
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
         )}
 
         {mostrarHistorial && (
@@ -81,13 +128,45 @@ export default function ExplorarTab({ negocios, onOpenNegocio }: Props) {
         )}
       </div>
 
+      {/* Filtros */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
+        <SlidersHorizontal size={14} className="text-slate-400 shrink-0" />
+        {(["todos", "comida", "tienda"] as FiltroTipo[]).map(tipo => (
+          <button key={tipo} onClick={() => setFiltroTipo(tipo)}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-black border transition-all capitalize ${
+              filtroTipo === tipo
+                ? "text-white border-transparent"
+                : "border-slate-200 text-slate-500 bg-white"
+            }`}
+            style={filtroTipo === tipo ? { background: GRAD } : {}}>
+            {tipo === "todos" ? "Todos" : tipo === "comida" ? "Comida" : "Tienda"}
+          </button>
+        ))}
+        <button onClick={() => setOrdenRating(v => !v)}
+          className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-black border transition-all ${
+            ordenRating
+              ? "text-white border-transparent"
+              : "border-slate-200 text-slate-500 bg-white"
+          }`}
+          style={ordenRating ? { background: GRAD } : {}}>
+          <Star size={11} className={ordenRating ? "fill-white text-white" : "text-slate-400"} />
+          Mejor rating
+        </button>
+        {hayFiltros && (
+          <button onClick={() => { setFiltroTipo("todos"); setOrdenRating(false); }}
+            className="shrink-0 px-3 py-1.5 rounded-full text-xs font-black border border-slate-200 text-slate-400 bg-white flex items-center gap-1">
+            <X size={10} /> Limpiar
+          </button>
+        )}
+      </div>
+
       {filtrados.map(n => {
         const pausado = n.aceptando_pedidos === false;
         return (
           <button key={n.id} onClick={() => onOpenNegocio(n)}
             className={`w-full bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-3 text-left hover:shadow-sm transition-all ${pausado ? "opacity-70" : ""}`}>
             <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 relative" style={{ background: GRAD }}>
-              {n.imagen_url ? <img src={n.imagen_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>}
+              {n.imagen_url ? <img src={imgUrl(n.imagen_url, 96)} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>}
               {pausado && <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl"><span className="text-white text-[8px] font-black">PAUSADO</span></div>}
             </div>
             <div className="flex-1">
@@ -102,10 +181,52 @@ export default function ExplorarTab({ negocios, onOpenNegocio }: Props) {
         );
       })}
 
-      {search && filtrados.length === 0 && (
+      {resultados && resultados.productos.length > 0 && (
+        <div className="mt-2">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-1 mb-2">Productos</p>
+          {resultados.productos.map((p: any) => (
+            <button key={p.id} onClick={() => {
+              const negocio = negocios.find((n: any) => n.id === p.negocio_id);
+              if (negocio) onOpenNegocio(negocio);
+            }}
+              className="w-full bg-white rounded-2xl border border-slate-100 p-3 flex items-center gap-3 text-left hover:shadow-sm transition-all mb-2">
+              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-slate-100">
+                {p.imagen_url ? <img src={imgUrl(p.imagen_url, 80)} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-lg">🍽️</div>}
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-slate-900 text-sm">{p.nombre}</p>
+                <p className="text-xs text-slate-400">{p.negocio_nombre} · <span className="font-bold text-slate-600">${Number(p.precio).toFixed(2)}</span></p>
+              </div>
+              <ChevronRight size={16} className="text-slate-300" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {buscando && !resultados && [1,2,3].map(i => <SkeletonCard key={i} />)}
+
+      {!search && filtrados.length === 0 && negocios.length === 0 && (
+        <div className="text-center py-10 text-slate-400">
+          <span className="text-5xl block mb-3">🕙</span>
+          <p className="font-black text-slate-600 text-base">Sin restaurantes abiertos</p>
+          <p className="text-sm mt-1">Los restaurantes suelen abrir a partir de las 10:00am</p>
+        </div>
+      )}
+
+      {!search && filtrados.length === 0 && negocios.length > 0 && (
+        <div className="text-center py-8 text-slate-400">
+          <SlidersHorizontal size={28} className="mx-auto mb-2 opacity-30" />
+          <p className="text-sm font-medium">Sin resultados con estos filtros</p>
+          <button onClick={() => { setFiltroTipo("todos"); setOrdenRating(false); }}
+            className="mt-3 text-xs font-bold text-purple-500">Limpiar filtros</button>
+        </div>
+      )}
+
+      {search && !buscando && filtrados.length === 0 && (!resultados || resultados.productos.length === 0) && (
         <div className="text-center py-8 text-slate-400">
           <Search size={32} className="mx-auto mb-2 opacity-30" />
-          <p className="text-sm">Sin resultados para "{search}"</p>
+          <p className="text-sm font-medium">Sin resultados para "{search}"</p>
+          <p className="text-xs mt-1">Intenta con otra palabra clave</p>
         </div>
       )}
     </motion.div>

@@ -7,6 +7,7 @@ import { Stripe, PaymentSheetEventsEnum } from "@capacitor-community/stripe";
 import { Capacitor } from "@capacitor/core";
 import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob";
 import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed, getFavoritos, addFavorito, removeFavorito } from "./lib/api";
+import { hapticSuccess, hapticError, hapticLight } from "./lib/haptics";
 import { GRAD, API } from "./lib/constants";
 import type { CartItem } from "./lib/constants";
 import type { Negocio, Producto, Pedido, AppConfig } from "./types";
@@ -64,7 +65,10 @@ export default function App() {
       if (!pedidoId) return;
       let pedido = pedidos.find(p => p.id === pedidoId);
       if (!pedido) {
-        try { pedido = await import("./lib/api").then(m => m.getPedidoById(pedidoId)) as any; } catch { return; }
+        try {
+          const tok = await getToken();
+          pedido = await import("./lib/api").then(m => m.getPedidoById(pedidoId, tok!)) as any;
+        } catch { return; }
       }
       if (!pedido) return;
       setTab("pedidos");
@@ -84,6 +88,9 @@ export default function App() {
   const [negocios, setNegocios] = useState<Negocio[]>([]);
   const [productosFeed, setProductosFeed] = useState<Producto[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [pedidosOffset, setPedidosOffset] = useState(0);
+  const [pedidosHayMas, setPedidosHayMas] = useState(false);
+  const [pedidosMasLoading, setPedidosMasLoading] = useState(false);
   const [appConfig, setAppConfig] = useState<AppConfig>({});
   const [loading, setLoading] = useState(false);
   const [pedidosLoading, setPedidosLoading] = useState(false);
@@ -99,6 +106,7 @@ export default function App() {
   const [costoEnvio, setCostoEnvio] = useState(35);
   const [costoEnvioLoading, setCostoEnvioLoading] = useState(false);
   const [tiempoEstimado, setTiempoEstimado] = useState("");
+  const [propina, setPropina] = useState(() => Number(localStorage.getItem("ya_voy_propina") || "0"));
   const [stripePaymentData, setStripePaymentData] = useState<{ clientSecret: string; pedidoData: any; token: string } | null>(null);
   const [tarjetas, setTarjetas] = useState<any[]>([]);
 
@@ -200,7 +208,7 @@ export default function App() {
   }, [tab]);
 
   // ── WebSocket pedidos (reemplaza polling de 4s) ───────────────────────────
-  usePedidosWS(userId, (pedidoActualizado) => {
+  usePedidosWS(userId, getToken, (pedidoActualizado) => {
     setPedidos(prev => {
       const existe = prev.find(p => p.id === pedidoActualizado.id);
       if (existe) return prev.map(p => p.id === pedidoActualizado.id ? { ...p, ...pedidoActualizado } : p);
@@ -284,9 +292,12 @@ export default function App() {
   const loadPedidos = useCallback(async () => {
     if (!userId) return;
     setPedidosLoading(true);
+    setPedidosOffset(0);
     try {
-      const data = await getPedidos(userId) as any[];
+      const token = await getToken();
+      const data = await getPedidos(userId, token!, 0) as any[];
       setPedidos(data);
+      setPedidosHayMas(data.length === 20);
       data.forEach((p: any) => {
         const prev = prevPedidosStatusRef.current[p.id];
         if (prev && prev !== p.status) {
@@ -308,6 +319,20 @@ export default function App() {
     } catch (e: any) { console.error("loadPedidos:", e.message); }
     finally { setPedidosLoading(false); }
   }, [userId]);
+
+  const loadMasPedidos = useCallback(async () => {
+    if (!userId || pedidosMasLoading) return;
+    setPedidosMasLoading(true);
+    try {
+      const token = await getToken();
+      const nextOffset = pedidosOffset + 20;
+      const data = await getPedidos(userId, token!, nextOffset) as any[];
+      setPedidos(prev => [...prev, ...data]);
+      setPedidosOffset(nextOffset);
+      setPedidosHayMas(data.length === 20);
+    } catch (e: any) { console.error("loadMasPedidos:", e.message); }
+    finally { setPedidosMasLoading(false); }
+  }, [userId, pedidosOffset, pedidosMasLoading]);
 
   // ── Cart ──────────────────────────────────────────────────────────────────
   const addToCart = (p: any, opcionesSeleccionadas?: { grupoNombre: string; nombre: string; precio: number }[]) => {
@@ -401,9 +426,10 @@ export default function App() {
       clienteId: userId,
       negocioId: cart[0].negocioId,
       items: cart,
-      total: total + costoEnvio - (cuponAplicado?.descuento || 0),
+      total: total + costoEnvio + propina - (cuponAplicado?.descuento || 0),
       notas: "",
       metodoPago,
+      propina,
       cuponCodigo: cuponAplicado?.codigo || null,
       descuentoCupon: cuponAplicado?.descuento || 0,
       costoEnvio,
@@ -414,10 +440,14 @@ export default function App() {
       setLoading(true);
       try {
         const token = await getToken();
+        // 1. Crear pedido en pendiente_pago para reservar el slot
+        const pedido = await crearPedido({ ...pedidoData, status: "pendiente_pago" }, token!) as any;
+        const pedidoId = pedido?.id;
+        // 2. Crear PaymentIntent con el pedidoId ya conocido
         const res = await fetch(API + "/api/stripe/payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-          body: JSON.stringify({ amount: pedidoData.total, currency: "mxn", costoEnvio }),
+          body: JSON.stringify({ amount: pedidoData.total, currency: "mxn", costoEnvio, metadata: { pedidoId: pedidoId || "" } }),
         });
         const data = await res.json();
         if (!data.clientSecret) throw new Error("No se pudo iniciar el pago");
@@ -426,12 +456,13 @@ export default function App() {
           await Stripe.createPaymentSheet({ paymentIntentClientSecret: data.clientSecret, merchantDisplayName: "Ya Voy Batalla Group", style: "alwaysLight" });
           const result = await Stripe.presentPaymentSheet();
           if (result.paymentResult === PaymentSheetEventsEnum.Completed) {
-            await crearPedido(pedidoData, token!);
             setCart([]); setShowCart(false); setNegocioSeleccionado(null);
-            toast.success("¡Pedido enviado!"); setTab("pedidos");
-          } else { toast.error("Pago cancelado"); }
+            toast.success("¡Pedido enviado! Confirmando pago…"); setTab("pedidos");
+          } else {
+            toast.error("Pago cancelado");
+          }
         } else {
-          setStripePaymentData({ clientSecret: data.clientSecret, pedidoData, token: token! });
+          setStripePaymentData({ clientSecret: data.clientSecret, pedidoData: { ...pedidoData, paymentIntentId: data.paymentIntentId }, token: token! });
           setShowCart(false);
           setShowStripeModal(true);
         }
@@ -444,9 +475,10 @@ export default function App() {
     try {
       const token = await getToken();
       await crearPedido(pedidoData, token!);
+      hapticSuccess();
       setCart([]); setShowCart(false); setNegocioSeleccionado(null);
       toast.success("¡Pedido enviado!"); setTab("pedidos");
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { hapticError(); toast.error(e.message); }
     finally { setLoading(false); }
   };
 
@@ -457,8 +489,11 @@ export default function App() {
   };
 
   // ── WebSocket ubicación ───────────────────────────────────────────────────
-  const iniciarPollUbicacion = (repartidorId: string) => {
-    const wsUrl = API.replace("http://", "ws://").replace("https://", "wss://") + "/ws/ubicacion?repartidorId=" + repartidorId + "&rol=cliente";
+  const iniciarPollUbicacion = async (repartidorId: string) => {
+    const token = await getToken();
+    const wsUrl = API.replace("http://", "ws://").replace("https://", "wss://")
+      + "/ws/ubicacion?repartidorId=" + repartidorId + "&rol=cliente"
+      + (token ? "&token=" + encodeURIComponent(token) : "");
     const ws = new WebSocket(wsUrl);
     ws.onmessage = (e) => {
       try {
@@ -506,18 +541,24 @@ export default function App() {
   }, [isLoaded, isSignedIn, userId]);
 
   const handleDeleteAccount = async () => {
+    setLoading(true);
     try {
-      // 1. Borrar datos en la DB antes de borrar la cuenta en Clerk
       const token = await getToken();
-      await fetch(API + "/api/usuario/" + userId, {
+      const res = await fetch(API + "/api/usuario/" + userId, {
         method: "DELETE",
         headers: { "Authorization": "Bearer " + token },
       });
-      // 2. Borrar cuenta en Clerk
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || "No se pudo eliminar la cuenta");
+        return;
+      }
       await user?.delete();
       localStorage.clear();
-    } catch { toast.error("Error al eliminar cuenta"); }
-    setShowDeleteConfirm(false);
+      setShowDeleteConfirm(false);
+    } catch {
+      toast.error("Error de conexión. Intenta nuevamente.");
+    } finally { setLoading(false); }
   };
 
   const handlePedidoClick = (pedido: any) => {
@@ -609,10 +650,12 @@ export default function App() {
             direccionPrincipal={direccionPrincipal}
             loading={loading}
             negocioId={negocioSeleccionado?.id}
+            propina={propina}
+            onPropinaChange={(p) => { setPropina(p); localStorage.setItem("ya_voy_propina", String(p)); }}
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}
             onPedir={handlePedir}
-            onClearCart={() => { setCart([]); setNegocioSeleccionado(null); }}
+            onClearCart={() => { setCart([]); setNegocioSeleccionado(null); setPropina(0); }}
             onClose={() => setShowCart(false)}
           />
         )}
@@ -768,7 +811,10 @@ export default function App() {
               negocios={negocios}
               chatNoLeidos={chatNoLeidos}
               loading={pedidosLoading}
+              hayMas={pedidosHayMas}
+              masLoading={pedidosMasLoading}
               onRefresh={loadPedidos}
+              onLoadMore={loadMasPedidos}
               onGoHome={() => setTab("home")}
               onPedidoClick={handlePedidoClick}
               onSetProductos={setProductos}
