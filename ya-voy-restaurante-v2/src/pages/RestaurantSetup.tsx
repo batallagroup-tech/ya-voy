@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
-import Webcam from 'react-webcam';
 import {
   Utensils, MapPin, Smartphone, Save, Check, AlertCircle,
   ChevronRight, ChevronLeft, Loader2, Search, Camera,
@@ -64,9 +63,9 @@ export default function RestaurantSetup({ userId, userEmail, initialData, onSubm
   const [rfc, setRfc] = useState(initialData?.documentos?.rfc || '');
   const [ineFront, setIneFront] = useState<File | null>(null);
   const [ineBack, setIneBack] = useState<File | null>(null);
-  const [selfie, setSelfie] = useState<string | null>(null);
-  const [showWebcam, setShowWebcam] = useState(false);
-  const webcamRef = useRef<Webcam>(null);
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
+  const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
+  const selfieInputRef = useRef<HTMLInputElement>(null);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -124,12 +123,12 @@ return data.secure_url;
   };
 
   const handleSubmit = async () => {
-    if (!ineFront || !ineBack || !selfie) { setError('Por favor completa todos los campos incluyendo la foto.'); return; }
+    if (!ineFront || !ineBack || !selfieFile) { setError('Por favor completa todos los campos incluyendo la foto.'); return; }
     setLoading(true); setError('');
     try {
       const frontUrl  = await uploadToCloudinary(ineFront, 'ine');
       const backUrl   = await uploadToCloudinary(ineBack, 'ine');
-      const selfieUrl = await uploadToCloudinary(selfie, 'selfies');
+      const selfieUrl = await uploadToCloudinary(selfieFile, 'selfies');
       await enviarSolicitud({
         userId,
         tipo: 'negocio',
@@ -418,27 +417,28 @@ return data.secure_url;
                 <h1 className="text-2xl font-black text-slate-900 mb-1">Verificacin Facial</h1>
                 <p className="text-sm text-slate-500">Tmate una foto para confirmar tu identidad.</p>
               </div>
+              {/* Input nativo — abre cámara frontal en iOS/Android */}
+              <input
+                ref={selfieInputRef}
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setSelfieFile(file);
+                  setSelfiePreview(URL.createObjectURL(file));
+                  e.target.value = '';
+                }}
+              />
               <div className="relative aspect-[3/4] bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-200 flex items-center justify-center">
-                {selfie ? (
+                {selfiePreview ? (
                   <div className="relative w-full h-full">
-                    <img src={selfie} alt="Selfie" className="w-full h-full object-cover" />
-                    <button onClick={() => { setSelfie(null); setShowWebcam(true); }}
+                    <img src={selfiePreview} alt="Selfie" className="w-full h-full object-cover" />
+                    <button onClick={() => { setSelfieFile(null); setSelfiePreview(null); selfieInputRef.current?.click(); }}
                       className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-4 py-2 rounded-xl text-xs font-bold text-slate-600 flex items-center gap-2 shadow-lg">
                       <RefreshCw size={14} /> Repetir foto
-                    </button>
-                  </div>
-                ) : showWebcam ? (
-                  <div className="relative w-full h-full">
-                    <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg"
-                      videoConstraints={{ facingMode: 'user' }} className="w-full h-full object-cover" mirrored />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-[80%] h-[80%] border-4 border-white/50 border-dashed rounded-[100px] flex items-center justify-center">
-                        <User size={120} className="text-white/30" />
-                      </div>
-                    </div>
-                    <button onClick={() => { const img = webcamRef.current?.getScreenshot(); if (img) { setSelfie(img); setShowWebcam(false); } }}
-                      className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 bg-white rounded-full border-4 border-slate-200 shadow-xl flex items-center justify-center">
-                      <div className="w-12 h-12 bg-[#FF6B00] rounded-full" />
                     </button>
                   </div>
                 ) : (
@@ -446,10 +446,10 @@ return data.secure_url;
                     <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Camera size={32} className="text-slate-400" />
                     </div>
-                    <p className="text-sm text-slate-500 font-medium mb-6">Necesitamos una foto para verificacin de identidad.</p>
-                    <button onClick={() => setShowWebcam(true)}
+                    <p className="text-sm text-slate-500 font-medium mb-6">Necesitamos una selfie para verificar tu identidad.</p>
+                    <button onClick={() => selfieInputRef.current?.click()}
                       className="px-6 py-3 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-2 mx-auto">
-                      <Camera size={18} /> Abrir cmara
+                      <Camera size={18} /> Abrir cámara frontal
                     </button>
                   </div>
                 )}
@@ -475,7 +475,7 @@ return data.secure_url;
               </label>
               <div className="flex gap-4 pt-2">
                 <button onClick={() => setStep(3)} disabled={loading} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all"><ChevronLeft size={20} /> Atras</button>
-                <button onClick={handleSubmit} disabled={loading || !selfie || !tcAceptado}
+                <button onClick={handleSubmit} disabled={loading || !selfieFile || !tcAceptado}
                   className="flex-[2] py-4 bg-[#FF6B00] hover:bg-[#E65F00] text-white font-black rounded-2xl shadow-xl shadow-orange-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-lg">
                   {loading ? <><Loader2 className="animate-spin" size={24} /> Enviando...</> : <><Save size={24} /> Enviar Solicitud</>}
                 </button>
