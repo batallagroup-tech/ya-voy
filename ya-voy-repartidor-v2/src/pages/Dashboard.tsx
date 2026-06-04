@@ -980,6 +980,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
   return (
 
+    <>
     <div className="min-h-[100dvh] bg-slate-50 flex flex-col overflow-x-hidden w-full">
 
       <Toaster position="top-center" />
@@ -2450,6 +2451,7 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
         );
       })()}
     </AnimatePresence>
+    </>
 
   )
 
