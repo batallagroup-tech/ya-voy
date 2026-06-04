@@ -146,6 +146,15 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     return () => clearInterval(interval);
   }, [load, tab]);
 
+  useEffect(() => {
+    if (tab !== 'menu' || !negocio?.id) return;
+    setCuponesLoading(true);
+    authFetch<any[]>(`/api/negocios/${negocio.id}/cupones`)
+      .then(d => setCupones(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setCuponesLoading(false));
+  }, [tab, negocio?.id]);
+
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
       await authFetch(`/api/negocios/pedidos/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
