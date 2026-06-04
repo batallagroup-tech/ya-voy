@@ -394,7 +394,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
             <motion.div key="menu" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-black text-slate-900">Menu Digital</h2>
-                <button onClick={() => { setEditingProduct(null); setProductForm({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false }); setShowProductForm(true); }}
+                <button onClick={() => { setEditingProduct(null); setProductForm({ nombre: '', descripcion: '', precio: '', categoria: CATEGORIES[0], disponible: true, imagen_url: '', destacado: false, opciones: [] }); setShowProductForm(true); }}
                   className="flex items-center gap-2 px-4 py-2 bg-[#FF6B00] text-white text-sm font-bold rounded-xl hover:bg-[#E65F00] transition-all">
                   <Plus size={16} /> Agregar
                 </button>
