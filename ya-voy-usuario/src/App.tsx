@@ -6,7 +6,7 @@ import { Toaster, toast } from "sonner";
 import { Stripe, PaymentSheetEventsEnum } from "@capacitor-community/stripe";
 import { Capacitor } from "@capacitor/core";
 import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob";
-import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed } from "./lib/api";
+import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed, getFavoritos, addFavorito, removeFavorito } from "./lib/api";
 import { GRAD, API } from "./lib/constants";
 import type { CartItem } from "./lib/constants";
 import type { Negocio, Producto, Pedido, AppConfig } from "./types";
@@ -87,6 +87,10 @@ export default function App() {
   const [stripePaymentData, setStripePaymentData] = useState<{ clientSecret: string; pedidoData: any } | null>(null);
   const [tarjetas, setTarjetas] = useState<any[]>([]);
 
+  // Favoritos
+  const [favoritos, setFavoritos] = useState<Negocio[]>([]);
+  const [favoritosIds, setFavoritosIds] = useState<Set<string>>(new Set());
+
   // Profile
   const [fotoPerfil, setFotoPerfil] = useState("");
 
@@ -149,6 +153,7 @@ export default function App() {
     syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress?.split("@")[0] || "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }).catch(() => {});
     fetch(API + "/api/usuario/perfil/" + userId).then(r => r.json()).then(d => { if (d.foto_perfil) setFotoPerfil(d.foto_perfil); }).catch(() => {});
     fetch(API + "/api/config").then(r => r.json()).then(d => setAppConfig(d)).catch(() => {});
+    getToken().then(token => { if (token) getFavoritos(userId, token).then(data => { setFavoritos(data); setFavoritosIds(new Set(data.map((n: Negocio) => n.id))); }).catch(() => {}); });
     if (!localStorage.getItem("ya_voy_onboarding_done")) {
       setShowOnboarding(true);
     } else {
@@ -326,6 +331,29 @@ export default function App() {
   const total = cart.reduce((a, i) => a + i.precio * i.cantidad, 0);
   const cartCount = cart.reduce((a, i) => a + i.cantidad, 0);
 
+  // ── Favoritos ─────────────────────────────────────────────────────────────
+  const toggleFavorito = async (negocio: Negocio) => {
+    if (!userId) return;
+    const token = await getToken();
+    if (!token) return;
+    const esFav = favoritosIds.has(negocio.id);
+    if (esFav) {
+      setFavoritosIds(prev => { const s = new Set(prev); s.delete(negocio.id); return s; });
+      setFavoritos(prev => prev.filter(n => n.id !== negocio.id));
+      removeFavorito(userId, negocio.id, token).catch(() => {
+        setFavoritosIds(prev => new Set([...prev, negocio.id]));
+        setFavoritos(prev => [...prev, negocio]);
+      });
+    } else {
+      setFavoritosIds(prev => new Set([...prev, negocio.id]));
+      setFavoritos(prev => [...prev, negocio]);
+      addFavorito(userId, negocio.id, token).catch(() => {
+        setFavoritosIds(prev => { const s = new Set(prev); s.delete(negocio.id); return s; });
+        setFavoritos(prev => prev.filter(n => n.id !== negocio.id));
+      });
+    }
+  };
+
   // ── Negocio ───────────────────────────────────────────────────────────────
   const openNegocio = async (n: any) => {
     setNegocioSeleccionado(n);
@@ -446,6 +474,21 @@ export default function App() {
     try { setDirecciones(JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]")); } catch {}
   };
 
+  // Importar la función de getDirecciones para cargar al iniciar
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !userId) return;
+    import("./lib/api").then(({ getDirecciones }) => {
+      getToken().then(token => {
+        if (!token) return;
+        getDirecciones(userId, token).then(data => {
+          const mapped = data.map((d: any) => ({ id: d.id, label: d.label, icono: d.icono, direccion: d.direccion, lat: d.lat, lng: d.lng, principal: d.principal }));
+          setDirecciones(mapped);
+          localStorage.setItem("ya_voy_direcciones", JSON.stringify(mapped));
+        }).catch(() => {});
+      });
+    });
+  }, [isLoaded, isSignedIn, userId]);
+
   const handleDeleteAccount = async () => {
     try {
       // 1. Borrar datos en la DB antes de borrar la cuenta en Clerk
@@ -475,6 +518,8 @@ export default function App() {
   if (showOnboarding) return <AnimatePresence><OnboardingFlow userName={user?.firstName || "amigo"} onDone={handleOnboardingDone} /></AnimatePresence>;
   if (showDirecciones) return (
     <DireccionesScreen
+      userId={userId || ""}
+      getToken={getToken}
       onBack={() => { setShowDirecciones(false); recargarDirecciones(); }}
       onSelect={(d) => {
         const dirs = direcciones.map(x => ({ ...x, principal: x.id === d.id }));
@@ -686,11 +731,14 @@ export default function App() {
               productosFeed={productosFeed}
               cart={cart}
               loading={loading}
+              favoritos={favoritos}
+              favoritosIds={favoritosIds}
               onCategoriaChange={setCategoria}
               onSubCategoriaChange={setSubCategoria}
               onOpenNegocio={openNegocio}
               onAddToCart={addToCart}
               onProductoClick={setProductoSeleccionado}
+              onToggleFavorito={toggleFavorito}
             />
           )}
           {tab === "explorar" && (

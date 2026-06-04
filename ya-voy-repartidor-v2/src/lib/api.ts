@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_URL || "http://localhost:3001"
+export const API = import.meta.env.VITE_API_URL || "http://localhost:3001"
 
 async function apiFetch(path: string, opts?: RequestInit, token?: string | null) {
   const r = await fetch(`${API}${path}`, {

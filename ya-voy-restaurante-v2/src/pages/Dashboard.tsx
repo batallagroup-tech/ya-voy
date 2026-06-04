@@ -210,6 +210,13 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
     } catch { toast.error('Error al cambiar estado'); }
   };
 
+  const togglePausa = async () => {
+    try {
+      const updated = await authFetch<any>(`/api/negocios/${negocio.id}/pausar`, { method: 'PATCH' });
+      setNegocio(updated);
+    } catch { toast.error('Error al pausar pedidos'); }
+  };
+
   const tiempoTranscurrido = (fecha: string) => {
     const mins = Math.floor((Date.now() - new Date(fecha).getTime()) / 60000);
     if (mins < 1) return 'ahora';
@@ -263,6 +270,11 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {negocio?.esta_abierto && (
+            <button onClick={togglePausa} className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${negocio?.aceptando_pedidos === false ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-500'}`}>
+              {negocio?.aceptando_pedidos === false ? 'Pausado' : 'Pausar'}
+            </button>
+          )}
           <button onClick={toggleActivo} className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${negocio?.esta_abierto ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
             <Power size={14} className="inline mr-1" />{negocio?.esta_abierto ? 'Abierto' : 'Cerrado'}
           </button>
@@ -367,7 +379,14 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                     ))}
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-                    <p className="font-black text-slate-900">Total: ${Number(o.total || 0).toFixed(2)}</p>
+                    <div>
+                      <p className="font-black text-slate-900">Total: ${Number(o.total || 0).toFixed(2)}</p>
+                      {o.tiempo_estimado && (
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                          <Clock size={11} className="inline" /> Entrega en {o.tiempo_estimado}
+                        </p>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       {(o.status === 'listo' || o.status === 'en_camino') && o.codigo_restaurante && (
                         <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-center">

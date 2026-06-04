@@ -4,6 +4,7 @@ import { MapPin, Home, Briefcase, Star, Plus, Pencil, Trash2, X, Check, ArrowLef
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { getDirecciones, addDireccion, updateDireccion, setPrincipalDireccion, deleteDireccion } from "../lib/api";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -30,36 +31,60 @@ const ICONOS = { casa: Home, trabajo: Briefcase, otro: Star };
 
 function PinHandler({ onMove }: { onMove: (lat: number, lng: number) => void }) {
   useMapEvents({ click(e) { onMove(e.latlng.lat, e.latlng.lng); } });
-  return null
+  return null;
 }
 
 function MapMover({ lat, lng }: { lat: number; lng: number }) {
-  const map = useMap()
-  useEffect(() => { map.setView([lat, lng], map.getZoom()) }, [lat, lng])
-  return null
-function MapMover({ lat, lng }: { lat: number; lng: number }) {
-  const map = useMap()
-  useEffect(() => { map.setView([lat, lng], map.getZoom()) }, [lat, lng])
-  return null
-}
+  const map = useMap();
+  useEffect(() => { map.setView([lat, lng], map.getZoom()); }, [lat, lng]);
+  return null;
 }
 
 interface Props {
   onBack: () => void;
   onSelect?: (d: Direccion) => void;
+  userId?: string;
+  getToken?: () => Promise<string | null>;
 }
 
-export default function DireccionesScreen({ onBack, onSelect }: Props) {
+export default function DireccionesScreen({ onBack, onSelect, userId, getToken }: Props) {
   const [direcciones, setDirecciones] = useState<Direccion[]>(() => {
     try { return JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]"); }
     catch { return []; }
   });
+  const [loadingBD, setLoadingBD] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<Direccion | null>(null);
   const [form, setForm] = useState({ label: "Casa", icono: "casa" as "casa"|"trabajo"|"otro", direccion: "", lat: DEFAULT_LAT, lng: DEFAULT_LNG });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [sugerencias, setSugerencias] = useState<any[]>([]);
+
+  // Cargar desde BD al montar
+  useEffect(() => {
+    if (!userId || !getToken) return;
+    setLoadingBD(true);
+    getToken().then(token => {
+      if (!token) return;
+      getDirecciones(userId, token)
+        .then(data => {
+          const mapped: Direccion[] = data.map(d => ({
+            id: d.id, label: d.label, icono: d.icono as Direccion["icono"],
+            direccion: d.direccion, lat: d.lat, lng: d.lng, principal: d.principal,
+          }));
+          setDirecciones(mapped);
+          localStorage.setItem("ya_voy_direcciones", JSON.stringify(mapped));
+        })
+        .catch(() => {})
+        .finally(() => setLoadingBD(false));
+    });
+  }, [userId]);
+
+  const syncLocal = (dirs: Direccion[]) => {
+    setDirecciones(dirs);
+    localStorage.setItem("ya_voy_direcciones", JSON.stringify(dirs));
+  };
 
   const reverseGeocode = async (lat: number, lng: number) => {
     setGeocoding(true);
@@ -89,30 +114,56 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
     }
   }, [showForm]);
 
-  const save = (dirs: Direccion[]) => {
-    setDirecciones(dirs);
-    localStorage.setItem("ya_voy_direcciones", JSON.stringify(dirs));
-  };
-
-  const guardar = () => {
+  const guardar = async () => {
     if (!form.direccion.trim()) return;
-    if (editando) {
-      save(direcciones.map(d => d.id === editando.id ? { ...d, ...form } : d));
-    } else {
-      const nueva: Direccion = { id: Date.now().toString(), ...form, principal: direcciones.length === 0 };
-      save([...direcciones, nueva]);
-    }
+    setSaving(true);
+    try {
+      if (editando) {
+        if (userId && getToken) {
+          const token = await getToken();
+          if (token) {
+            const updated = await updateDireccion(editando.id, { label: form.label, icono: form.icono, direccion: form.direccion, lat: form.lat, lng: form.lng }, token);
+            syncLocal(direcciones.map(d => d.id === editando.id ? { ...d, label: updated.label, icono: updated.icono, direccion: updated.direccion, lat: updated.lat, lng: updated.lng } : d));
+          }
+        } else {
+          syncLocal(direcciones.map(d => d.id === editando.id ? { ...d, ...form } : d));
+        }
+      } else {
+        if (userId && getToken) {
+          const token = await getToken();
+          if (token) {
+            const nueva = await addDireccion({ userId, label: form.label, icono: form.icono, direccion: form.direccion, lat: form.lat, lng: form.lng }, token);
+            const mapped: Direccion = { id: nueva.id, label: nueva.label, icono: nueva.icono, direccion: nueva.direccion, lat: nueva.lat, lng: nueva.lng, principal: nueva.principal };
+            syncLocal([...direcciones, mapped]);
+          }
+        } else {
+          const nueva: Direccion = { id: Date.now().toString(), ...form, principal: direcciones.length === 0 };
+          syncLocal([...direcciones, nueva]);
+        }
+      }
+    } catch { /* fallback sin BD */ }
+    finally { setSaving(false); }
     setShowForm(false);
     setEditando(null);
     setForm({ label: "Casa", icono: "casa", direccion: "", lat: DEFAULT_LAT, lng: DEFAULT_LNG });
   };
 
-  const setPrincipal = (id: string) => save(direcciones.map(d => ({ ...d, principal: d.id === id })));
+  const setPrincipal = async (id: string) => {
+    if (userId && getToken) {
+      const token = await getToken();
+      if (token) await setPrincipalDireccion(id, userId, token).catch(() => {});
+    }
+    syncLocal(direcciones.map(d => ({ ...d, principal: d.id === id })));
+  };
 
-  const eliminar = (id: string) => {
+  const eliminar = async (id: string) => {
+    if (userId && getToken) {
+      const token = await getToken();
+      if (token) await deleteDireccion(id, token).catch(() => {});
+    }
     const nuevas = direcciones.filter(d => d.id !== id);
     if (nuevas.length > 0 && !nuevas.find(d => d.principal)) nuevas[0].principal = true;
-    save(nuevas);
+    syncLocal(nuevas);
     setShowDeleteConfirm(null);
   };
 
@@ -129,6 +180,7 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
           <ArrowLeft size={20} className="text-slate-600" />
         </button>
         <h1 className="text-lg font-black text-slate-900">Mis direcciones</h1>
+        {loadingBD && <Loader2 size={16} className="animate-spin text-purple-400 ml-auto" />}
       </div>
 
       <div className="p-4 space-y-3">
@@ -264,10 +316,10 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
                 )}
               </div>
 
-              <button onClick={guardar} disabled={!form.direccion.trim()}
+              <button onClick={guardar} disabled={!form.direccion.trim() || saving}
                 className="w-full py-4 text-white font-black rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
                 style={{ background: GRAD }}>
-                <Check size={18} /> Guardar direccion
+                {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />} Guardar dirección
               </button>
             </motion.div>
           </motion.div>
@@ -298,4 +350,3 @@ export default function DireccionesScreen({ onBack, onSelect }: Props) {
     </div>
   );
 }
-

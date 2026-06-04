@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ShoppingBag, Utensils, Store, Package, Star, ChevronRight, Plus } from "lucide-react";
+import { ShoppingBag, Utensils, Store, Package, Star, ChevronRight, Plus, Heart } from "lucide-react";
 import { GRAD } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
 import type { Negocio, Producto } from "../types";
@@ -18,14 +18,17 @@ interface Props {
   productosFeed: Producto[];
   cart: CartItem[];
   loading: boolean;
+  favoritos: Negocio[];
+  favoritosIds: Set<string>;
   onCategoriaChange: (c: "comida" | "tienda" | "envio") => void;
   onSubCategoriaChange: (s: string) => void;
   onOpenNegocio: (n: Negocio) => void;
   onAddToCart: (p: Producto) => void;
   onProductoClick: (p: Producto) => void;
+  onToggleFavorito: (n: Negocio) => void;
 }
 
-export default function HomeTab({ categoria, subCategoria, negocios, productosFeed, cart, loading, onCategoriaChange, onSubCategoriaChange, onOpenNegocio, onAddToCart, onProductoClick }: Props) {
+export default function HomeTab({ categoria, subCategoria, negocios, productosFeed, cart, loading, favoritos, favoritosIds, onCategoriaChange, onSubCategoriaChange, onOpenNegocio, onAddToCart, onProductoClick, onToggleFavorito }: Props) {
   const negociosFiltrados = negocios.filter(n => {
     const tipo = categoria === "comida" ? "restaurante" : "tienda";
     return n.tipo?.toLowerCase().includes(tipo);
@@ -60,6 +63,23 @@ export default function HomeTab({ categoria, subCategoria, negocios, productosFe
           <h2 className="text-2xl font-black text-slate-900 mb-2">Envío de Paquetes</h2>
           <p className="text-slate-500 text-sm mb-4">Envía lo que quieras a donde quieras de forma segura y rápida.</p>
           <span className="px-6 py-3 rounded-full font-black text-white text-sm" style={{ background: GRAD }}>PRÓXIMAMENTE</span>
+        </div>
+      )}
+
+      {categoria !== "envio" && favoritos.length > 0 && (
+        <div>
+          <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Mis favoritos</p>
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+            {favoritos.map(n => (
+              <button key={n.id} onClick={() => onOpenNegocio(n)}
+                className="shrink-0 flex flex-col items-center gap-1.5 w-16">
+                <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-100 bg-slate-100">
+                  {n.imagen_url ? <img src={imgUrl(n.imagen_url, 120)} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🏪</div>}
+                </div>
+                <span className="text-[10px] font-bold text-slate-600 text-center leading-tight w-full truncate">{n.nombre}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -118,21 +138,25 @@ export default function HomeTab({ categoria, subCategoria, negocios, productosFe
               </div>
             ))
           ) : negociosFiltrados.map(n => (
-            <button key={n.id} onClick={() => onOpenNegocio(n)}
-              className="w-full bg-white rounded-2xl border border-slate-100 overflow-hidden mb-3 text-left hover:shadow-md transition-all flex items-center gap-3 p-3">
-              <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0" style={{ background: GRAD }}>
-                {n.imagen_url ? <img src={imgUrl(n.imagen_url, 160)} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-3xl">🏪</div>}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-black text-slate-900 truncate">{n.nombre}</h4>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <div className="flex items-center gap-1"><Star size={11} className="text-yellow-400 fill-yellow-400" /><span className="text-xs font-bold text-slate-600">{Number(n.rating || 0).toFixed(1)}</span></div>
-                  <span className="text-slate-300">·</span>
-                  <span className="text-xs text-slate-500">Envío $35</span>
+            <div key={n.id} className="w-full bg-white rounded-2xl border border-slate-100 overflow-hidden mb-3 flex items-center gap-3 p-3 hover:shadow-md transition-all">
+              <button onClick={() => onOpenNegocio(n)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0" style={{ background: GRAD }}>
+                  {n.imagen_url ? <img src={imgUrl(n.imagen_url, 160)} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-3xl">🏪</div>}
                 </div>
-              </div>
-              <ChevronRight size={18} className="text-slate-300 shrink-0" />
-            </button>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-black text-slate-900 truncate">{n.nombre}</h4>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-1"><Star size={11} className="text-yellow-400 fill-yellow-400" /><span className="text-xs font-bold text-slate-600">{Number(n.rating || 0).toFixed(1)}</span></div>
+                    <span className="text-slate-300">·</span>
+                    <span className="text-xs text-slate-500">Envío $35</span>
+                  </div>
+                </div>
+              </button>
+              <button onClick={e => { e.stopPropagation(); onToggleFavorito(n); }}
+                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-50 transition-all">
+                <Heart size={18} className={favoritosIds.has(n.id) ? "fill-red-500 text-red-500" : "text-slate-300"} />
+              </button>
+            </div>
           ))}
         </>
       )}
