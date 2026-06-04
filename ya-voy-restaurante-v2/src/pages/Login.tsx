@@ -75,7 +75,10 @@ export default function Login() {
             </div>
 
             <p className="text-white/30 text-xs text-center">
-              Al continuar, aceptas nuestros Términos y Condiciones y nuestra Política de Privacidad.
+              Al continuar, aceptas nuestros{" "}
+              <a href="https://batallagroup-tech.github.io/ya-voy/terminos" target="_blank" rel="noopener noreferrer" className="underline text-white/50">Términos y Condiciones</a>
+              {" "}y la{" "}
+              <a href="https://batallagroup-tech.github.io/ya-voy/privacidad" target="_blank" rel="noopener noreferrer" className="underline text-white/50">Política de Privacidad</a>.
             </p>
           </motion.div>
         )}
