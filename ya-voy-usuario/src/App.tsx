@@ -612,6 +612,7 @@ export default function App() {
             userEmail={user?.primaryEmailAddress?.emailAddress}
             userName={user?.fullName ?? undefined}
             whatsappUrl={appConfig.whatsapp}
+            pedidos={pedidos}
             onClose={() => setShowSoporte(false)}
           />
         )}

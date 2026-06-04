@@ -320,6 +320,8 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
   const [retiroMinimo, setRetiroMinimo] = useState(50)
 
+  const [showRatings, setShowRatings] = useState(false)
+
   const [stripeConectando, setStripeConectando] = useState(false)
 
   const [stripeConectado, setStripeConectado] = useState(false)
@@ -1820,6 +1822,18 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
                 </div>
               </div>
 
+              {/* Deuda comisión efectivo */}
+              {(repartidor?.deuda_efectivo ?? 0) > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">⚠️</span>
+                    <p className="font-black text-amber-800 text-sm">Comisión pendiente por efectivo</p>
+                  </div>
+                  <p className="text-2xl font-black text-amber-700">${Number(repartidor.deuda_efectivo).toFixed(2)}</p>
+                  <p className="text-xs text-amber-600 mt-1">Cobradas en efectivo. Se descontará automáticamente de tus próximos pedidos con tarjeta.</p>
+                </div>
+              )}
+
               {/* Saldo disponible para retiro */}
               {(() => {
                 const retirado = retiros.filter(r => r.status !== "rechazado").reduce((a: number, r: any) => a + Number(r.monto), 0)
@@ -1901,13 +1915,13 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
 
                   </div>
 
-                  <div className="bg-slate-50 rounded-2xl p-3 text-center">
+                  <button onClick={() => setShowRatings(true)} className="bg-slate-50 rounded-2xl p-3 text-center hover:bg-yellow-50 transition-colors">
 
                     <p className="font-black text-xl text-yellow-500">{historial.filter(p => p.status === "entregado").length === 0 ? "⭐ Nuevo" : "⭐ " + (repartidor?.rating ? Number(repartidor.rating).toFixed(1) : "5.0")}</p>
 
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Rating</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase">Rating ▸</p>
 
-                  </div>
+                  </button>
 
                 </div>
 
@@ -2369,6 +2383,73 @@ export default function Dashboard({ repartidor, userId, user }: { repartidor: an
       </div>
 
     </div>
+
+    {/* MODAL RATINGS REPARTIDOR */}
+    <AnimatePresence>
+      {showRatings && (() => {
+        const rated = historial.filter(p => p.rating_repartidor);
+        const total = rated.length;
+        const starCounts = [5,4,3,2,1].map(s => ({ s, n: rated.filter(p => p.rating_repartidor === s).length }));
+        const phrases: Record<string, number> = {};
+        rated.forEach(p => {
+          if (p.comentario_rating) {
+            const frase = p.comentario_rating.split(' | ')[1]?.trim();
+            if (frase) phrases[frase] = (phrases[frase] || 0) + 1;
+          }
+        });
+        const topPhrases = Object.entries(phrases).sort((a, b) => b[1] - a[1]);
+        return (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-[70] flex items-end">
+            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto space-y-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-black text-slate-900">Mis calificaciones</h3>
+                <button onClick={() => setShowRatings(false)} className="text-slate-400 text-2xl">✕</button>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <p className="text-5xl font-black text-slate-900">{total ? Number(repartidor?.rating || 0).toFixed(1) : '—'}</p>
+                  <p className="text-yellow-400 text-xl mt-1">{'★'.repeat(Math.round(repartidor?.rating || 0))}{'☆'.repeat(5 - Math.round(repartidor?.rating || 0))}</p>
+                  <p className="text-xs text-slate-400 mt-1">{total} calificacion{total !== 1 ? 'es' : ''}</p>
+                </div>
+                <div className="flex-1 space-y-1">
+                  {starCounts.map(({ s, n }) => (
+                    <div key={s} className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500 w-3">{s}</span>
+                      <span className="text-yellow-400 text-xs">★</span>
+                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-yellow-400 rounded-full" style={{ width: total ? `${(n / total) * 100}%` : '0%' }} />
+                      </div>
+                      <span className="text-xs text-slate-400 w-4 text-right">{n}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {topPhrases.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Lo que más mencionan</p>
+                  <div className="space-y-2">
+                    {topPhrases.map(([frase, count]) => (
+                      <div key={frase}>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-slate-700 font-medium">{frase}</span>
+                          <span className="text-xs text-slate-400 font-bold">{count}</span>
+                        </div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${(count / topPhrases[0][1]) * 100}%`, background: GRAD }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {total === 0 && <p className="text-center text-slate-400 py-6">Aún no tienes calificaciones</p>}
+            </motion.div>
+          </motion.div>
+        );
+      })()}
+    </AnimatePresence>
 
   )
 

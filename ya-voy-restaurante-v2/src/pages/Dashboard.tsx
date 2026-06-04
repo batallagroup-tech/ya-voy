@@ -50,6 +50,7 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
   const [editingProfile, setEditingProfile] = useState(false)
   const [profileForm, setProfileForm] = useState({ nombre: '', direccion: '', telefono: '', descripcion: '' })
   const [savingProfile, setSavingProfile] = useState(false);
+  const [showRatings, setShowRatings] = useState(false)
   const [stripeConectando, setStripeConectando] = useState(false)
   const [stripeConectado, setStripeConectado] = useState(false)
   const [retiros, setRetiros] = useState<any[]>([])
@@ -556,16 +557,14 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                     if (!cuponForm.codigo || !cuponForm.valor) { setCuponError('Codigo y valor son requeridos'); return }
                     setCreandoCupon(true); setCuponError('')
                     try {
-                      const res = await fetch(import.meta.env.VITE_API_URL + '/api/negocios/' + negocio.id + '/cupones', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      const d = await authFetch<any>('/api/negocios/' + negocio.id + '/cupones', {
+                        method: 'POST',
                         body: JSON.stringify({ ...cuponForm, valor: parseFloat(cuponForm.valor), usos_max: parseInt(cuponForm.usos_max) || 100, minimo_compra: parseFloat(cuponForm.minimo_compra) || 0 })
                       })
-                      const d = await res.json()
-                      if (!res.ok) { setCuponError(d.error || 'Error al crear'); return }
                       setCupones(prev => [d, ...prev])
                       setCuponForm({ nombre: '', codigo: '', tipo: 'porcentaje', valor: '', usos_max: '100', minimo_compra: '', expira_en: '', descripcion: '' })
                       toast.success('Cupon creado')
-                    } catch { setCuponError('Error de conexion') }
+                    } catch (e: any) { setCuponError(e.message || 'Error de conexion') }
                     finally { setCreandoCupon(false) }
                   }} disabled={creandoCupon || !cuponForm.codigo || !cuponForm.valor}
                     className='w-full py-3 rounded-2xl text-white font-black text-sm disabled:opacity-50 flex items-center justify-center gap-2'
@@ -592,13 +591,13 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                       </div>
                       <div className='flex gap-2'>
                         <button onClick={async () => {
-                          await fetch(import.meta.env.VITE_API_URL + '/api/negocios/' + negocio.id + '/cupones/' + cup.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activo: !cup.activo }) })
+                          await authFetch('/api/negocios/' + negocio.id + '/cupones/' + cup.id, { method: 'PATCH', body: JSON.stringify({ activo: !cup.activo }) })
                           setCupones(prev => prev.map(c => c.id === cup.id ? {...c, activo: !cup.activo} : c))
                         }} className={`text-xs font-black px-3 py-1.5 rounded-xl border ${cup.activo ? 'border-red-200 text-red-500 bg-red-50' : 'border-green-200 text-green-600 bg-green-50'}`}>
                           {cup.activo ? 'Desactivar' : 'Activar'}
                         </button>
                         <button onClick={async () => {
-                          await fetch(import.meta.env.VITE_API_URL + '/api/negocios/' + negocio.id + '/cupones/' + cup.id, { method: 'DELETE' })
+                          await authFetch('/api/negocios/' + negocio.id + '/cupones/' + cup.id, { method: 'DELETE' })
                           setCupones(prev => prev.filter(c => c.id !== cup.id))
                           toast.success('Cupon eliminado')
                         }} className='p-1.5 rounded-xl border border-red-200 text-red-500 bg-red-50'>
@@ -848,10 +847,11 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
                   <div>
                     <p className="font-black text-slate-900">{negocio?.nombre}</p>
                     <p className="text-sm text-slate-500">{negocio?.tipo === 'restaurante' ? 'Restaurante' : 'Tienda'}</p>
-                    <div className="flex items-center gap-1 mt-1">
+                    <button onClick={() => setShowRatings(true)} className="flex items-center gap-1 mt-1 hover:opacity-70 transition-opacity">
                       <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                      <span className="text-xs font-bold text-slate-600">{Number(negocio?.rating || 0).toFixed(1)} ({orders.filter(o => o.rating_restaurante).length} resenas)</span>
-                    </div>
+                      <span className="text-xs font-bold text-slate-600">{Number(negocio?.rating || 0).toFixed(1)} ({orders.filter(o => o.rating_restaurante).length} reseñas)</span>
+                      <span className="text-[10px] text-slate-400">▸</span>
+                    </button>
                   </div>
                 </div>
                 {editingProfile ? (
@@ -1023,6 +1023,75 @@ export default function Dashboard({ negocio: initialNegocio }: Props) {
 
         </AnimatePresence>
       </div>
+
+      {/* MODAL RATINGS */}
+      <AnimatePresence>
+        {showRatings && (() => {
+          const rated = orders.filter(o => o.rating_restaurante);
+          const total = rated.length;
+          const starCounts = [5,4,3,2,1].map(s => ({ s, n: rated.filter(o => o.rating_restaurante === s).length }));
+          const phrases: Record<string, number> = {};
+          rated.forEach(o => {
+            if (o.comentario_rating) {
+              const frase = o.comentario_rating.split(' | ')[0]?.trim();
+              if (frase) phrases[frase] = (phrases[frase] || 0) + 1;
+            }
+          });
+          const topPhrases = Object.entries(phrases).sort((a, b) => b[1] - a[1]);
+          return (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-[70] flex items-end">
+              <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
+                className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto space-y-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black text-slate-900">Reseñas del negocio</h3>
+                  <button onClick={() => setShowRatings(false)}><X size={22} className="text-slate-400" /></button>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-5xl font-black text-slate-900">{total ? Number(negocio?.rating || 0).toFixed(1) : '—'}</p>
+                    <div className="flex gap-0.5 justify-center mt-1">
+                      {[1,2,3,4,5].map(i => <Star key={i} size={14} className={i <= Math.round(negocio?.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-slate-200 fill-slate-200'} />)}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">{total} reseña{total !== 1 ? 's' : ''}</p>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    {starCounts.map(({ s, n }) => (
+                      <div key={s} className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500 w-3">{s}</span>
+                        <Star size={10} className="text-yellow-400 fill-yellow-400 shrink-0" />
+                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-yellow-400 rounded-full transition-all" style={{ width: total ? `${(n / total) * 100}%` : '0%' }} />
+                        </div>
+                        <span className="text-xs text-slate-400 w-4 text-right">{n}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {topPhrases.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Lo que más mencionan</p>
+                    <div className="space-y-2">
+                      {topPhrases.map(([frase, count]) => (
+                        <div key={frase}>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm text-slate-700 font-medium">{frase}</span>
+                            <span className="text-xs text-slate-400 font-bold">{count}</span>
+                          </div>
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${(count / topPhrases[0][1]) * 100}%`, background: 'linear-gradient(135deg,#FF6B00,#E65F00)' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {total === 0 && <p className="text-center text-slate-400 py-6">Aún no tienes reseñas</p>}
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
 
       {/* MODAL CANCELAR */}
       <AnimatePresence>
