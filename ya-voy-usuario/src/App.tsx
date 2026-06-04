@@ -106,7 +106,7 @@ export default function App() {
   const [costoEnvio, setCostoEnvio] = useState(35);
   const [costoEnvioLoading, setCostoEnvioLoading] = useState(false);
   const [tiempoEstimado, setTiempoEstimado] = useState("");
-  const [propina, setPropina] = useState(() => Number(localStorage.getItem("ya_voy_propina") || "0"));
+  const [propina, setPropina] = useState(() => { const v = Number(localStorage.getItem("ya_voy_propina")); return isNaN(v) || v < 0 ? 0 : v; });
   const [stripePaymentData, setStripePaymentData] = useState<{ clientSecret: string; pedidoData: any; token: string } | null>(null);
   const [tarjetas, setTarjetas] = useState<any[]>([]);
 

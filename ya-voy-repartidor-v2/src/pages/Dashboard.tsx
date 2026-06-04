@@ -771,6 +771,8 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
   useEffect(() => { fetch(import.meta.env.VITE_API_URL + "/api/config").then(r=>r.json()).then(d=>setAppConfig(d)).catch(()=>{}) }, [])
 
+  useEffect(() => () => { clearInterval(chatPollRef.current) }, [])
+
 
 
   const ADMOB_BANNER_ID = "ca-app-pub-3849768825456219/4691773250"
@@ -871,7 +873,8 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
       clearInterval((window as any)[`loc_iv_${pedido.id}`])
 
-      setPedidosActivos(prev => prev.filter(p => p.id !== pedido.id))
+      const activosRestantes = pedidosActivos.filter(p => p.id !== pedido.id)
+      setPedidosActivos(activosRestantes)
 
       setEstadosPedidos(prev => { const n = { ...prev }; delete n[pedido.id]; return n })
 
@@ -881,7 +884,7 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
       cargarHistorial()
 
-      if (pedidosActivos.length <= 1) {
+      if (activosRestantes.length === 0) {
 
         setTab("historial")
 

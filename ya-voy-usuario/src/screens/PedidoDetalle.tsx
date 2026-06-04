@@ -64,8 +64,8 @@ export default function PedidoDetalle({ pedido, codigoConfirmado, repUbicacion, 
             ))}
           </div>
           <div className="border-t border-slate-100 mt-3 pt-3 space-y-1">
-            <div className="flex justify-between text-sm text-slate-500"><span>Envío</span><span>$35.00</span></div>
-            <div className="flex justify-between text-sm text-slate-500"><span>Servicio</span><span>$8.50</span></div>
+            {pedido.costo_envio != null && <div className="flex justify-between text-sm text-slate-500"><span>Envío</span><span>${Number(pedido.costo_envio).toFixed(2)}</span></div>}
+            {pedido.propina > 0 && <div className="flex justify-between text-sm text-slate-500"><span>Propina</span><span>${Number(pedido.propina).toFixed(2)}</span></div>}
             <div className="flex justify-between font-black text-slate-900 text-base mt-1"><span>Total</span><span>${Number(pedido.total).toFixed(2)}</span></div>
           </div>
         </div>

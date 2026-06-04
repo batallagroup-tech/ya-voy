@@ -18,6 +18,8 @@ interface Props {
   direccionPrincipal: Direccion | undefined;
   loading: boolean;
   negocioId: string | undefined;
+  propina: number;
+  onPropinaChange: (p: number) => void;
   onAddToCart: (item: any) => void;
   onRemoveFromCart: (id: string) => void;
   onPedir: (cuponAplicado: CuponAplicado | null) => void;
@@ -25,11 +27,15 @@ interface Props {
   onClose: () => void;
 }
 
-export default function CartSheet({ cart, total, costoEnvio, costoEnvioLoading, metodoPago, onMetodoPagoChange, direccionPrincipal, loading, negocioId, onAddToCart, onRemoveFromCart, onPedir, onClearCart, onClose }: Props) {
+const PROPINAS = [0, 10, 20, 30];
+
+export default function CartSheet({ cart, total, costoEnvio, costoEnvioLoading, metodoPago, onMetodoPagoChange, direccionPrincipal, loading, negocioId, propina, onPropinaChange, onAddToCart, onRemoveFromCart, onPedir, onClearCart, onClose }: Props) {
   const [cuponCodigo, setCuponCodigo] = useState("");
   const [cuponAplicado, setCuponAplicado] = useState<CuponAplicado | null>(null);
   const [cuponLoading, setCuponLoading] = useState(false);
   const [cuponError, setCuponError] = useState("");
+  const [propinaCustom, setPropinaCustom] = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const aplicarCupon = async () => {
     if (!cuponCodigo.trim()) return;
@@ -47,7 +53,7 @@ export default function CartSheet({ cart, total, costoEnvio, costoEnvioLoading, 
     finally { setCuponLoading(false); }
   };
 
-  const totalFinal = total + costoEnvio - (cuponAplicado?.descuento || 0);
+  const totalFinal = total + costoEnvio + propina - (cuponAplicado?.descuento || 0);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -104,7 +110,31 @@ export default function CartSheet({ cart, total, costoEnvio, costoEnvioLoading, 
               <span>-${cuponAplicado.descuento.toFixed(2)}</span>
             </div>
           )}
+          {propina > 0 && (
+            <div className="flex justify-between text-sm text-purple-600 font-bold">
+              <span>Propina al repartidor</span><span>+${propina.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-black text-slate-900 text-lg"><span>Total</span><span>${totalFinal.toFixed(2)}</span></div>
+        </div>
+
+        <div className="mb-4">
+          <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Propina al repartidor (opcional)</p>
+          <div className="flex gap-2">
+            {PROPINAS.map(p => (
+              <button key={p} onClick={() => { onPropinaChange(p); setPropinaCustom(""); }}
+                className={`flex-1 py-2 rounded-xl text-sm font-black border transition-all ${propina === p && !propinaCustom ? "text-white border-transparent" : "border-slate-200 text-slate-600 bg-white"}`}
+                style={propina === p && !propinaCustom ? { background: GRAD } : {}}>
+                {p === 0 ? "Sin propina" : `$${p}`}
+              </button>
+            ))}
+            <input
+              type="number" min="0" max="500" placeholder="Otra"
+              value={propinaCustom}
+              onChange={e => { const v = Math.max(0, Math.min(500, Number(e.target.value) || 0)); setPropinaCustom(e.target.value); onPropinaChange(v); }}
+              className="w-16 px-2 py-2 rounded-xl text-sm font-bold border border-slate-200 text-slate-600 text-center outline-none focus:border-purple-400"
+            />
+          </div>
         </div>
 
         <div className="flex gap-2 mb-3">
@@ -141,11 +171,48 @@ export default function CartSheet({ cart, total, costoEnvio, costoEnvioLoading, 
           </div>
         )}
 
-        <button onClick={() => onPedir(cuponAplicado)} disabled={loading} style={{ background: GRAD }}
+        <button onClick={() => setShowConfirm(true)} disabled={loading || cart.length === 0} style={{ background: GRAD }}
           className="w-full py-4 text-white font-black rounded-2xl flex items-center justify-center gap-2 disabled:opacity-60">
           {loading ? <Loader2 className="animate-spin" size={20} /> : null}
-          Confirmar pedido
+          Revisar pedido
         </button>
+
+        {showConfirm && (
+          <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-6">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl">
+              <h3 className="font-black text-slate-900 text-lg mb-4">¿Confirmar pedido?</h3>
+              <div className="space-y-2 mb-4">
+                {cart.map(item => (
+                  <div key={item.cartKey} className="flex justify-between text-sm">
+                    <span className="text-slate-600">{item.cantidad}× {item.nombre}</span>
+                    <span className="font-bold">${(item.precio * item.cantidad).toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="border-t pt-2 flex justify-between text-sm text-slate-500"><span>Envío</span><span>${costoEnvio.toFixed(2)}</span></div>
+                {propina > 0 && <div className="flex justify-between text-sm text-purple-600"><span>Propina</span><span>+${propina.toFixed(2)}</span></div>}
+                {cuponAplicado && <div className="flex justify-between text-sm text-green-600 font-bold"><span>Cupón</span><span>-${cuponAplicado.descuento.toFixed(2)}</span></div>}
+                <div className="flex justify-between font-black text-slate-900 text-base border-t pt-2"><span>Total</span><span>${totalFinal.toFixed(2)}</span></div>
+              </div>
+              {direccionPrincipal && (
+                <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl mb-4 text-sm">
+                  <MapPin size={14} className="text-purple-600 shrink-0" />
+                  <span className="text-slate-600 truncate">{direccionPrincipal.label}: {direccionPrincipal.direccion}</span>
+                </div>
+              )}
+              <p className="text-xs text-slate-400 text-center mb-4">
+                {metodoPago === "tarjeta" ? "Se procesará el cobro con tu tarjeta" : "Pago en efectivo al repartidor"}
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowConfirm(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-2xl">Cancelar</button>
+                <button onClick={() => { setShowConfirm(false); onPedir(cuponAplicado); }} disabled={loading} style={{ background: GRAD }}
+                  className="flex-1 py-3 text-white font-black rounded-2xl flex items-center justify-center gap-2 disabled:opacity-60">
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+                  Pedir
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );

@@ -37,6 +37,7 @@ export function usePedidosWS(
         + "&token=" + encodeURIComponent(token);
 
       ws = new WebSocket(wsUrl);
+      ws.onopen = () => { failCount = 0; };
       ws.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data);
