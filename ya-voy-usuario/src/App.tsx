@@ -196,6 +196,12 @@ export default function App() {
     }
   }, [isLoaded, isSignedIn, userId]);
 
+  // ── Dark mode: aplicar al montar ─────────────────────────────────────────
+  useEffect(() => {
+    const dark = localStorage.getItem("ya_voy_dark") === "1";
+    document.documentElement.classList.toggle("dark", dark);
+  }, []);
+
   // ── AdMob ─────────────────────────────────────────────────────────────────
   useEffect(() => { AdMob.initialize().catch(() => {}); }, []);
   useEffect(() => {
@@ -420,64 +426,79 @@ export default function App() {
   };
 
   // ── Payment ───────────────────────────────────────────────────────────────
-  const handlePedir = async (cuponAplicado: any) => {
+  const handlePedir = async (extras: { cuponAplicado: any; tipoEntrega: string; programadoPara: string | null; walletMonto: number }) => {
+    const { cuponAplicado, tipoEntrega, programadoPara, walletMonto } = extras;
     if (!cart.length || !userId) return;
-    const pedidoData = {
-      clienteId: userId,
-      negocioId: cart[0].negocioId,
-      items: cart,
-      total: total + costoEnvio + propina - (cuponAplicado?.descuento || 0),
-      notas: "",
-      metodoPago,
-      propina,
-      cuponCodigo: cuponAplicado?.codigo || null,
-      descuentoCupon: cuponAplicado?.descuento || 0,
-      costoEnvio,
-      tiempoEstimado,
-    };
 
-    if (metodoPago === "tarjeta") {
-      setLoading(true);
-      try {
-        const token = await getToken();
-        // 1. Crear pedido en pendiente_pago para reservar el slot
-        const pedido = await crearPedido({ ...pedidoData, status: "pendiente_pago" }, token!) as any;
-        const pedidoId = pedido?.id;
-        // 2. Crear PaymentIntent con el pedidoId ya conocido
-        const res = await fetch(API + "/api/stripe/payment-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-          body: JSON.stringify({ amount: pedidoData.total, currency: "mxn", costoEnvio, metadata: { pedidoId: pedidoId || "" } }),
-        });
-        const data = await res.json();
-        if (!data.clientSecret) throw new Error("No se pudo iniciar el pago");
-        if (Capacitor.isNativePlatform()) {
-          await Stripe.initialize({ publishableKey: STRIPE_PK });
-          await Stripe.createPaymentSheet({ paymentIntentClientSecret: data.clientSecret, merchantDisplayName: "Ya Voy Batalla Group", style: "alwaysLight" });
-          const result = await Stripe.presentPaymentSheet();
-          if (result.paymentResult === PaymentSheetEventsEnum.Completed) {
-            setCart([]); setShowCart(false); setNegocioSeleccionado(null);
-            toast.success("¡Pedido enviado! Confirmando pago…"); setTab("pedidos");
-          } else {
-            toast.error("Pago cancelado");
-          }
-        } else {
-          setStripePaymentData({ clientSecret: data.clientSecret, pedidoData: { ...pedidoData, paymentIntentId: data.paymentIntentId }, token: token! });
-          setShowCart(false);
-          setShowStripeModal(true);
-        }
-      } catch (e: any) { toast.error(e.message); }
-      finally { setLoading(false); }
-      return;
-    }
+    // Multi-restaurante: agrupar items por negocioId y crear pedidos separados
+    const grupos = cart.reduce((acc, item) => {
+      if (!acc[item.negocioId]) acc[item.negocioId] = [];
+      acc[item.negocioId].push(item);
+      return acc;
+    }, {} as Record<string, typeof cart>);
+    const negocioIds = Object.keys(grupos);
+    const esMulti = negocioIds.length > 1;
+
+    const envioEfectivo = tipoEntrega === "pickup" ? 0 : costoEnvio;
+    const token = await getToken();
 
     setLoading(true);
     try {
-      const token = await getToken();
-      await crearPedido(pedidoData, token!);
+      for (let i = 0; i < negocioIds.length; i++) {
+        const nid = negocioIds[i];
+        const itemsGrupo = grupos[nid];
+        const subtotalGrupo = itemsGrupo.reduce((s, it) => s + it.precio * it.cantidad, 0);
+        const esPrimero = i === 0;
+        const pedidoData = {
+          clienteId: userId,
+          negocioId: nid,
+          items: itemsGrupo,
+          total: subtotalGrupo + (esPrimero ? envioEfectivo + propina - (cuponAplicado?.descuento || 0) - walletMonto : 0),
+          notas: "",
+          metodoPago,
+          propina: esPrimero ? propina : 0,
+          cuponCodigo: esPrimero ? cuponAplicado?.codigo || null : null,
+          descuentoCupon: esPrimero ? cuponAplicado?.descuento || 0 : 0,
+          costoEnvio: esPrimero ? envioEfectivo : 0,
+          tiempoEstimado,
+          tipoEntrega,
+          programadoPara: programadoPara || null,
+          walletMonto: esPrimero ? walletMonto : 0,
+          latEntrega: direccionPrincipal?.lat || null,
+          lngEntrega: direccionPrincipal?.lng || null,
+          direccionEntrega: tipoEntrega === "pickup" ? "Recoger en tienda" : (direccionPrincipal?.direccion || ""),
+        };
+
+        if (metodoPago === "tarjeta" && pedidoData.total > 0) {
+          const pedido = await crearPedido({ ...pedidoData, status: "pendiente_pago" }, token!) as any;
+          const pedidoId = pedido?.id;
+          const res = await fetch(API + "/api/stripe/payment-intent", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ amount: pedidoData.total, currency: "mxn", costoEnvio: envioEfectivo, metadata: { pedidoId: pedidoId || "" } }),
+          });
+          const data = await res.json();
+          if (!data.clientSecret) throw new Error("No se pudo iniciar el pago");
+          if (Capacitor.isNativePlatform()) {
+            await Stripe.initialize({ publishableKey: STRIPE_PK });
+            await Stripe.createPaymentSheet({ paymentIntentClientSecret: data.clientSecret, merchantDisplayName: "Ya Voy Batalla Group", style: "alwaysLight" });
+            const result = await Stripe.presentPaymentSheet();
+            if (result.paymentResult !== PaymentSheetEventsEnum.Completed) { toast.error("Pago cancelado"); return; }
+          } else {
+            setStripePaymentData({ clientSecret: data.clientSecret, pedidoData: { ...pedidoData, paymentIntentId: data.paymentIntentId }, token: token! });
+            setShowCart(false); setShowStripeModal(true); return;
+          }
+        } else {
+          await crearPedido(pedidoData, token!);
+        }
+      }
+
       hapticSuccess();
       setCart([]); setShowCart(false); setNegocioSeleccionado(null);
-      toast.success("¡Pedido enviado!"); setTab("pedidos");
+      if (esMulti) toast.success(`¡${negocioIds.length} pedidos enviados!`);
+      else if (programadoPara) toast.success("¡Pedido programado para " + programadoPara + "!");
+      else toast.success("¡Pedido enviado!");
+      setTab("pedidos");
     } catch (e: any) { hapticError(); toast.error(e.message); }
     finally { setLoading(false); }
   };
@@ -651,6 +672,7 @@ export default function App() {
             loading={loading}
             negocioId={negocioSeleccionado?.id}
             propina={propina}
+            walletBalance={0}
             onPropinaChange={(p) => { setPropina(p); localStorage.setItem("ya_voy_propina", String(p)); }}
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}
@@ -794,6 +816,8 @@ export default function App() {
               loading={loading}
               favoritos={favoritos}
               favoritosIds={favoritosIds}
+              pedidos={pedidos}
+              userLocation={userLocation}
               onCategoriaChange={setCategoria}
               onSubCategoriaChange={setSubCategoria}
               onOpenNegocio={openNegocio}
@@ -803,7 +827,7 @@ export default function App() {
             /></TabErrorBoundary>
           )}
           {tab === "explorar" && (
-            <TabErrorBoundary><ExplorarTab negocios={negocios} onOpenNegocio={openNegocio} /></TabErrorBoundary>
+            <TabErrorBoundary><ExplorarTab negocios={negocios} userLocation={userLocation} onOpenNegocio={openNegocio} /></TabErrorBoundary>
           )}
           {tab === "pedidos" && (
             <TabErrorBoundary><PedidosTab

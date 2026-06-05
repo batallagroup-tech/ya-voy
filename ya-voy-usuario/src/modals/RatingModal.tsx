@@ -31,12 +31,14 @@ export default function RatingModal({ pedido, onClose }: Props) {
   const [ratingRep, setRatingRep] = useState(0);
   const [fraseRest, setFraseRest] = useState("");
   const [fraseRep, setFraseRep] = useState("");
+  const [comentario, setComentario] = useState("");
 
   const enviar = async () => {
     if (!ratingRest || !ratingRep) { toast.error("Califica ambos para continuar"); return; }
+    const partes = [fraseRest, fraseRep, comentario.trim()].filter(Boolean);
     await fetch(API + "/api/usuario/pedidos/" + pedido.id + "/rating", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rating_restaurante: ratingRest, rating_repartidor: ratingRep, comentario_rating: [fraseRest, fraseRep].filter(Boolean).join(" | ") }),
+      body: JSON.stringify({ rating_restaurante: ratingRest, rating_repartidor: ratingRep, comentario_rating: partes.join(" | ") }),
     });
     toast.success("¡Gracias por tu calificación!");
     onClose();
@@ -77,6 +79,17 @@ export default function RatingModal({ pedido, onClose }: Props) {
             </div>
           );
         })}
+
+        <div>
+          <p className="font-bold text-slate-700 mb-2 text-sm">💬 Comentario (opcional)</p>
+          <textarea
+            value={comentario} onChange={e => setComentario(e.target.value.slice(0, 200))}
+            placeholder="¿Qué tal estuvo? Cuéntanos más..."
+            rows={2}
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm resize-none outline-none focus:border-purple-400 font-medium"
+          />
+          <p className="text-right text-xs text-slate-400 mt-1">{comentario.length}/200</p>
+        </div>
 
         <button onClick={enviar} className="w-full py-4 rounded-2xl text-white font-black text-lg" style={{ background: GRAD }}>
           Enviar calificación

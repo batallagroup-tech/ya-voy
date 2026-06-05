@@ -2,13 +2,17 @@ export const GRAD = "linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 10
 export const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export const STATUS_COLOR: Record<string, string> = {
-  nuevo: "bg-blue-500", preparando: "bg-orange-500", listo: "bg-yellow-500",
-  en_camino: "bg-purple-500", entregado: "bg-green-500", cancelado: "bg-red-500",
+  pendiente_pago: "bg-yellow-400", nuevo: "bg-blue-500", preparando: "bg-orange-500",
+  listo: "bg-yellow-500", en_camino: "bg-purple-500", entregado: "bg-green-500",
+  cancelado: "bg-red-500", pago_fallido: "bg-red-600",
+  programado: "bg-indigo-500", pickup_listo: "bg-teal-500",
 };
 
 export const STATUS_LABEL: Record<string, string> = {
-  nuevo: "Recibido", preparando: "Preparando", listo: "Listo",
-  en_camino: "En camino", entregado: "Entregado", cancelado: "Cancelado",
+  pendiente_pago: "Confirmando pago", nuevo: "Recibido", preparando: "Preparando",
+  listo: "Listo", en_camino: "En camino", entregado: "Entregado",
+  cancelado: "Cancelado", pago_fallido: "Pago fallido",
+  programado: "Programado", pickup_listo: "Listo para recoger",
 };
 
 export interface CartItem {

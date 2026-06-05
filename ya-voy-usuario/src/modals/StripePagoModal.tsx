@@ -45,11 +45,11 @@ export default function StripePagoModal({ clientSecret, pedidoData, token, onSuc
       });
       if (error) { toast.error(error.message || "Error en el pago"); return; }
       if (paymentIntent?.status === "succeeded") {
-        await crearPedido(pedidoData, token);
+        await crearPedido({ ...pedidoData, paymentIntentId: paymentIntent.id }, token);
         toast.success("¡Pago exitoso! Pedido enviado.");
         onSuccess();
       }
-    } catch (e: any) { toast.error(e.message); }
+    } catch { toast.error("Ocurrió un error al procesar el pago. Intenta nuevamente."); }
     finally { setLoading(false); }
   };
 

@@ -34,12 +34,21 @@ function borrarHistorial() { localStorage.removeItem(KEY); }
 
 type FiltroTipo = "todos" | "comida" | "tienda";
 
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 interface Props {
   negocios: Negocio[];
+  userLocation: [number, number] | null;
   onOpenNegocio: (n: Negocio) => void;
 }
 
-export default function ExplorarTab({ negocios, onOpenNegocio }: Props) {
+export default function ExplorarTab({ negocios, userLocation, onOpenNegocio }: Props) {
   const [search, setSearch] = useState("");
   const [historial, setHistorial] = useState<string[]>(getHistorial);
   const [focused, setFocused] = useState(false);
@@ -47,6 +56,7 @@ export default function ExplorarTab({ negocios, onOpenNegocio }: Props) {
   const [buscando, setBuscando] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>("todos");
   const [ordenRating, setOrdenRating] = useState(false);
+  const [ordenDistancia, setOrdenDistancia] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -70,7 +80,15 @@ export default function ExplorarTab({ negocios, onOpenNegocio }: Props) {
 
   const filtrados = base
     .filter(n => filtroTipo === "todos" || n.tipo?.toLowerCase() === filtroTipo)
-    .sort((a, b) => ordenRating ? Number(b.rating || 0) - Number(a.rating || 0) : 0);
+    .sort((a, b) => {
+      if (ordenDistancia && userLocation && a.lat && b.lat) {
+        const da = haversineKm(userLocation[0], userLocation[1], a.lat, a.lng!);
+        const db = haversineKm(userLocation[0], userLocation[1], b.lat, b.lng!);
+        return da - db;
+      }
+      if (ordenRating) return Number(b.rating || 0) - Number(a.rating || 0);
+      return 0;
+    });
 
   const buscar = (q: string) => {
     setSearch(q);
@@ -85,7 +103,7 @@ export default function ExplorarTab({ negocios, onOpenNegocio }: Props) {
 
   const mostrarHistorial = focused && !search && historial.length > 0;
 
-  const hayFiltros = filtroTipo !== "todos" || ordenRating;
+  const hayFiltros = filtroTipo !== "todos" || ordenRating || ordenDistancia;
 
   return (
     <motion.div key="explorar" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
@@ -152,8 +170,17 @@ export default function ExplorarTab({ negocios, onOpenNegocio }: Props) {
           <Star size={11} className={ordenRating ? "fill-white text-white" : "text-slate-400"} />
           Mejor rating
         </button>
+        {userLocation && (
+          <button onClick={() => { setOrdenDistancia(v => !v); if (!ordenDistancia) setOrdenRating(false); }}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-black border transition-all ${
+              ordenDistancia ? "text-white border-transparent" : "border-slate-200 text-slate-500 bg-white"
+            }`}
+            style={ordenDistancia ? { background: GRAD } : {}}>
+            📍 Más cercano
+          </button>
+        )}
         {hayFiltros && (
-          <button onClick={() => { setFiltroTipo("todos"); setOrdenRating(false); }}
+          <button onClick={() => { setFiltroTipo("todos"); setOrdenRating(false); setOrdenDistancia(false); }}
             className="shrink-0 px-3 py-1.5 rounded-full text-xs font-black border border-slate-200 text-slate-400 bg-white flex items-center gap-1">
             <X size={10} /> Limpiar
           </button>
