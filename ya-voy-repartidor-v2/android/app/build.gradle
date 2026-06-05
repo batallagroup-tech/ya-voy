@@ -13,6 +13,8 @@ android {
         applicationId "mx.batallagroup.yavoy.repartidor"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        // VERSIONING: incrementar versionCode con cada subida a Play Store (nunca retroceder)
+        // versionName: seguir semver "MAYOR.MENOR.PARCHE"
         versionCode 1
         versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

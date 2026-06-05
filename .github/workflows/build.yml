@@ -1,0 +1,117 @@
+name: Build Android APK + AAB
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [ya-voy-usuario, ya-voy-restaurante-v2, ya-voy-repartidor-v2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+      - run: npm ci --legacy-peer-deps
+        working-directory: ${{ matrix.app }}
+      - run: npm test
+        working-directory: ${{ matrix.app }}
+
+  build:
+    name: Build ${{ matrix.app }}
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        include:
+          - app: ya-voy-usuario
+            keystore_secret: KEYSTORE_USUARIO
+            key_alias: ya-voy-usuario
+            package: mx.batallagroup.yavoy.usuario
+          - app: ya-voy-restaurante-v2
+            keystore_secret: KEYSTORE_RESTAURANTE
+            key_alias: ya-voy-restaurante
+            package: mx.batallagroup.yavoy.restaurante
+          - app: ya-voy-repartidor-v2
+            keystore_secret: KEYSTORE_REPARTIDOR
+            key_alias: ya-voy-repartidor
+            package: mx.batallagroup.yavoy.repartidor
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+        working-directory: ${{ matrix.app }}
+
+      - name: Build web assets
+        run: npm run build
+        working-directory: ${{ matrix.app }}
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets[format('CLERK_KEY_{0}', matrix.app)] }}
+          VITE_API_URL: ${{ secrets.API_URL }}
+          VITE_CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          VITE_CLOUDINARY_UPLOAD_PRESET: ${{ secrets.CLOUDINARY_UPLOAD_PRESET }}
+          VITE_SENTRY_DSN: ${{ secrets[format('SENTRY_DSN_{0}', matrix.app)] }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          VITE_OCR_KEY: ${{ secrets.OCR_KEY }}
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+        working-directory: ${{ matrix.app }}
+
+      - name: Decode keystore
+        run: echo "${{ secrets[matrix.keystore_secret] }}" | base64 -d > keystore.jks
+        working-directory: ${{ matrix.app }}/android
+
+      - name: Write keystore.properties
+        run: |
+          echo "storeFile=../../android/keystore.jks" > ${{ matrix.app }}/android/keystore.properties
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> ${{ matrix.app }}/android/keystore.properties
+          echo "keyAlias=${{ matrix.key_alias }}" >> ${{ matrix.app }}/android/keystore.properties
+          echo "keyPassword=${{ secrets.KEYSTORE_PASSWORD }}" >> ${{ matrix.app }}/android/keystore.properties
+
+      - name: Build signed APK
+        run: ./gradlew assembleRelease
+        working-directory: ${{ matrix.app }}/android
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+
+      - name: Build signed AAB
+        run: ./gradlew bundleRelease
+        working-directory: ${{ matrix.app }}/android
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-apk
+          path: ${{ matrix.app }}/android/app/build/outputs/apk/release/*.apk
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-aab
+          path: ${{ matrix.app }}/android/app/build/outputs/bundle/release/*.aab

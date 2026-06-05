@@ -2,11 +2,12 @@ import { useEffect } from "react";
 import { motion } from "motion/react";
 import { ShoppingBag } from "lucide-react";
 import { GRAD } from "../lib/constants";
+import { setStatusBarDark } from "../lib/statusBar";
 
 interface Props { onDone: () => void; }
 
 export default function SplashScreen({ onDone }: Props) {
-  useEffect(() => { const t = setTimeout(onDone, 4000); return () => clearTimeout(t); }, [onDone]);
+  useEffect(() => { setStatusBarDark(); const t = setTimeout(onDone, 4000); return () => clearTimeout(t); }, [onDone]);
   return (
     <motion.div initial={{ opacity: 1 }} exit={{ opacity: 0, scale: 1.05 }} transition={{ duration: 0.4 }}
       style={{ background: GRAD }} className="fixed inset-0 flex flex-col items-center justify-center">
@@ -21,7 +22,7 @@ export default function SplashScreen({ onDone }: Props) {
         </div>
       </motion.div>
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.8 }}
-        className="absolute bottom-10 flex flex-col items-center gap-1">
+        className="absolute left-0 right-0 flex flex-col items-center gap-1" style={{ bottom: "calc(env(safe-area-inset-bottom) + 24px)" }}>
         <p className="text-white/50 text-xs tracking-widest uppercase">Desarrollado por</p>
         <p className="text-white/90 text-sm font-black tracking-[0.3em] uppercase">Batalla Group</p>
       </motion.div>

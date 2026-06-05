@@ -1,11 +1,11 @@
-﻿import { useClerk } from "@clerk/clerk-react"
+﻿import { useFirebaseAuth } from "../hooks/useFirebaseAuth"
 import { motion } from "motion/react"
 import { Clock, LogOut } from "lucide-react"
 
 const GRAD = "linear-gradient(135deg, #7B2FF7 0%, #F107A3 50%, #FF6B00 100%)"
 
 export default function PendingReview() {
-  const { signOut } = useClerk()
+  const { signOut } = useFirebaseAuth()
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center p-8 text-white text-center"
       style={{ background: GRAD }}>

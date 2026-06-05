@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { setStatusBarDark } from "../lib/statusBar";
 import { motion, AnimatePresence } from "motion/react";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -41,6 +42,7 @@ interface OnboardingProps {
 }
 
 export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
+  useLayoutEffect(() => { setStatusBarDark(); }, []);
   const [step, setStep] = useState(0);
   const [location, setLocation] = useState<[number,number]>(CENTER);
   const [address, setAddress] = useState("");
@@ -99,7 +101,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex flex-col" style={{ background: GRAD }}>
+      className="fixed inset-0 z-50 flex flex-col" style={{ background: GRAD, paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
 
       {/* Progress */}
       <div className="flex gap-2 px-6 pt-12 pb-4 shrink-0">

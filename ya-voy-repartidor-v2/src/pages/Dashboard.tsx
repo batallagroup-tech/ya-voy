@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 
-import { useClerk, useAuth } from "@clerk/clerk-react"
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth"
 import { useNetworkStatus } from "../hooks/useNetworkStatus"
 
 import { motion, AnimatePresence } from "motion/react"
@@ -14,6 +14,7 @@ import "leaflet/dist/leaflet.css"
 import { Bike, Navigation, Clock, User, LogOut, MapPin, CheckCircle, Package, ChevronRight, TrendingUp, Loader2, X, ChevronLeft, MessageSquare, Send, Camera, Wallet, Phone } from "lucide-react"
 
 import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob"
+import { setStatusBarLight } from "../lib/statusBar"
 import { Browser } from "@capacitor/browser"
 
 import { Toaster, toast } from "sonner"
@@ -359,8 +360,7 @@ function FotoEntregaBtn({ pedidoId, apiUrl, cloudName, uploadPreset }: { pedidoI
 
 export default function Dashboard({ repartidor, userId, user, notifPedidoId, onNotifHandled }: { repartidor: any; userId: string; user: any; notifPedidoId?: string | null; onNotifHandled?: () => void }) {
 
-  const { signOut } = useClerk()
-  const { getToken } = useAuth()
+  const { signOut, getToken } = useFirebaseAuth()
   const isOnline = useNetworkStatus()
 
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1")
@@ -777,7 +777,22 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
 
   const ADMOB_BANNER_ID = "ca-app-pub-3849768825456219/4691773250"
 
-  useEffect(() => { AdMob.initialize().catch(() => {}) }, [])
+  useEffect(() => { AdMob.initialize().catch(() => {}); setStatusBarLight() }, [])
+
+  // ── Android back button ───────────────────────────────────────────────────
+  useEffect(() => {
+    const handleBack = () => {
+      if (showContingencia)  { setShowContingencia(null); return; }
+      if (showLogoutConfirm) { setShowLogoutConfirm(false); return; }
+      if (showRatings)       { setShowRatings(false); return; }
+      if (showChat)          { setShowChat(null); return; }
+      if (confirmando)       { setConfirmando(null); return; }
+      if (pedidoSeleccionado) { setPedidoSeleccionado(null); return; }
+      (navigator as any).app?.exitApp?.();
+    };
+    document.addEventListener("backbutton", handleBack);
+    return () => document.removeEventListener("backbutton", handleBack);
+  }, [showContingencia, showLogoutConfirm, showRatings, showChat, confirmando, pedidoSeleccionado]);
 
   useEffect(() => {
 
@@ -1155,7 +1170,7 @@ export default function Dashboard({ repartidor, userId, user, notifPedidoId, onN
         </div>
       )}
 
-      <div className="sticky top-0 z-40 text-white px-4 py-3 flex items-center justify-between" style={{ background: GRAD }}>
+      <div className="sticky top-0 z-40 text-white px-4 py-3 flex items-center justify-between" style={{ background: GRAD, paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
 
         <div className="flex items-center gap-3">
 

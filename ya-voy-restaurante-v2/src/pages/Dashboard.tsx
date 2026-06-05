@@ -1,7 +1,8 @@
 import { toast } from 'sonner'
+import { setStatusBarLight } from '../lib/statusBar';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useClerk, useAuth } from '@clerk/clerk-react';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import {
   LayoutDashboard, ShoppingBag, Utensils, TrendingUp, Tag, Bike,
   Settings, LogOut, Plus, Edit2, Trash2, X,
@@ -20,8 +21,7 @@ const CATEGORIES = ['Tacos','Hamburguesas','Pizza','Sushi','Postres','Bebidas','
 interface Props { negocio: any; notifPedidoId?: string | null; onNotifHandled?: () => void; }
 
 export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNotifHandled }: Props) {
-  const { signOut } = useClerk();
-  const { getToken } = useAuth();
+  const { signOut, getToken } = useFirebaseAuth();
   const isOnline = useNetworkStatus();
   const authFetch = async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
     const token = await getToken();
@@ -79,6 +79,24 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
     setTab('orders');
     onNotifHandled?.();
   }, [notifPedidoId]);
+
+  useEffect(() => { setStatusBarLight(); }, []);
+
+  // ── Android back button ───────────────────────────────────────────────────
+  useEffect(() => {
+    const handleBack = () => {
+      if (showProductForm || editingProduct) { setShowProductForm(false); setEditingProduct(null); return; }
+      if (cancelando)         { setCancelando(null); return; }
+      if (confirmandoPedido)  { setConfirmandoPedido(null); return; }
+      if (rechazandoPedido)   { setRechazandoPedido(null); return; }
+      if (showRatings)        { setShowRatings(false); return; }
+      if (editingProfile)     { setEditingProfile(false); return; }
+      if (showLogoutConfirm)  { setShowLogoutConfirm(false); return; }
+      (navigator as any).app?.exitApp?.();
+    };
+    document.addEventListener("backbutton", handleBack);
+    return () => document.removeEventListener("backbutton", handleBack);
+  }, [showProductForm, editingProduct, cancelando, confirmandoPedido, rechazandoPedido, showRatings, editingProfile, showLogoutConfirm]);
 
   const playBeep = () => {
     try {
@@ -307,7 +325,7 @@ export default function Dashboard({ negocio: initialNegocio, notifPedidoId, onNo
           📵 Sin conexión — revisa tu internet
         </div>
       )}
-      <div className="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
+      <div className="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between sticky top-0 z-40" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-[#FF6B00] rounded-xl flex items-center justify-center">
             <Utensils size={18} className="text-white" />

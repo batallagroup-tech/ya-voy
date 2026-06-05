@@ -1,78 +1,87 @@
-import { useState } from "react";
-import { useSignIn } from "@clerk/clerk-react";
+import { useState, useEffect } from "react";
+import { signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, signInWithCredential } from "firebase/auth";
+import { Capacitor } from "@capacitor/core";
+import { auth } from "../lib/firebase";
+import { setStatusBarDark } from "../lib/statusBar";
 import { AnimatePresence, motion } from "motion/react";
 import { ShoppingBag, Mail, ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { GRAD } from "../lib/constants";
 
-type Mode = "selection" | "email" | "reset_request" | "reset_code";
+type Mode = "selection" | "email" | "reset_request";
+
+function mapError(code: string): string {
+  switch (code) {
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+    case "auth/invalid-credential": return "Correo o contraseña incorrectos.";
+    case "auth/invalid-email": return "Correo inválido.";
+    case "auth/too-many-requests": return "Demasiados intentos. Intenta más tarde.";
+    case "auth/network-request-failed": return "Error de conexión. Verifica tu internet.";
+    default: return "Error al iniciar sesión.";
+  }
+}
+
+async function googleSignIn() {
+  if (Capacitor.isNativePlatform()) {
+    const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+    const result = await FirebaseAuthentication.signInWithGoogle();
+    const credential = GoogleAuthProvider.credential(result.credential?.idToken);
+    return signInWithCredential(auth, credential);
+  }
+  return signInWithPopup(auth, new GoogleAuthProvider());
+}
 
 export default function LoginScreen() {
-  const { signIn, isLoaded } = useSignIn();
   const [mode, setMode] = useState<Mode>("selection");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resetCode, setResetCode] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [showNewPw, setShowNewPw] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
-  const go = (m: Mode) => { setMode(m); setError(""); };
+  useEffect(() => { setStatusBarDark(); }, []);
+  const go = (m: Mode) => { setMode(m); setError(""); setResetSent(false); };
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
     setLoading(true); setError("");
     try {
-      const r = await signIn!.create({ identifier: email, password });
-      if (r.status === "complete") window.location.reload();
+      await signInWithEmailAndPassword(auth, email, password);
+      window.location.reload();
     } catch (err: any) {
-      setError(err.errors?.[0]?.message || "Correo o contraseña incorrectos.");
+      setError(mapError(err.code));
     } finally { setLoading(false); }
   };
 
   const handleGoogle = async () => {
-    if (!isLoaded) return;
-    await signIn!.authenticateWithRedirect({
-      strategy: "oauth_google",
-      redirectUrl: window.location.origin + "/sso-callback",
-      redirectUrlComplete: window.location.origin + "/",
-    });
+    setLoading(true); setError("");
+    try {
+      await googleSignIn();
+      window.location.reload();
+    } catch (err: any) {
+      if (err.code !== "auth/popup-closed-by-user" && err.code !== "auth/cancelled-popup-request") {
+        setError("No se pudo iniciar sesión con Google.");
+      }
+    } finally { setLoading(false); }
   };
 
   const handleRequestReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded || !email) return;
+    if (!email) return;
     setLoading(true); setError("");
     try {
-      await signIn!.create({ strategy: "reset_password_email_code", identifier: email });
-      go("reset_code");
+      await sendPasswordResetEmail(auth, email);
+      setResetSent(true);
     } catch (err: any) {
-      setError(err.errors?.[0]?.message || "No encontramos esa cuenta.");
-    } finally { setLoading(false); }
-  };
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isLoaded || !resetCode || !newPassword) return;
-    setLoading(true); setError("");
-    try {
-      const r = await signIn!.attemptFirstFactor({
-        strategy: "reset_password_email_code",
-        code: resetCode,
-        password: newPassword,
-      } as any);
-      if (r.status === "complete") window.location.reload();
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message || "Código incorrecto o contraseña inválida.");
+      setError(mapError(err.code) || "No encontramos esa cuenta.");
     } finally { setLoading(false); }
   };
 
   const input = "w-full px-4 py-4 rounded-2xl bg-white/20 text-white placeholder-white/50 border border-white/30 outline-none focus:border-white font-medium";
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6" style={{ background: GRAD }}>
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6" style={{ background: GRAD, paddingTop: "calc(env(safe-area-inset-top) + 24px)", paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}>
       <AnimatePresence mode="wait">
 
         {mode === "selection" && (
@@ -89,9 +98,11 @@ export default function LoginScreen() {
               </div>
             </div>
             <div className="w-full flex flex-col gap-3 mt-4">
-              <button onClick={handleGoogle}
-                className="w-full bg-white text-purple-600 font-bold py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl hover:bg-purple-50 transition-all">
-                <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#6C3CE1" d="M44.5 20H24v8.5h11.8C34.7 33.9 29.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" /></svg>
+              <button onClick={handleGoogle} disabled={loading}
+                className="w-full bg-white text-purple-600 font-bold py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl hover:bg-purple-50 transition-all disabled:opacity-60">
+                {loading ? <Loader2 className="animate-spin" size={20} /> : (
+                  <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#6C3CE1" d="M44.5 20H24v8.5h11.8C34.7 33.9 29.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" /></svg>
+                )}
                 Continuar con Google
               </button>
               <button onClick={() => go("email")}
@@ -99,6 +110,7 @@ export default function LoginScreen() {
                 <Mail size={20} /> Continuar con correo
               </button>
             </div>
+            {error && <p className="text-white bg-white/20 rounded-xl px-4 py-3 text-sm font-medium text-center">{error}</p>}
             <p className="text-white/30 text-xs text-center">
               Al continuar, aceptas nuestros{" "}
               <a href="https://batallagroup-tech.github.io/ya-voy/terminos" target="_blank" rel="noopener noreferrer" className="underline text-white/50">Términos y Condiciones</a>
@@ -146,52 +158,33 @@ export default function LoginScreen() {
               <ArrowLeft size={18} /> Volver
             </button>
             <h2 className="text-2xl font-black text-white mb-2">Recuperar contraseña</h2>
-            <p className="text-white/60 text-sm mb-6">Te enviaremos un código a tu correo.</p>
-            <form onSubmit={handleRequestReset} className="flex flex-col gap-4">
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                placeholder="Correo electrónico" className={input} />
-              {error && <p className="text-white bg-white/20 rounded-xl px-4 py-3 text-sm font-medium">{error}</p>}
-              <button type="submit" disabled={loading || !email}
-                className="w-full bg-white text-purple-600 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl hover:bg-purple-50 transition-all disabled:opacity-60">
-                {loading && <Loader2 className="animate-spin" size={20} />}
-                Enviar código
-              </button>
-            </form>
-          </motion.div>
-        )}
-
-        {mode === "reset_code" && (
-          <motion.div key="reset_code" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3 }} className="w-full max-w-xs">
-            <button onClick={() => go("reset_request")} className="mb-6 text-white/70 flex items-center gap-2 hover:text-white">
-              <ArrowLeft size={18} /> Volver
-            </button>
-            <h2 className="text-2xl font-black text-white mb-2">Nueva contraseña</h2>
-            <p className="text-white/60 text-sm mb-6">Ingresa el código que enviamos a <span className="text-white font-bold">{email}</span></p>
-            <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
-              <input type="text" value={resetCode} onChange={e => setResetCode(e.target.value)} required
-                placeholder="Código de 6 dígitos" inputMode="numeric" maxLength={6}
-                className={input + " tracking-[0.5em] text-center text-xl font-black"} />
-              <div className="relative">
-                <input type={showNewPw ? "text" : "password"} value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)} required placeholder="Nueva contraseña"
-                  className={input} />
-                <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60">
-                  {showNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
+            {resetSent ? (
+              <div className="flex flex-col gap-4">
+                <p className="text-white/80 text-sm">Revisá tu correo <span className="text-white font-bold">{email}</span> — te enviamos un link para restablecer tu contraseña.</p>
+                <button onClick={() => go("selection")}
+                  className="w-full bg-white text-purple-600 font-black py-4 rounded-2xl flex items-center justify-center shadow-xl hover:bg-purple-50 transition-all">
+                  Volver al inicio
                 </button>
               </div>
-              {error && <p className="text-white bg-white/20 rounded-xl px-4 py-3 text-sm font-medium">{error}</p>}
-              <button type="submit" disabled={loading || !resetCode || !newPassword}
-                className="w-full bg-white text-purple-600 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl hover:bg-purple-50 transition-all disabled:opacity-60">
-                {loading && <Loader2 className="animate-spin" size={20} />}
-                Cambiar contraseña
-              </button>
-            </form>
+            ) : (
+              <>
+                <p className="text-white/60 text-sm mb-6">Te enviaremos un link a tu correo.</p>
+                <form onSubmit={handleRequestReset} className="flex flex-col gap-4">
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                    placeholder="Correo electrónico" className={input} />
+                  {error && <p className="text-white bg-white/20 rounded-xl px-4 py-3 text-sm font-medium">{error}</p>}
+                  <button type="submit" disabled={loading || !email}
+                    className="w-full bg-white text-purple-600 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl hover:bg-purple-50 transition-all disabled:opacity-60">
+                    {loading && <Loader2 className="animate-spin" size={20} />}
+                    Enviar link
+                  </button>
+                </form>
+              </>
+            )}
           </motion.div>
         )}
 
       </AnimatePresence>
-      <div id="clerk-captcha" className="hidden" />
       <p className="absolute bottom-6 text-white/30 text-xs">Desarrollado por Batalla Group</p>
     </div>
   );

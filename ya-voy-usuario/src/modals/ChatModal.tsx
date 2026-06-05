@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { motion } from "motion/react";
 import { X, MessageSquare, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function ChatModal({ pedidoId, userId, onClose, onMensajesLeidos }: Props) {
-  const { getToken } = useAuth();
+  const { getToken } = useFirebaseAuth();
   const [mensajes, setMensajes] = useState<any[]>([]);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);

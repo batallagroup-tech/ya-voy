@@ -1,11 +1,11 @@
 ﻿import { motion } from 'motion/react';
 import { XCircle, AlertCircle, RefreshCw, Mail } from 'lucide-react';
-import { useClerk } from '@clerk/clerk-react';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 
 interface Props { reason?: string; onReapply: () => void; }
 
 export default function Rejected({ reason, onReapply }: Props) {
-  const { signOut } = useClerk();
+  const { signOut } = useFirebaseAuth();
   return (
     <div className="min-h-[100dvh] bg-red-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}

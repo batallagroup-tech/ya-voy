@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { motion } from "motion/react";
 import { MapPin, Banknote, CreditCard, Bell, HelpCircle, FileText, ChevronRight, LogOut, Trash2, User, Camera, Loader2, Wallet, Star, Share2 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,7 +23,7 @@ interface Props {
 }
 
 export default function PerfilTab({ userId, user, fotoPerfil, direcciones, tarjetas, metodoPago, onMetodoPagoChange, onFotoChange, onShowDirecciones, onShowTarjetas, onShowSoporte, onShowDeleteConfirm, onSignOut }: Props) {
-  const { getToken } = useAuth();
+  const { getToken } = useFirebaseAuth();
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const [notificaciones, setNotificaciones] = useState(() => localStorage.getItem("ya_voy_notif") !== "0");
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1");

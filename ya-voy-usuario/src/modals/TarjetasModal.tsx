@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { motion } from "motion/react";
 import { X, CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export default function TarjetasModal({ userId, userEmail, userName, tarjetas, onTarjetasUpdate, onClose }: Props) {
-  const { getToken } = useAuth();
+  const { getToken } = useFirebaseAuth();
   const [loading, setLoading] = useState(false);
   const [showAgregar, setShowAgregar] = useState(false);
   const [setupClientSecret, setSetupClientSecret] = useState("");

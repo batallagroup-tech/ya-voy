@@ -7,12 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:659976052588:android:07d2f7b5baf4fa056ddd49",
+        "mobilesdk_app_id": "1:659976052588:android:5ec98c32f4f02e086ddd49",
         "android_client_info": {
-          "package_name": "mx.batallagroup.yavoy.restaurante"
+          "package_name": "mx.batallagroup.yavoy.repartidor"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBEWz3RpoOx_QIpocR52ymO325E_wSThfE"
@@ -20,7 +25,41 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659976052588:android:07d2f7b5baf4fa056ddd49",
+        "android_client_info": {
+          "package_name": "mx.batallagroup.yavoy.restaurante"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEWz3RpoOx_QIpocR52ymO325E_wSThfE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     },
@@ -31,7 +70,12 @@
           "package_name": "mx.batallagroup.yavoy.usuario"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBEWz3RpoOx_QIpocR52ymO325E_wSThfE"
@@ -39,7 +83,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

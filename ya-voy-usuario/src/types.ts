@@ -14,6 +14,7 @@ export interface Negocio {
   bloqueado?: boolean;
   tiempo_estimado?: string;
   owner_id?: string;
+  costo_envio_base?: number;
 }
 
 export interface OpcionItem {

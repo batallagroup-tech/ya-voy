@@ -1,12 +1,11 @@
 ﻿import { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
-import { useClerk, useAuth } from '@clerk/clerk-react';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { getSolicitud } from '../lib/api';
 
 export default function PendingReview() {
-  const { signOut } = useClerk();
-  const { userId } = useAuth();
+  const { signOut, userId } = useFirebaseAuth();
 
   useEffect(() => {
     if (!userId) return;

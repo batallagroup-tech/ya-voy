@@ -226,7 +226,7 @@ export default function HomeTab({ categoria, subCategoria, negocios, productosFe
                     <p className="text-xs text-slate-400 truncate">{p.negocio_nombre}</p>
                     <p className="font-black text-base mt-0.5" style={{ color: "#6C3CE1" }}>${Number(p.precio).toFixed(2)}</p>
                   </div>
-                  <button onClick={e => { e.stopPropagation(); if (!p.agotado) onAddToCart({ id: p.id, nombre: p.nombre, precio: p.precio, negocioId: p.negocio_id }); }}
+                  <button onClick={e => { e.stopPropagation(); if (!p.agotado) onAddToCart(p); }}
                     disabled={p.agotado}
                     className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white disabled:opacity-30" style={{ background: GRAD }}>
                     <Plus size={16} />

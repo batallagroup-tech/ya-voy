@@ -1,12 +1,14 @@
 import { Toaster } from 'sonner'
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { useAuth, useUser, useClerk, AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
+import { useFirebaseAuth } from './hooks/useFirebaseAuth';
 import { AnimatePresence } from 'motion/react';
 import { Loader2 } from 'lucide-react';
 import SplashScreen from './components/SplashScreen';
 import ServerWarmup from './components/ServerWarmup';
 import { syncUsuario, getSolicitud, getNegocio, API } from './lib/api';
 import { usePushNotifications } from './hooks/usePushNotifications'
+import { useNetworkStatus } from './hooks/useNetworkStatus'
+import { logEvent } from './lib/analytics'
 
 const Login           = lazy(() => import('./pages/Login'));
 const RestaurantSetup = lazy(() => import('./pages/RestaurantSetup'));
@@ -17,11 +19,9 @@ const Dashboard       = lazy(() => import('./pages/Dashboard'));
 type AppStatus = 'loading' | 'setup' | 'pendiente' | 'rechazado' | 'aprobado';
 
 export default function App() {
-  const { isLoaded, isSignedIn, userId, getToken } = useAuth();
-  const { user } = useUser()
+  const { isLoaded, isSignedIn, userId, getToken, user, signOut } = useFirebaseAuth();
   const [notifPedidoId, setNotifPedidoId] = useState<string | null>(null);
   usePushNotifications({ userId, getToken, onNotification: (data) => { if (data?.pedidoId) setNotifPedidoId(data.pedidoId); } });
-  const { signOut } = useClerk();
   const [showSplash, setShowSplash] = useState(true)
   const [status, setStatus] = useState<AppStatus>('loading');
   const [solicitudData, setSolicitudData] = useState<any>(null);
@@ -30,6 +30,7 @@ export default function App() {
   const [duplicadoCuenta, setDuplicadoCuenta] = useState<any>(null);
   const [fusionarLoading, setFusionarLoading] = useState(false);
   const [fusionarError, setFusionarError] = useState('');
+  const isOnline = useNetworkStatus();
 
   const handleFusionar = async () => {
     if (!duplicadoCuenta) return;
@@ -66,14 +67,17 @@ export default function App() {
         if (negocio) {
           setNegocioData(negocio);
           setStatus('aprobado');
+          logEvent('restaurante_aprobado', { userId });
           return;
         }
         const solicitud: any = await getSolicitud(userId).catch(() => null);
         if (solicitud) {
           setSolicitudData(solicitud);
           setStatus(solicitud.status);
+          logEvent('restaurante_status', { status: solicitud.status, userId });
         } else {
           setStatus('setup');
+          logEvent('restaurante_setup_inicio', { userId });
         }
       } catch {
         setStatus('setup');
@@ -102,7 +106,6 @@ export default function App() {
     );
   }
 
-  if (window.location.pathname === '/sso-callback') return <><ServerWarmup /><AuthenticateWithRedirectCallback /></>;
 
   const spinner = (
     <div className="min-h-[100dvh] bg-slate-50 flex items-center justify-center">
@@ -165,8 +168,15 @@ export default function App() {
     </>
   );
 
+  const offlineBanner = !isOnline ? (
+    <div className="fixed top-0 left-0 right-0 z-[100] bg-slate-800 text-white text-center text-xs font-bold py-2 flex items-center justify-center gap-2">
+      <span>📵</span> Sin conexión — revisa tu internet
+    </div>
+  ) : null;
+
   if (status === 'aprobado') return (
     <>
+      {offlineBanner}
       {fusionarModal}
       <Suspense fallback={spinner}><Dashboard negocio={negocioData} notifPedidoId={notifPedidoId} onNotifHandled={() => setNotifPedidoId(null)} /></Suspense>
     </>
@@ -174,6 +184,7 @@ export default function App() {
 
   return (
     <>
+      {offlineBanner}
       {fusionarModal}
       <Suspense fallback={spinner}>
         <div className="relative">
@@ -184,7 +195,7 @@ export default function App() {
             Cerrar sesion
           </button>
           <RestaurantSetup
-            userId={userId}
+            userId={userId ?? ''}
             userEmail={user?.primaryEmailAddress?.emailAddress ?? ''}
             initialData={isReapplying ? solicitudData : null}
             onSubmit={() => setStatus('pendiente')}

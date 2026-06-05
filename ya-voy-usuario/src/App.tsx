@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
-import { useAuth, useUser, useClerk, AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
+import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { AnimatePresence } from "motion/react";
 import { ShoppingBag, Search, Clock, User, MapPin, ChevronDown, ShoppingCart, Loader2 } from "lucide-react";
 import { Toaster, toast } from "sonner";
@@ -7,8 +7,11 @@ import { Stripe, PaymentSheetEventsEnum } from "@capacitor-community/stripe";
 import { Capacitor } from "@capacitor/core";
 import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob";
 import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed, getFavoritos, addFavorito, removeFavorito } from "./lib/api";
+import { logEvent } from "./lib/analytics";
+import { setStatusBarLight, setStatusBarDark } from "./lib/statusBar";
 import { hapticSuccess, hapticError, hapticLight } from "./lib/haptics";
 import { GRAD, API } from "./lib/constants";
+import { auth } from "./lib/firebase";
 import type { CartItem } from "./lib/constants";
 import type { Negocio, Producto, Pedido, AppConfig } from "./types";
 
@@ -53,10 +56,8 @@ const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "";
 const ADMOB_BANNER_ID = "ca-app-pub-3849768825456219/7317936592";
 
 export default function App() {
-  const { isLoaded, isSignedIn, userId, getToken } = useAuth();
+  const { isLoaded, isSignedIn, userId, getToken, user, signOut } = useFirebaseAuth();
   const isOnline = useNetworkStatus();
-  const { user } = useUser();
-  const { signOut } = useClerk();
   usePushNotifications({
     userId,
     getToken,
@@ -205,7 +206,32 @@ export default function App() {
   useEffect(() => {
     const dark = localStorage.getItem("ya_voy_dark") === "1";
     document.documentElement.classList.toggle("dark", dark);
+    setStatusBarLight();
   }, []);
+
+  // ── Android back button ───────────────────────────────────────────────────
+  useEffect(() => {
+    const handleBack = () => {
+      if (showDeleteConfirm) { setShowDeleteConfirm(false); return; }
+      if (showCancelar)      { setShowCancelar(false); return; }
+      if (showRating)        { setShowRating(false); return; }
+      if (showSoporte)       { setShowSoporte(false); return; }
+      if (showTarjetas)      { setShowTarjetas(false); return; }
+      if (showChatPedido)    { setShowChatPedido(null); return; }
+      if (showStripeModal)   { setShowStripeModal(false); setStripePaymentData(null); return; }
+      if (pedidoDetalle)     { setPedidoDetalle(null); return; }
+      if (productoSeleccionado) { setProductoSeleccionado(null); return; }
+      if (showCart)          { setShowCart(false); return; }
+      if (negocioSeleccionado) { setNegocioSeleccionado(null); return; }
+      if (tab !== "home")    { setTab("home"); return; }
+      // En home sin nada abierto: salir de la app
+      (navigator as any).app?.exitApp?.();
+    };
+    document.addEventListener("backbutton", handleBack);
+    return () => document.removeEventListener("backbutton", handleBack);
+  }, [showDeleteConfirm, showCancelar, showRating, showSoporte, showTarjetas,
+      showChatPedido, showStripeModal, pedidoDetalle, productoSeleccionado,
+      showCart, negocioSeleccionado, tab]);
 
   // ── AdMob ─────────────────────────────────────────────────────────────────
   useEffect(() => { AdMob.initialize().catch(() => {}); }, []);
@@ -499,6 +525,7 @@ export default function App() {
       }
 
       hapticSuccess();
+      logEvent("pedido_creado", { esMulti, programado: !!programadoPara, wallet: walletMonto > 0 });
       setCart([]); setShowCart(false); setNegocioSeleccionado(null);
       // Recargar wallet por si se usó saldo
       getToken().then(tok => { if (tok) fetch(API + "/api/usuario/wallet/" + userId, { headers: { Authorization: "Bearer " + tok } }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {}); });
@@ -581,7 +608,7 @@ export default function App() {
         toast.error(d.error || "No se pudo eliminar la cuenta");
         return;
       }
-      await user?.delete();
+      await auth.currentUser?.delete();
       localStorage.clear();
       setShowDeleteConfirm(false);
     } catch {
@@ -597,7 +624,6 @@ export default function App() {
   };
 
   // ── Routing / early returns ───────────────────────────────────────────────
-  if (window.location.pathname === "/sso-callback") return <AuthenticateWithRedirectCallback />;
   if (showSplash) return <AnimatePresence><SplashScreen onDone={() => setShowSplash(false)} /></AnimatePresence>;
   if (!isLoaded || !isSignedIn) return <LoginScreen />;
   if (showOnboarding) return <AnimatePresence><OnboardingFlow userName={user?.firstName || "amigo"} onDone={handleOnboardingDone} /></AnimatePresence>;
@@ -781,7 +807,7 @@ export default function App() {
       </Suspense>
 
       {/* HEADER */}
-      <div className="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 py-3">
+      <div className="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 py-3" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
         <div className="flex items-center justify-between">
           <button onClick={() => setShowDirecciones(true)} className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: GRAD }}>

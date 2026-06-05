@@ -136,7 +136,7 @@ export default function PedidoDetalle({ pedido, codigoConfirmado, repUbicacion, 
           <div className="border-t border-slate-100 mt-3 pt-3 space-y-1">
             {pedido.costo_envio != null && !esPickup && <div className="flex justify-between text-sm text-slate-500"><span>Envío</span><span>${Number(pedido.costo_envio).toFixed(2)}</span></div>}
             {esPickup && <div className="flex justify-between text-sm text-teal-600 font-bold"><span>Envío</span><span>Gratis (recoger)</span></div>}
-            {pedido.propina > 0 && <div className="flex justify-between text-sm text-slate-500"><span>Propina</span><span>${Number(pedido.propina).toFixed(2)}</span></div>}
+            {(pedido.propina ?? 0) > 0 && <div className="flex justify-between text-sm text-slate-500"><span>Propina</span><span>${Number(pedido.propina).toFixed(2)}</span></div>}
             <div className="flex justify-between font-black text-slate-900 text-base mt-1"><span>Total</span><span>${Number(pedido.total).toFixed(2)}</span></div>
           </div>
         </div>
