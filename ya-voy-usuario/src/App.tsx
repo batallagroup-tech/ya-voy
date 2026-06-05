@@ -116,6 +116,7 @@ export default function App() {
 
   // Profile
   const [fotoPerfil, setFotoPerfil] = useState("");
+  const [walletBalance, setWalletBalance] = useState(0);
 
   // Location
   const [userLocation, setUserLocation] = useState<[number, number] | null>(() => {
@@ -176,7 +177,11 @@ export default function App() {
     syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress?.split("@")[0] || "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }).catch(() => {});
     fetch(API + "/api/usuario/perfil/" + userId).then(r => r.json()).then(d => { if (d.foto_perfil) setFotoPerfil(d.foto_perfil); }).catch(() => {});
     fetch(API + "/api/config").then(r => r.json()).then(d => setAppConfig(d)).catch(() => {});
-    getToken().then(token => { if (token) getFavoritos(userId, token).then(data => { setFavoritos(data); setFavoritosIds(new Set(data.map((n: Negocio) => n.id))); }).catch(() => {}); });
+    getToken().then(token => {
+      if (!token) return;
+      getFavoritos(userId, token).then(data => { setFavoritos(data); setFavoritosIds(new Set(data.map((n: Negocio) => n.id))); }).catch(() => {});
+      fetch(API + "/api/usuario/wallet/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {});
+    });
     if (!localStorage.getItem("ya_voy_onboarding_done")) {
       setShowOnboarding(true);
     } else {
@@ -495,6 +500,8 @@ export default function App() {
 
       hapticSuccess();
       setCart([]); setShowCart(false); setNegocioSeleccionado(null);
+      // Recargar wallet por si se usó saldo
+      getToken().then(tok => { if (tok) fetch(API + "/api/usuario/wallet/" + userId, { headers: { Authorization: "Bearer " + tok } }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {}); });
       if (esMulti) toast.success(`¡${negocioIds.length} pedidos enviados!`);
       else if (programadoPara) toast.success("¡Pedido programado para " + programadoPara + "!");
       else toast.success("¡Pedido enviado!");
@@ -672,7 +679,7 @@ export default function App() {
             loading={loading}
             negocioId={negocioSeleccionado?.id}
             propina={propina}
-            walletBalance={0}
+            walletBalance={walletBalance}
             onPropinaChange={(p) => { setPropina(p); localStorage.setItem("ya_voy_propina", String(p)); }}
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}

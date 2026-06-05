@@ -24,6 +24,7 @@ async function uploadCloudinary(file: File | string): Promise<string> {
 }
 
 async function ocrINE(file: File): Promise<string> {
+  if (!OCR_KEY) return ""
   const fd = new FormData()
   fd.append("file", file)
   fd.append("language", "spa")
