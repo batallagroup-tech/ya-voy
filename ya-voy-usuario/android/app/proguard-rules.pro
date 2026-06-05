@@ -13,6 +13,9 @@
 -keep class com.google.android.gms.** { *; }
 -dontwarn com.google.firebase.ktx.Firebase
 
+# Facebook SDK (opcional en @capacitor-firebase/authentication, no lo usamos)
+-dontwarn com.facebook.**
+
 # Stripe
 -keep class com.stripe.** { *; }
 
