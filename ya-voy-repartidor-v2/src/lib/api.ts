@@ -21,11 +21,11 @@ async function apiFetch(path: string, opts?: RequestInit, token?: string | null)
   }
 }
 
-export const syncUsuario = (body: any) =>
-  apiFetch("/api/auth/sync", { method: "POST", body: JSON.stringify(body) })
+export const syncUsuario = (body: any, token: string) =>
+  apiFetch("/api/auth/sync", { method: "POST", body: JSON.stringify(body) }, token)
 
-export const getRepartidor = (userId: string) =>
-  apiFetch(`/api/repartidor/perfil/${userId}`)
+export const getRepartidor = (userId: string, token: string) =>
+  apiFetch(`/api/repartidor/perfil/${userId}`, undefined, token)
 
 export const getSolicitudRepartidor = (userId: string) =>
   apiFetch(`/api/repartidor/solicitud/${userId}`)

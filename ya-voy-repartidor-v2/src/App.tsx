@@ -61,16 +61,17 @@ export default function App() {
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId || !user) return
     const init = async () => {
+      const token = await getToken().catch(() => null);
       try {
         await syncUsuario({
           userId, rol: "repartidor",
           email: user.primaryEmailAddress?.emailAddress ?? "",
           nombre: user.fullName ?? "",
           fotoUrl: user.imageUrl ?? "",
-        })
+        }, token ?? "")
       } catch {}
       try {
-        const rep: any = await getRepartidor(userId).catch(() => null)
+        const rep: any = await getRepartidor(userId, token ?? "").catch(() => null)
         if (rep) { setRepartidorData(rep); setStatus("aprobado"); logEvent("repartidor_aprobado", { userId }); return }
         const sol: any = await getSolicitudRepartidor(userId).catch(() => null)
         if (sol) { setSolicitudData(sol); setStatus(sol.status); logEvent("repartidor_status", { status: sol.status, userId }) }

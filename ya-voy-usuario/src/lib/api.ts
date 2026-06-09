@@ -12,8 +12,8 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   return res.json();
 }
 
-export const syncUsuario = (data: any) =>
-  apiFetch("/api/auth/sync", { method: "POST", body: JSON.stringify(data) });
+export const syncUsuario = (data: any, token: string) =>
+  apiFetch("/api/auth/sync", { method: "POST", body: JSON.stringify(data), headers: { Authorization: "Bearer " + token } });
 
 export const getProductosFeed = () => apiFetch("/api/usuario/productos/feed");
 export const getNegocios = (lat?: number, lng?: number) => apiFetch(`/api/usuario/negocios${lat && lng ? "?lat=" + lat + "&lng=" + lng : ""}`);

@@ -55,13 +55,14 @@ export default function App() {
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId || !user) return;
     const init = async () => {
+      const token = await getToken().catch(() => null);
       try { await syncUsuario({
         userId,
         email: user.primaryEmailAddress?.emailAddress ?? '',
         nombre: user.fullName ?? '',
         fotoUrl: user.imageUrl ?? '',
         rol: 'negocio',
-      }); } catch {}
+      }, token ?? ''); } catch {}
       try {
         const negocio: any = await getNegocio(userId).catch(() => null);
         if (negocio) {

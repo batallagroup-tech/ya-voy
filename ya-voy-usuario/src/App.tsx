@@ -175,11 +175,11 @@ export default function App() {
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId || !user) return;
-    syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress?.split("@")[0] || "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }).catch(() => {});
-    fetch(API + "/api/usuario/perfil/" + userId).then(r => r.json()).then(d => { if (d.foto_perfil) setFotoPerfil(d.foto_perfil); }).catch(() => {});
     fetch(API + "/api/config").then(r => r.json()).then(d => setAppConfig(d)).catch(() => {});
     getToken().then(token => {
       if (!token) return;
+      syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress?.split("@")[0] || "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }, token).catch(() => {});
+      fetch(API + "/api/usuario/perfil/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => { if (d.foto_perfil) setFotoPerfil(d.foto_perfil); }).catch(() => {});
       getFavoritos(userId, token).then(data => { setFavoritos(data); setFavoritosIds(new Set(data.map((n: Negocio) => n.id))); }).catch(() => {});
       fetch(API + "/api/usuario/wallet/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {});
     });

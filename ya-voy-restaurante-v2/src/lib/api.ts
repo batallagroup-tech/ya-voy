@@ -25,7 +25,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}, token
   }
 }
 
-export const syncUsuario = (data: any) => apiFetch('/api/auth/sync', { method: 'POST', body: JSON.stringify(data) });
+export const syncUsuario = (data: any, token: string) => apiFetch('/api/auth/sync', { method: 'POST', body: JSON.stringify(data) }, token);
 export const getSolicitud = (userId: string) => apiFetch(`/api/negocios/solicitud/${userId}`);
 export const getNegocio  = (userId: string) => apiFetch(`/api/negocios/negocio/${userId}`);
 export const enviarSolicitud = (data: any) => apiFetch('/api/negocios/solicitud', { method: 'POST', body: JSON.stringify(data) });
