@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 dist/
 .env
 ya-voy/
@@ -6,3 +6,6 @@ ya-voy-restaurante/
 ya-voy-repartidor/
 
 ya-voy-api/
+keystores/
+*.jks
+*.aab

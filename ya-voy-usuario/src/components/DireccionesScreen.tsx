@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { MapPin, Home, Briefcase, Star, Plus, Pencil, Trash2, X, Check, ArrowLeft, Loader2 } from "lucide-react";
+import { MapPin, Home, Briefcase, Star, Plus, Pencil, Trash2, X, Check, ArrowLeft, Loader2, Navigation } from "lucide-react";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -141,7 +141,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
           syncLocal([...direcciones, nueva]);
         }
       }
-    } catch { /* fallback sin BD */ }
+    } catch { /* fallback */ }
     finally { setSaving(false); }
     setShowForm(false);
     setEditando(null);
@@ -174,77 +174,114 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
   };
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50">
-      <div className="bg-white border-b border-slate-100 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
-        <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
-          <ArrowLeft size={20} className="text-slate-600" />
-        </button>
-        <h1 className="text-lg font-black text-slate-900">Mis direcciones</h1>
-        {loadingBD && <Loader2 size={16} className="animate-spin text-purple-400 ml-auto" />}
+    <div className="min-h-[100dvh] bg-slate-50 flex flex-col">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-100 px-4 py-3.5 flex items-center justify-between sticky top-0 z-10 shadow-2xs" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-2xl transition-colors">
+            <ArrowLeft size={20} className="text-slate-700" />
+          </button>
+          <h1 className="text-sm font-black text-slate-900">Mis Direcciones de Entrega</h1>
+        </div>
+        {loadingBD && <Loader2 size={16} className="animate-spin text-purple-600 mr-2" />}
       </div>
 
-      <div className="p-4 space-y-3">
+      {/* Address Cards List */}
+      <div className="p-4 space-y-3 flex-1 pb-20">
         {direcciones.map(d => {
           const Icon = ICONOS[d.icono];
           return (
-            <motion.div key={d.id} layout onClick={() => onSelect?.(d)}
-              className={`bg-white rounded-2xl p-4 flex items-center gap-3 border-2 transition-all ${d.principal ? "border-purple-500" : "border-slate-100"} ${onSelect ? "cursor-pointer" : ""}`}>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+            <motion.div 
+              key={d.id} 
+              layout 
+              onClick={() => onSelect?.(d)}
+              className={`bg-white rounded-3xl p-4 flex items-center gap-3.5 border-2 shadow-sm transition-all ${
+                d.principal ? "border-purple-500/80 bg-purple-50/20" : "border-slate-100"
+              } ${onSelect ? "cursor-pointer active:scale-[0.99]" : ""}`}>
+              
+              <div 
+                className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
                 style={{ background: d.principal ? GRAD : "#f1f5f9" }}>
-                <Icon size={20} className={d.principal ? "text-white" : "text-slate-400"} />
+                <Icon size={20} className={d.principal ? "text-white" : "text-slate-500"} />
               </div>
+
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="font-black text-slate-900">{d.label}</p>
+                  <p className="font-black text-slate-900 text-xs">{d.label}</p>
                   {d.principal && (
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: GRAD }}>PRINCIPAL</span>
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full text-white shadow-2xs" style={{ background: GRAD }}>
+                      PRINCIPAL
+                    </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 truncate">{d.direccion}</p>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">{d.direccion}</p>
               </div>
+
               {!onSelect && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   {!d.principal && (
-                    <button onClick={e => { e.stopPropagation(); setPrincipal(d.id); }}
-                      className="p-2 text-slate-300 hover:text-purple-600 transition-colors">
+                    <button 
+                      onClick={e => { e.stopPropagation(); setPrincipal(d.id); }}
+                      className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-yellow-500 hover:bg-yellow-50 transition-colors"
+                      title="Marcar como principal">
                       <Star size={16} />
                     </button>
                   )}
-                  <button onClick={e => { e.stopPropagation(); abrirEditar(d); }}
-                    className="p-2 text-slate-300 hover:text-purple-600 transition-colors">
-                    <Pencil size={16} />
+                  <button 
+                    onClick={e => { e.stopPropagation(); abrirEditar(d); }}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                    title="Editar">
+                    <Pencil size={15} />
                   </button>
-                  <button onClick={e => { e.stopPropagation(); setShowDeleteConfirm(d.id); }}
-                    className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                    <Trash2 size={16} />
+                  <button 
+                    onClick={e => { e.stopPropagation(); setShowDeleteConfirm(d.id); }}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    title="Eliminar">
+                    <Trash2 size={15} />
                   </button>
                 </div>
               )}
             </motion.div>
           );
         })}
-        <button onClick={() => { setEditando(null); setForm({ label: "Casa", icono: "casa", direccion: "", lat: DEFAULT_LAT, lng: DEFAULT_LNG }); setShowForm(true); }}
-          className="w-full border-2 border-dashed border-slate-200 rounded-2xl p-4 flex items-center justify-center gap-2 text-slate-400 hover:border-purple-400 hover:text-purple-600 transition-all">
-          <Plus size={18} /> Nueva dirección
+
+        <button 
+          onClick={() => { 
+            setEditando(null); 
+            setForm({ label: "Casa", icono: "casa", direccion: "", lat: DEFAULT_LAT, lng: DEFAULT_LNG }); 
+            setShowForm(true); 
+          }}
+          className="w-full border-2 border-dashed border-slate-300 rounded-3xl p-4 flex items-center justify-center gap-2 text-slate-500 hover:border-purple-500 hover:text-purple-600 bg-white/50 active:scale-[0.99] transition-all text-xs font-bold shadow-2xs">
+          <Plus size={18} /> Agregar nueva dirección
         </button>
       </div>
 
+      {/* Formulario Modal */}
       <AnimatePresence>
         {showForm && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-end">
-            <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
-              className="bg-white w-full rounded-t-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-50 flex items-end backdrop-blur-sm">
+            <motion.div 
+              initial={{ y: 400 }} 
+              animate={{ y: 0 }} 
+              exit={{ y: 400 }}
+              className="bg-white w-full rounded-t-3xl p-6 space-y-4 max-h-[92vh] overflow-y-auto shadow-2xl">
+              
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-black text-slate-900">{editando ? "Editar dirección" : "Nueva dirección"}</h3>
-                <button onClick={() => setShowForm(false)}><X size={22} className="text-slate-400" /></button>
+                <h3 className="text-base font-black text-slate-900">{editando ? "Editar dirección" : "Nueva dirección"}</h3>
+                <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">
+                  <X size={18} />
+                </button>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">
-                  <MapPin size={12} className="inline mr-1" />Toca el mapa para marcar tu ubicacion
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-1">
+                  <MapPin size={12} className="text-purple-600" /> Toca o arrastra el pin en el mapa
                 </label>
-                <div className="relative w-full h-52 rounded-2xl overflow-hidden border-2 border-slate-100">
+                <div className="relative w-full h-52 rounded-3xl overflow-hidden border border-slate-200 shadow-inner">
                   <MapContainer
                     center={[form.lat, form.lng]}
                     zoom={16}
@@ -263,27 +300,36 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
                   </MapContainer>
                   <button
                     type="button"
-                    onClick={() => { navigator.geolocation?.getCurrentPosition(pos => { handleMapClick(pos.coords.latitude, pos.coords.longitude); }, () => {}); }}
-                    className="absolute bottom-3 right-3 z-[1000] bg-white shadow-lg rounded-xl p-2 border border-slate-200 hover:bg-purple-50 transition-all"
-                    title="Ir a mi ubicacion"
+                    onClick={() => { 
+                      navigator.geolocation?.getCurrentPosition(pos => { 
+                        handleMapClick(pos.coords.latitude, pos.coords.longitude); 
+                      }, () => {}); 
+                    }}
+                    className="absolute bottom-3 right-3 z-[1000] bg-white/95 backdrop-blur-md shadow-lg rounded-2xl p-2.5 border border-slate-200 text-purple-600 hover:bg-purple-50 active:scale-90 transition-all"
+                    title="Mi ubicación GPS"
                   >
-                    <MapPin size={18} className="text-purple-600" />
+                    <Navigation size={18} />
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Tipo</label>
-                <div className="flex gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 block">Tipo de lugar</label>
+                <div className="grid grid-cols-3 gap-2">
                   {(["casa", "trabajo", "otro"] as const).map(tipo => {
                     const Icon = ICONOS[tipo];
+                    const activo = form.icono === tipo;
                     return (
-                      <button key={tipo}
+                      <button 
+                        key={tipo}
+                        type="button"
                         onClick={() => setForm(f => ({ ...f, icono: tipo, label: tipo === "casa" ? "Casa" : tipo === "trabajo" ? "Trabajo" : "Otro" }))}
-                        className={`flex-1 py-3 rounded-xl flex flex-col items-center gap-1 text-xs font-bold capitalize transition-all ${form.icono === tipo ? "text-white" : "bg-slate-100 text-slate-500"}`}
-                        style={form.icono === tipo ? { background: GRAD } : {}}>
+                        className={`py-3 rounded-2xl flex flex-col items-center gap-1 text-xs font-black capitalize transition-all ${
+                          activo ? "text-white shadow-sm" : "bg-slate-50 text-slate-600 border border-slate-100"
+                        }`}
+                        style={activo ? { background: GRAD } : {}}>
                         <Icon size={18} />
-                        {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                        {tipo === "casa" ? "Casa" : tipo === "trabajo" ? "Trabajo" : "Otro"}
                       </button>
                     );
                   })}
@@ -291,24 +337,52 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Nombre</label>
-                <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-                  placeholder="Ej: Casa, Trabajo, Casa de mama"
-                  className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-purple-400" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 block">Nombre de la ubicación</label>
+                <input 
+                  value={form.label} 
+                  onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+                  placeholder="Ej: Casa, Oficina, Casa de mamá"
+                  className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-xs font-bold border border-slate-200 outline-none focus:border-purple-400" 
+                />
               </div>
 
               <div className="relative">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">
-                  Direccion {geocoding && <Loader2 size={12} className="inline animate-spin text-purple-400 ml-1" />}
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 block flex items-center justify-between">
+                  <span>Calle y número / Referencias</span>
+                  {geocoding && <span className="text-purple-600 flex items-center gap-1 font-bold"><Loader2 size={10} className="animate-spin" /> Buscando...</span>}
                 </label>
-                <input value={form.direccion} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, direccion: v })); if (v.length > 3) { clearTimeout((window as any)._gt); (window as any)._gt = setTimeout(async () => { try { const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(v)}&countrycodes=mx&limit=5`); const res = await r.json(); setSugerencias(res); } catch {} }, 500); } else { setSugerencias([]); } }}
-                  placeholder="Escribe una direccion o toca el mapa"
-                  className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-purple-400" />
+                <input 
+                  value={form.direccion} 
+                  onChange={e => { 
+                    const v = e.target.value; 
+                    setForm(f => ({ ...f, direccion: v })); 
+                    if (v.length > 3) { 
+                      clearTimeout((window as any)._gt); 
+                      (window as any)._gt = setTimeout(async () => { 
+                        try { 
+                          const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(v)}&countrycodes=mx&limit=5`); 
+                          const res = await r.json(); 
+                          setSugerencias(res); 
+                        } catch {} 
+                      }, 500); 
+                    } else { 
+                      setSugerencias([]); 
+                    } 
+                  }}
+                  placeholder="Calle, número exterior, colonia o referencia"
+                  className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-xs font-bold border border-slate-200 outline-none focus:border-purple-400" 
+                />
                 {sugerencias.length > 0 && (
-                  <div className="absolute z-10 w-full bg-white border border-slate-200 rounded-xl shadow-lg mt-1 overflow-hidden">
+                  <div className="absolute z-20 w-full bg-white border border-slate-200 rounded-2xl shadow-xl mt-1 overflow-hidden">
                     {sugerencias.map((s: any) => (
-                      <button key={s.place_id} type="button" onClick={() => { setForm(f => ({ ...f, direccion: s.display_name, lat: parseFloat(s.lat), lng: parseFloat(s.lon) })); setSugerencias([]); }}
-                        className="w-full px-4 py-3 text-left text-xs text-slate-700 hover:bg-purple-50 border-b border-slate-100 last:border-0 truncate">
+                      <button 
+                        key={s.place_id} 
+                        type="button" 
+                        onClick={() => { 
+                          setForm(f => ({ ...f, direccion: s.display_name, lat: parseFloat(s.lat), lng: parseFloat(s.lon) })); 
+                          setSugerencias([]); 
+                        }}
+                        className="w-full px-4 py-3 text-left text-xs text-slate-700 hover:bg-purple-50 border-b border-slate-100 last:border-0 truncate font-medium">
                         {s.display_name}
                       </button>
                     ))}
@@ -316,32 +390,49 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
                 )}
               </div>
 
-              <button onClick={guardar} disabled={!form.direccion.trim() || saving}
-                className="w-full py-4 text-white font-black rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
+              <button 
+                onClick={guardar} 
+                disabled={!form.direccion.trim() || saving}
+                className="w-full py-4 text-white font-black rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-transform text-xs"
                 style={{ background: GRAD }}>
-                {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />} Guardar dirección
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} 
+                Guardar Dirección
               </button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Modal Confirmar Eliminación */}
       <AnimatePresence>
         {showDeleteConfirm && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
-              className="bg-white rounded-3xl p-6 w-full max-w-sm text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 size={28} className="text-red-500" />
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9 }} 
+              animate={{ scale: 1 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl space-y-4">
+              <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto text-red-500">
+                <Trash2 size={24} />
               </div>
-              <h3 className="text-lg font-black text-slate-900 mb-2">¿Eliminar dirección?</h3>
-              <p className="text-sm text-slate-500 mb-6">Esta accion no se puede deshacer.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowDeleteConfirm(null)}
-                  className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl">Cancelar</button>
-                <button onClick={() => eliminar(showDeleteConfirm)}
-                  className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl">Eliminar</button>
+              <div>
+                <h3 className="text-base font-black text-slate-900">¿Eliminar esta dirección?</h3>
+                <p className="text-xs text-slate-500 mt-1">Ya no podrás seleccionarla para entregas futuras.</p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-2xl text-xs hover:bg-slate-200 transition-colors">
+                  Cancelar
+                </button>
+                <button 
+                  onClick={() => eliminar(showDeleteConfirm)}
+                  className="flex-1 py-3 bg-red-500 text-white font-black rounded-2xl text-xs hover:bg-red-600 active:scale-95 transition-all shadow-md">
+                  Eliminar
+                </button>
               </div>
             </motion.div>
           </motion.div>

@@ -1,10 +1,10 @@
 import { motion } from "motion/react";
-import { ArrowLeft, MapPin, MessageSquare, Clock } from "lucide-react";
+import { ArrowLeft, MapPin, MessageSquare, Clock, Star, Bike, CheckCircle2, ShieldAlert, Sparkles } from "lucide-react";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import { useEffect, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { STATUS_COLOR, STATUS_LABEL } from "../lib/constants";
+import { STATUS_COLOR, STATUS_LABEL, GRAD } from "../lib/constants";
 import type { Pedido } from "../types";
 
 L.Icon.Default.mergeOptions({
@@ -36,8 +36,12 @@ const PASOS = [
 ];
 
 const STATUS_IDX: Record<string, number> = {
-  nuevo: 0, preparando: 1, listo: 2, en_camino: 3,
-  esperando_cliente: 3, entregado: 4,
+  nuevo: 0, 
+  preparando: 1, 
+  listo: 2, 
+  en_camino: 3,
+  esperando_cliente: 3, 
+  entregado: 4,
 };
 
 interface Props {
@@ -48,9 +52,19 @@ interface Props {
   onClose: () => void;
   onAbrirChat: (pedidoId: string) => void;
   onCancelar: () => void;
+  onCalificar?: () => void;
 }
 
-export default function PedidoDetalle({ pedido, codigoConfirmado, repUbicacion, chatNoLeidos, onClose, onAbrirChat, onCancelar }: Props) {
+export default function PedidoDetalle({ 
+  pedido, 
+  codigoConfirmado, 
+  repUbicacion, 
+  chatNoLeidos, 
+  onClose, 
+  onAbrirChat, 
+  onCancelar,
+  onCalificar
+}: Props) {
   const pasoActual = STATUS_IDX[pedido.status] ?? -1;
 
   const etaMin = useMemo(() => {
@@ -62,58 +76,77 @@ export default function PedidoDetalle({ pedido, codigoConfirmado, repUbicacion, 
   const esPickup = (pedido as any).tipo_entrega === "pickup";
 
   return (
-    <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}
-      className="fixed inset-0 bg-white z-50 flex flex-col overflow-y-auto">
-      <div className="bg-white border-b border-slate-100 px-4 py-4 flex items-center gap-3 sticky top-0">
-        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl">
-          <ArrowLeft size={20} className="text-slate-600" />
+    <motion.div 
+      initial={{ opacity: 0, x: 50 }} 
+      animate={{ opacity: 1, x: 0 }} 
+      exit={{ opacity: 0, x: 50 }}
+      className="fixed inset-0 bg-slate-50 z-50 flex flex-col overflow-y-auto">
+      
+      {/* Top Header */}
+      <div className="bg-white border-b border-slate-100 px-4 py-3.5 flex items-center justify-between sticky top-0 z-20 shadow-sm" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
+        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-2xl transition-colors">
+          <ArrowLeft size={20} className="text-slate-700" />
         </button>
-        <h1 className="font-black text-slate-900">Detalle del pedido</h1>
+        <div className="text-center">
+          <h1 className="font-black text-slate-900 text-sm">Detalle de tu Pedido</h1>
+          <p className="text-[10px] text-slate-400 font-bold">#{pedido.id.slice(-6).toUpperCase()}</p>
+        </div>
+        <div className="w-9" />
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-3 pb-24">
 
-        {/* Header del pedido */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="font-black text-slate-900 text-lg">{pedido.negocio_nombre}</h2>
-            <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-full text-white ${STATUS_COLOR[pedido.status] || "bg-slate-400"}`}>
+        {/* Card Resumen de Negocio y Status */}
+        <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div>
+              <h2 className="font-black text-slate-900 text-lg leading-tight">{pedido.negocio_nombre}</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {new Date(pedido.creado_en).toLocaleDateString("es-MX", { 
+                  day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" 
+                })}
+              </p>
+            </div>
+            <span className={`text-[11px] font-black uppercase px-3 py-1.5 rounded-full text-white shrink-0 shadow-sm ${STATUS_COLOR[pedido.status] || "bg-slate-400"}`}>
               {STATUS_LABEL[pedido.status] || pedido.status}
             </span>
           </div>
-          <p className="text-xs text-slate-500">
-            {new Date(pedido.creado_en).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-          </p>
           {esPickup && (
-            <div className="mt-2 inline-flex items-center gap-1 bg-teal-50 border border-teal-200 rounded-full px-3 py-1">
-              <span className="text-xs font-bold text-teal-700">🏪 Recoger en tienda</span>
+            <div className="mt-2 inline-flex items-center gap-1.5 bg-teal-50 border border-teal-200 rounded-full px-3 py-1">
+              <span className="text-xs font-black text-teal-700">🏪 Recoger en restaurante</span>
             </div>
           )}
         </div>
 
-        {/* Tracker visual */}
+        {/* Tracker de Pasos Visual */}
         {!["cancelado", "pago_fallido", "programado"].includes(pedido.status) && (
-          <div className="bg-white rounded-2xl border border-slate-100 p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Estado del pedido</p>
+          <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-4">Progreso de la Orden</p>
             <div className="flex items-center">
               {PASOS.map((paso, i) => {
                 const activo = i === pasoActual;
                 const completado = i < pasoActual;
                 return (
                   <div key={paso.status} className="flex items-center flex-1">
-                    <div className="flex flex-col items-center gap-1 flex-1">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base transition-all ${
-                        completado ? "bg-green-500" : activo ? "ring-2 ring-offset-2 ring-purple-500" : "bg-slate-100"
-                      } ${activo ? "animate-pulse" : ""}`}
-                        style={activo ? { background: "linear-gradient(135deg,#6C3CE1,#E91E8C)" } : {}}>
+                    <div className="flex flex-col items-center gap-1.5 flex-1">
+                      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-sm transition-all ${
+                        completado 
+                          ? "bg-green-500 text-white font-bold" 
+                          : activo 
+                            ? "ring-4 ring-purple-100 text-white animate-pulse" 
+                            : "bg-slate-100 text-slate-400"
+                      }`}
+                        style={activo ? { background: GRAD } : {}}>
                         {completado ? "✓" : paso.icon}
                       </div>
-                      <p className={`text-[9px] font-bold text-center leading-tight ${activo ? "text-purple-700" : completado ? "text-green-600" : "text-slate-400"}`}>
+                      <p className={`text-[9px] font-black text-center leading-tight ${
+                        activo ? "text-purple-600" : completado ? "text-green-600" : "text-slate-400"
+                      }`}>
                         {paso.label}
                       </p>
                     </div>
                     {i < PASOS.length - 1 && (
-                      <div className={`h-0.5 flex-1 mx-1 transition-all ${completado ? "bg-green-400" : "bg-slate-200"}`} />
+                      <div className={`h-1 flex-1 mx-0.5 rounded-full transition-all ${completado ? "bg-green-400" : "bg-slate-200"}`} />
                     )}
                   </div>
                 );
@@ -122,58 +155,45 @@ export default function PedidoDetalle({ pedido, codigoConfirmado, repUbicacion, 
           </div>
         )}
 
-        {/* Productos */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-4">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Productos</p>
-          <div className="space-y-2">
-            {(Array.isArray(pedido.items) ? pedido.items : []).map((item: any, i: number) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span className="text-slate-600">{item.cantidad}x {item.nombre}</span>
-                <span className="font-bold">${(item.precio * item.cantidad).toFixed(2)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-slate-100 mt-3 pt-3 space-y-1">
-            {pedido.costo_envio != null && !esPickup && <div className="flex justify-between text-sm text-slate-500"><span>Envío</span><span>${Number(pedido.costo_envio).toFixed(2)}</span></div>}
-            {esPickup && <div className="flex justify-between text-sm text-teal-600 font-bold"><span>Envío</span><span>Gratis (recoger)</span></div>}
-            {(pedido.propina ?? 0) > 0 && <div className="flex justify-between text-sm text-slate-500"><span>Propina</span><span>${Number(pedido.propina).toFixed(2)}</span></div>}
-            <div className="flex justify-between font-black text-slate-900 text-base mt-1"><span>Total</span><span>${Number(pedido.total).toFixed(2)}</span></div>
-          </div>
-        </div>
-
-        {/* Dirección */}
-        {!esPickup && (
-          <div className="bg-white rounded-2xl border border-slate-100 p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Entrega</p>
-            <div className="flex items-center gap-2">
-              <MapPin size={16} className="text-purple-600 shrink-0" />
-              <p className="text-sm text-slate-700">{pedido.direccion_entrega}</p>
-            </div>
-          </div>
-        )}
-
-        {/* ETA + mapa cuando va en camino */}
+        {/* Estado: EN CAMINO con MAPA y ETA */}
         {pedido.status === "en_camino" && (
-          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shrink-0">
-                <span className="text-xl">🛵</span>
+          <div className="bg-purple-50 border border-purple-200 rounded-3xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-purple-100 flex items-center justify-center shrink-0">
+                <span className="text-2xl">🛵</span>
               </div>
               <div className="flex-1">
-                <p className="text-xs font-black text-purple-600 uppercase tracking-wider">En camino</p>
-                <p className="text-sm font-bold text-slate-700">El repartidor va hacia ti</p>
+                <p className="text-[10px] font-black text-purple-600 uppercase tracking-wider">¡Tu repartidor va en camino!</p>
+                <p className="text-sm font-black text-slate-800">Preparando la entrega a tu puerta</p>
                 {etaMin !== null ? (
-                  <div className="flex items-center gap-1 mt-1">
-                    <Clock size={12} className="text-purple-500" />
-                    <p className="text-xs font-black text-purple-700">~{etaMin} min</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Clock size={12} className="text-purple-600" />
+                    <span className="text-xs font-black text-purple-700">Tiempo aproximado: ~{etaMin} min</span>
                   </div>
                 ) : pedido.tiempo_estimado ? (
-                  <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: {pedido.tiempo_estimado}</p>
+                  <p className="text-xs font-medium text-slate-600">Tiempo estimado: {pedido.tiempo_estimado}</p>
                 ) : null}
               </div>
             </div>
+
+            {/* Repartidor Info */}
+            {(pedido.repartidor_rating || pedido.repartidor_vehiculo) && (
+              <div className="flex items-center justify-between px-3 py-2 bg-white rounded-xl border border-purple-100 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <Bike size={14} className="text-purple-600" />
+                  <span className="font-bold text-slate-700">{pedido.repartidor_vehiculo || "Motocicleta"}</span>
+                </div>
+                {pedido.repartidor_rating && (
+                  <div className="flex items-center gap-1">
+                    <Star size={12} className="text-yellow-400 fill-yellow-400" />
+                    <span className="font-bold text-slate-700">{Number(pedido.repartidor_rating).toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {repUbicacion && (
-              <div className="rounded-xl overflow-hidden border border-purple-200" style={{ height: 160 }}>
+              <div className="rounded-2xl overflow-hidden border border-purple-200 shadow-inner" style={{ height: 180 }}>
                 <MapContainer center={[repUbicacion.lat, repUbicacion.lng]} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <Marker position={[repUbicacion.lat, repUbicacion.lng]} />
@@ -184,84 +204,120 @@ export default function PedidoDetalle({ pedido, codigoConfirmado, repUbicacion, 
           </div>
         )}
 
-        {pedido.status === "preparando" && (
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0"><span className="text-xl">👨‍🍳</span></div>
-            <div>
-              <p className="text-xs font-black text-orange-600 uppercase tracking-wider">Preparando</p>
-              <p className="text-sm font-bold text-slate-700">El restaurante está preparando tu orden</p>
-              {pedido.tiempo_estimado && <p className="text-xs text-slate-500 mt-0.5">Tiempo estimado: {pedido.tiempo_estimado}</p>}
-            </div>
-          </div>
-        )}
-
-        {pedido.status === "listo" && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center shrink-0"><span className="text-xl">📦</span></div>
-            <div>
-              <p className="text-xs font-black text-yellow-600 uppercase tracking-wider">Listo</p>
-              <p className="text-sm font-bold text-slate-700">{esPickup ? "Tu pedido está listo para recoger" : "Tu pedido está listo — buscando repartidor"}</p>
-            </div>
-          </div>
-        )}
-
-        {pedido.status === "nuevo" && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0"><span className="text-xl">⏳</span></div>
-            <div>
-              <p className="text-xs font-black text-blue-600 uppercase tracking-wider">Recibido</p>
-              <p className="text-sm font-bold text-slate-700">Esperando confirmación del restaurante</p>
-            </div>
-          </div>
-        )}
-
-        {(pedido as any).status === "programado" && (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0"><span className="text-xl">📅</span></div>
-            <div>
-              <p className="text-xs font-black text-indigo-600 uppercase tracking-wider">Programado</p>
-              <p className="text-sm font-bold text-slate-700">Tu pedido se enviará en la franja programada</p>
-              {(pedido as any).programado_para && <p className="text-xs text-slate-500 mt-0.5">{(pedido as any).programado_para}</p>}
-            </div>
-          </div>
-        )}
-
-        {["nuevo", "preparando"].includes(pedido.status) && (
-          <button onClick={onCancelar}
-            className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-bold text-sm mt-2 mb-2">
-            ✕ Cancelar pedido
-          </button>
-        )}
-
+        {/* Botón de Chat con Repartidor */}
         {["en_camino", "esperando_cliente"].includes(pedido.status) && (
-          <button onClick={() => onAbrirChat(pedido.id)}
-            className="relative w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 border-purple-200 text-purple-600 bg-purple-50">
+          <button 
+            onClick={() => onAbrirChat(pedido.id)}
+            className="relative w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 border-2 border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 active:scale-[0.99] transition-all shadow-sm">
             <MessageSquare size={18} /> Chatear con el repartidor
             {(chatNoLeidos[pedido.id] || 0) > 0 && (
-              <span className="absolute top-2 right-3 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-black flex items-center justify-center">
+              <span className="absolute top-3 right-4 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-black flex items-center justify-center animate-bounce">
                 {chatNoLeidos[pedido.id]}
               </span>
             )}
           </button>
         )}
 
+        {/* Código de Verificación al Llegar */}
         {["en_camino", "esperando_cliente"].includes(pedido.status) && !codigoConfirmado && pedido.codigo_entrega && (
-          <div className="bg-white rounded-2xl border-2 border-purple-200 p-4 text-center">
-            <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-2">El repartidor llegó</p>
-            <p className="text-sm text-slate-600 mb-4">Muestra esta palabra al repartidor:</p>
-            <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl py-6 px-4 mb-2">
-              <p className="text-4xl font-black tracking-widest text-purple-700">{pedido.codigo_entrega}</p>
+          <div className="bg-white rounded-3xl border-2 border-purple-300 p-5 text-center shadow-md">
+            <div className="flex items-center justify-center gap-1.5 mb-1 text-purple-600">
+              <ShieldAlert size={16} />
+              <p className="text-xs font-black uppercase tracking-wider">Código de Entrega Segura</p>
             </div>
-            <p className="text-xs text-slate-400">Solo muestra esta palabra — no la digas en voz alta</p>
+            <p className="text-xs text-slate-500 mb-3">Muestra esta palabra al repartidor para recibir tu paquete:</p>
+            <div className="bg-purple-50 border-2 border-purple-400 rounded-2xl py-4 px-4 mb-2 shadow-inner">
+              <p className="text-3xl font-black tracking-widest text-purple-800 uppercase">{pedido.codigo_entrega}</p>
+            </div>
+            <p className="text-[10px] text-slate-400">Por seguridad, solo muéstrala en tu pantalla.</p>
           </div>
         )}
 
+        {/* Estado: ENTREGADO y Botón de Calificar */}
         {(pedido.status === "entregado" || codigoConfirmado) && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-            <p className="text-2xl mb-1">✅</p>
-            <p className="font-black text-green-700">¡Pedido entregado!</p>
+          <div className="bg-green-50 border border-green-200 rounded-3xl p-5 text-center shadow-sm space-y-3">
+            <div className="flex items-center justify-center gap-2 text-green-700">
+              <CheckCircle2 size={24} />
+              <span className="font-black text-lg">¡Pedido entregado con éxito!</span>
+            </div>
+            <p className="text-xs text-slate-600">Esperamos que hayas disfrutado tu comida.</p>
+            
+            {onCalificar && !pedido.rating_restaurante && (
+              <button 
+                onClick={onCalificar}
+                className="w-full py-3.5 rounded-2xl text-white font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition-all"
+                style={{ background: GRAD }}>
+                <Sparkles size={16} className="text-yellow-300" /> Calificar mi pedido
+              </button>
+            )}
           </div>
         )}
+
+        {/* Lista de Productos */}
+        <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Productos del Pedido</p>
+          <div className="space-y-2.5">
+            {(Array.isArray(pedido.items) ? pedido.items : []).map((item: any, i: number) => (
+              <div key={i} className="flex justify-between items-start text-xs">
+                <div className="flex-1 pr-2">
+                  <span className="font-bold text-slate-800">{item.cantidad}× {item.nombre}</span>
+                  {item.opciones?.length ? (
+                    <p className="text-[10px] text-slate-400 mt-0.5">{item.opciones.map((o: any) => o.nombre).join(' · ')}</p>
+                  ) : null}
+                </div>
+                <span className="font-black text-slate-900">${(item.precio * item.cantidad).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-slate-100 mt-4 pt-3 space-y-1.5 text-xs">
+            {pedido.costo_envio != null && !esPickup && (
+              <div className="flex justify-between text-slate-500">
+                <span>Costo de envío</span>
+                <span className="font-bold">${Number(pedido.costo_envio).toFixed(2)}</span>
+              </div>
+            )}
+            {esPickup && (
+              <div className="flex justify-between text-teal-600 font-bold">
+                <span>Envío</span>
+                <span>Gratis (Recoger)</span>
+              </div>
+            )}
+            {(pedido.propina ?? 0) > 0 && (
+              <div className="flex justify-between text-purple-600 font-bold">
+                <span>Propina</span>
+                <span>+${Number(pedido.propina).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-black text-slate-900 text-sm border-t border-slate-100 pt-2 mt-2">
+              <span>Total pagado</span>
+              <span className="text-purple-600">${Number(pedido.total).toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Dirección de Entrega */}
+        {!esPickup && pedido.direccion_entrega && (
+          <div className="bg-white rounded-3xl border border-slate-100 p-4 shadow-sm flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 shrink-0 mt-0.5">
+              <MapPin size={16} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Entregar en</p>
+              <p className="text-xs font-bold text-slate-700 mt-0.5 leading-relaxed">{pedido.direccion_entrega}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Botón de Cancelación */}
+        {["nuevo", "preparando"].includes(pedido.status) && (
+          <button 
+            onClick={onCancelar}
+            className="w-full py-3.5 rounded-2xl border-2 border-red-200 text-red-500 hover:bg-red-50 font-bold text-xs transition-colors">
+            ✕ Cancelar este pedido
+          </button>
+        )}
+
       </div>
     </motion.div>
   );

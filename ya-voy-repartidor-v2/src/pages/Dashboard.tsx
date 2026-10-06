@@ -24,14 +24,12 @@ import { hapticSuccess, hapticMedium } from "../lib/haptics"
 
 
 
+// Fallback de iconos Leaflet autónomos sin dependencias externas
+const defaultSvgPin = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="25" height="41" viewBox="0 0 25 41"><path fill="%23F107A3" stroke="%23fff" stroke-width="2" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 9.375 12.5 28.5 12.5 28.5S25 21.875 25 12.5C25 5.596 19.404 0 12.5 0zm0 17a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>'
 L.Icon.Default.mergeOptions({
-
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-
+  iconRetinaUrl: defaultSvgPin,
+  iconUrl: defaultSvgPin,
+  shadowUrl: '',
 })
 
 

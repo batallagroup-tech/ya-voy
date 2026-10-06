@@ -5,7 +5,7 @@ import { ShoppingBag, Search, Clock, User, MapPin, ChevronDown, ShoppingCart, Lo
 import { Toaster, toast } from "sonner";
 import { Stripe, PaymentSheetEventsEnum } from "@capacitor-community/stripe";
 import { Capacitor } from "@capacitor/core";
-import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob";
+import { initAdMob, showBottomBanner, hideBottomBanner } from "./lib/admob";
 import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed, getFavoritos, addFavorito, removeFavorito } from "./lib/api";
 import { logEvent } from "./lib/analytics";
 import { setStatusBarLight, setStatusBarDark } from "./lib/statusBar";
@@ -202,12 +202,22 @@ export default function App() {
     }
   }, [isLoaded, isSignedIn, userId]);
 
-  // ── Dark mode: aplicar al montar ─────────────────────────────────────────
+  // ── Dark mode & AdMob: aplicar al montar ────────────────────────────────
   useEffect(() => {
     const dark = localStorage.getItem("ya_voy_dark") === "1";
     document.documentElement.classList.toggle("dark", dark);
     setStatusBarLight();
+    initAdMob();
   }, []);
+
+  // ── Banner publicitario en pantalla de rastreo ───────────────────────────
+  useEffect(() => {
+    if (pedidoDetalle) {
+      showBottomBanner(20);
+    } else {
+      hideBottomBanner();
+    }
+  }, [pedidoDetalle]);
 
   // ── Android back button ───────────────────────────────────────────────────
   useEffect(() => {
@@ -233,16 +243,6 @@ export default function App() {
       showChatPedido, showStripeModal, pedidoDetalle, productoSeleccionado,
       showCart, negocioSeleccionado, tab]);
 
-  // ── AdMob ─────────────────────────────────────────────────────────────────
-  useEffect(() => { AdMob.initialize().catch(() => {}); }, []);
-  useEffect(() => {
-    if (tab === "explorar") {
-      AdMob.showBanner({ adId: ADMOB_BANNER_ID, adSize: BannerAdSize.ADAPTIVE_BANNER, position: BannerAdPosition.BOTTOM_CENTER, margin: 56 }).catch(() => {});
-    } else {
-      AdMob.hideBanner().catch(() => {});
-    }
-    return () => { AdMob.hideBanner().catch(() => {}); };
-  }, [tab]);
 
   // ── WebSocket pedidos (reemplaza polling de 4s) ───────────────────────────
   usePedidosWS(userId, getToken, (pedidoActualizado) => {
@@ -738,6 +738,7 @@ export default function App() {
             onClose={() => setPedidoDetalle(null)}
             onAbrirChat={(id) => setShowChatPedido(id)}
             onCancelar={() => setShowCancelar(true)}
+            onCalificar={() => setShowRating(true)}
           />
         )}
       </AnimatePresence>
@@ -781,7 +782,16 @@ export default function App() {
 
       <AnimatePresence>
         {showRating && pedidoDetalle && (
-          <RatingModal pedido={pedidoDetalle} onClose={() => setShowRating(false)} />
+          <RatingModal 
+            pedido={pedidoDetalle} 
+            onClose={() => setShowRating(false)} 
+            onRatingEnviado={(pid, data) => {
+              setPedidos(prev => prev.map(p => p.id === pid ? { ...p, ...data } : p));
+              if (pedidoDetalle?.id === pid) {
+                setPedidoDetalle(prev => prev ? { ...prev, ...data } : null);
+              }
+            }}
+          />
         )}
       </AnimatePresence>
 
@@ -807,36 +817,42 @@ export default function App() {
       </Suspense>
 
       {/* HEADER */}
-      <div className="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 py-3" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 shadow-2xs" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
         <div className="flex items-center justify-between">
-          <button onClick={() => setShowDirecciones(true)} className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: GRAD }}>
+          <button onClick={() => setShowDirecciones(true)} className="flex items-center gap-2.5 active:scale-95 transition-transform text-left">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-md shadow-purple-500/20" style={{ background: GRAD }}>
               <MapPin size={18} className="text-white" />
             </div>
             <div className="text-left">
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Entregar en</p>
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Entregar en</p>
               <div className="flex items-center gap-1">
-                <p className="font-black text-slate-900 text-sm">{direccionPrincipal?.label || "Mi ubicación"}</p>
+                <p className="font-black text-slate-900 text-sm max-w-[180px] truncate">{direccionPrincipal?.label || "Mi ubicación"}</p>
                 <ChevronDown size={14} className="text-slate-400" />
               </div>
             </div>
           </button>
           <div className="flex items-center gap-2">
             {cartCount > 0 && (
-              <button onClick={() => setShowCart(true)} className="relative p-2">
-                <ShoppingCart size={22} className="text-slate-600" />
-                <span className="absolute -top-1 -right-1 w-5 h-5 text-white text-[10px] font-black rounded-full flex items-center justify-center" style={{ background: "#6C3CE1" }}>{cartCount}</span>
+              <button onClick={() => setShowCart(true)} className="relative p-2.5 rounded-2xl bg-purple-50 border border-purple-100 text-purple-600 active:scale-90 transition-transform">
+                <ShoppingCart size={20} />
+                <span className="absolute -top-1 -right-1 w-5 h-5 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md" style={{ background: GRAD }}>{cartCount}</span>
               </button>
             )}
-            <div className="w-9 h-9 rounded-full overflow-hidden bg-purple-100 border-2 border-purple-200">
-              {user?.imageUrl ? <img src={user.imageUrl} className="w-full h-full object-cover" /> : <User size={18} className="text-purple-600 m-auto mt-1" />}
-            </div>
+            <button onClick={() => setTab("perfil")} className="w-10 h-10 rounded-2xl overflow-hidden bg-purple-100 border-2 border-purple-200/80 shadow-2xs flex items-center justify-center active:scale-90 transition-transform">
+              {fotoPerfil ? (
+                <img src={fotoPerfil} alt="User" className="w-full h-full object-cover" />
+              ) : user?.imageUrl ? (
+                <img src={user.imageUrl} alt="User" className="w-full h-full object-cover" />
+              ) : (
+                <User size={18} className="text-purple-600" />
+              )}
+            </button>
           </div>
         </div>
       </div>
 
       {/* CONTENT */}
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto pb-24">
         <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait">
           {tab === "home" && (
@@ -880,6 +896,10 @@ export default function App() {
               onSetShowCart={setShowCart}
               onSetTab={setTab}
               calcularEnvio={calcularEnvio}
+              onCalificarPedido={(p) => {
+                setPedidoDetalle(p);
+                setShowRating(true);
+              }}
             /></TabErrorBoundary>
           )}
           {tab === "perfil" && (
@@ -904,8 +924,8 @@ export default function App() {
       </div>
 
       {/* BOTTOM NAV */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-2 pt-2 z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
-        <div className="flex justify-around">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 px-3 pt-2 z-40 shadow-lg" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
+        <div className="flex justify-around items-center max-w-md mx-auto">
           {(() => {
             const pedidoActivo = pedidos.find(p => !["entregado", "cancelado"].includes(p.status));
             return ([
@@ -914,15 +934,22 @@ export default function App() {
               { id: "pedidos", label: "Pedidos", icon: Clock },
               { id: "perfil", label: "Perfil", icon: User },
             ] as const).map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => { setTab(id); if (id === "home") { loadProductosFeed(); loadNegocios(); } }}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-all relative ${tab === id ? "text-purple-600" : "text-slate-400"}`}>
+              <button 
+                key={id} 
+                onClick={() => { 
+                  setTab(id); 
+                  if (id === "home") { loadProductosFeed(); loadNegocios(); } 
+                }}
+                className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-2xl transition-all relative ${
+                  tab === id ? "text-purple-600 scale-105" : "text-slate-400 hover:text-slate-600"
+                }`}>
                 <div className="relative">
                   <Icon size={22} strokeWidth={tab === id ? 2.5 : 2} />
                   {id === "pedidos" && pedidoActivo && tab !== "pedidos" && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
                   )}
                 </div>
-                <span className={`text-[9px] font-black uppercase tracking-tight ${tab === id ? "opacity-100" : "opacity-60"}`}>{label}</span>
+                <span className={`text-[9px] font-black uppercase tracking-tight ${tab === id ? "opacity-100 font-black text-purple-700" : "opacity-60"}`}>{label}</span>
               </button>
             ));
           })()}
