@@ -1,3 +1,6 @@
+# App entry point
+-keep class com.batallagroup.** { *; }
+
 # Capacitor / Cordova
 -keep class com.getcapacitor.** { *; }
 -keep class org.apache.cordova.** { *; }

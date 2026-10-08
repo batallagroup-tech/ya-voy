@@ -7,10 +7,10 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "mx.batallagroup.yavoy.restaurante"
+    namespace = "com.batallagroup.yavoy.restaurante"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "mx.batallagroup.yavoy.restaurante"
+        applicationId "com.batallagroup.yavoy.restaurante"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // VERSIONING: incrementar versionCode con cada subida a Play Store (nunca retroceder)

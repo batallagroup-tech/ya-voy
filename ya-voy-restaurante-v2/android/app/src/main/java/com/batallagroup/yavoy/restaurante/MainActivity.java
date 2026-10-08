@@ -1,4 +1,4 @@
-package mx.batallagroup.yavoy.usuario;
+package com.batallagroup.yavoy.restaurante;
 
 import android.os.Bundle;
 import android.webkit.WebView;

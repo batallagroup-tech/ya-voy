@@ -1,12 +1,20 @@
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 
-export function setStatusBarDark() {
+export async function setStatusBarDark() {
   if (!Capacitor.isNativePlatform()) return;
-  StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+  try {
+    await StatusBar.setOverlaysWebView({ overlay: true });
+    await StatusBar.setStyle({ style: Style.Dark });
+    await StatusBar.setBackgroundColor({ color: '#00000000' });
+  } catch {}
 }
 
-export function setStatusBarLight() {
+export async function setStatusBarLight() {
   if (!Capacitor.isNativePlatform()) return;
-  StatusBar.setStyle({ style: Style.Light }).catch(() => {});
+  try {
+    await StatusBar.setOverlaysWebView({ overlay: true });
+    await StatusBar.setStyle({ style: Style.Light });
+    await StatusBar.setBackgroundColor({ color: '#00000000' });
+  } catch {}
 }

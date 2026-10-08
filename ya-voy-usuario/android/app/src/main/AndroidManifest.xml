@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
@@ -42,15 +42,14 @@
     <!-- Red -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Ubicación — negocios cercanos y mapa de entrega en tiempo real -->
+    <!-- UbicaciÃ³n â€” negocios cercanos y mapa de entrega en tiempo real -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- Cámara y galería — foto de perfil -->
+    <!-- CÃ¡mara y galerÃ­a â€” foto de perfil -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
-    <!-- Notificaciones push — actualizaciones de pedido -->
+    <!-- Notificaciones push â€” actualizaciones de pedido -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

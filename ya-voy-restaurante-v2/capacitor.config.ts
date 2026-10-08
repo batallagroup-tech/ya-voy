@@ -1,6 +1,6 @@
-﻿import type { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
-  appId: 'mx.batallagroup.yavoy.restaurante',
+  appId: 'com.batallagroup.yavoy.restaurante',
   appName: 'Ya Voy Restaurante',
   webDir: 'dist',
   plugins: {

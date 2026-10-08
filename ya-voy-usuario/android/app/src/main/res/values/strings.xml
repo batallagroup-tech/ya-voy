@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">Ya Voy Usuario</string>
     <string name="title_activity_main">Ya Voy Usuario</string>
-    <string name="package_name">mx.batallagroup.yavoy.usuario</string>
-    <string name="custom_url_scheme">mx.batallagroup.yavoy.usuario</string>
+    <string name="package_name">com.batallagroup.yavoy.usuario</string>
+    <string name="custom_url_scheme">com.batallagroup.yavoy.usuario</string>
+    <string name="default_web_client_id">659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com</string>
 </resources>

@@ -8,16 +8,16 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "mx.batallagroup.yavoy.usuario"
+    namespace = "com.batallagroup.yavoy.usuario"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "mx.batallagroup.yavoy.usuario"
+        applicationId "com.batallagroup.yavoy.usuario"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // VERSIONING: incrementar versionCode con cada subida a Play Store (nunca retroceder)
         // versionName: seguir semver "MAYOR.MENOR.PARCHE"
-        versionCode 1
-        versionName "1.0.0"
+        versionCode 3
+        versionName "1.0.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'

@@ -16,6 +16,7 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
+            android:resizeableActivity="true"
             android:exported="true">
 
             <intent-filter>
@@ -42,17 +43,14 @@
     <!-- Red -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Ubicación — GPS en tiempo real para la ruta de entrega -->
+    <!-- UbicaciÃ³n â€” GPS en tiempo real para la ruta de entrega -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
-    <!-- Cámara y galería — foto de entrega y documentos de registro -->
+    <!-- CÃ¡mara y galerÃ­a â€” foto de entrega y documentos de registro -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
-    <!-- Notificaciones push — nuevos pedidos disponibles -->
+    <!-- Notificaciones push â€” nuevos pedidos disponibles -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

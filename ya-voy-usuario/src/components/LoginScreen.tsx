@@ -41,9 +41,14 @@ function mapError(code: string): string {
 async function googleSignIn() {
   if (Capacitor.isNativePlatform()) {
     const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
-    const result = await FirebaseAuthentication.signInWithGoogle();
-    const credential = GoogleAuthProvider.credential(result.credential?.idToken);
-    return signInWithCredential(auth, credential);
+    const result = await FirebaseAuthentication.signInWithGoogle({
+      skipNativeAuth: true,
+    });
+    if (result.credential?.idToken) {
+      const credential = GoogleAuthProvider.credential(result.credential.idToken);
+      return await signInWithCredential(auth, credential);
+    }
+    throw new Error("No se pudo obtener el token de Google.");
   }
   return signInWithPopup(auth, new GoogleAuthProvider());
 }
@@ -149,8 +154,8 @@ export default function LoginScreen() {
       className="min-h-[100dvh] flex flex-col items-center justify-between p-6 relative overflow-hidden" 
       style={{ 
         background: GRAD, 
-        paddingTop: "calc(env(safe-area-inset-top) + 20px)", 
-        paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" 
+        paddingTop: "max(1.5rem, calc(env(safe-area-inset-top) + 16px))", 
+        paddingBottom: "max(2.5rem, calc(env(safe-area-inset-bottom) + 28px))" 
       }}>
       
       {/* Decorative ambient glowing orbs */}
@@ -472,14 +477,14 @@ export default function LoginScreen() {
       </div>
 
       {/* Footer info */}
-      <div className="text-center z-10">
-        <p className="text-white/50 text-[10px]">
+      <div className="text-center z-10 pb-4 pt-2">
+        <p className="text-white/60 text-[11px]">
           Al continuar aceptas nuestros{" "}
-          <a href="https://batallagroup-tech.github.io/ya-voy/terminos" target="_blank" rel="noopener noreferrer" className="underline text-white/80 font-bold">Términos</a>
+          <a href="https://batallagroup-tech.github.io/ya-voy/terminos" target="_blank" rel="noopener noreferrer" className="underline text-white/90 font-bold">Términos</a>
           {" "}y{" "}
-          <a href="https://batallagroup-tech.github.io/ya-voy/privacidad" target="_blank" rel="noopener noreferrer" className="underline text-white/80 font-bold">Privacidad</a>.
+          <a href="https://batallagroup-tech.github.io/ya-voy/privacidad" target="_blank" rel="noopener noreferrer" className="underline text-white/90 font-bold">Privacidad</a>.
         </p>
-        <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mt-1">Batalla Group</p>
+        <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1.5">Batalla Group</p>
       </div>
     </div>
   );

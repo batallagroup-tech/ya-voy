@@ -1,4 +1,4 @@
-package mx.batallagroup.yavoy.repartidor;
+package com.batallagroup.yavoy.repartidor;
 
 import android.os.Bundle;
 import android.webkit.WebView;
