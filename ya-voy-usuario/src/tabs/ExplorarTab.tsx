@@ -126,7 +126,7 @@ export default function ExplorarTab({ negocios, userLocation, onOpenNegocio }: P
           onBlur={() => setTimeout(() => setFocused(false), 200)}
           onKeyDown={e => { if (e.key === "Enter" && search.trim()) buscar(search); }}
           placeholder="Busca comida, tacos, pizza o restaurantes..."
-          className="w-full pl-11 pr-10 py-3.5 bg-white border border-slate-200/80 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-purple-400 shadow-sm transition-all"
+          className="w-full pl-11 pr-10 py-3.5 bg-white border border-slate-200/80 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-rose-400 shadow-sm transition-all"
         />
         {search && !buscando && (
           <button onClick={() => setSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -134,7 +134,7 @@ export default function ExplorarTab({ negocios, userLocation, onOpenNegocio }: P
           </button>
         )}
         {buscando && (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
         )}
 
         {/* Historial desplegable */}
@@ -142,7 +142,7 @@ export default function ExplorarTab({ negocios, userLocation, onOpenNegocio }: P
           <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-3xl shadow-xl z-20 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-50 bg-slate-50/50">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Búsquedas recientes</span>
-              <button onClick={limpiarHistorial} className="text-[10px] text-purple-600 font-bold hover:underline">Limpiar</button>
+              <button onClick={limpiarHistorial} className="text-[10px] text-rose-600 font-bold hover:underline">Limpiar</button>
             </div>
             {historial.map(h => (
               <button 
@@ -275,7 +275,7 @@ export default function ExplorarTab({ negocios, userLocation, onOpenNegocio }: P
                 <p className="font-black text-slate-900 text-xs truncate">{p.nombre}</p>
                 <p className="text-[10px] text-slate-400 truncate mt-0.5">{p.negocio_nombre}</p>
               </div>
-              <span className="font-black text-purple-600 text-xs shrink-0">${Number(p.precio).toFixed(2)}</span>
+              <span className="font-black text-rose-600 text-xs shrink-0">${Number(p.precio).toFixed(2)}</span>
               <ChevronRight size={16} className="text-slate-300 shrink-0" />
             </button>
           ))}

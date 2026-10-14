@@ -61,7 +61,7 @@ export default function SoporteModal({ userId, userEmail, userName, whatsappUrl,
         <div className="space-y-2">
           {OPCIONES.map(op => (
             <button key={op} onClick={() => { setTipo(op); setPedidoId(""); }}
-              className={`w-full px-4 py-3 rounded-xl text-sm font-bold text-left border-2 transition-all ${tipo === op ? "border-purple-500 bg-purple-50 text-purple-700" : "border-slate-100 text-slate-700 bg-slate-50"}`}>
+              className={`w-full px-4 py-3 rounded-xl text-sm font-bold text-left border-2 transition-all ${tipo === op ? "border-rose-500 bg-rose-50 text-rose-700" : "border-slate-100 text-slate-700 bg-slate-50"}`}>
               {op}
             </button>
           ))}
@@ -75,7 +75,7 @@ export default function SoporteModal({ userId, userEmail, userName, whatsappUrl,
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {pedidosRecientes.map(p => (
                 <button key={p.id} onClick={() => setPedidoId(p.id)}
-                  className={`w-full px-4 py-3 rounded-xl text-sm text-left border-2 transition-all ${pedidoId === p.id ? "border-purple-500 bg-purple-50" : "border-slate-100 bg-slate-50"}`}>
+                  className={`w-full px-4 py-3 rounded-xl text-sm text-left border-2 transition-all ${pedidoId === p.id ? "border-rose-500 bg-rose-50" : "border-slate-100 bg-slate-50"}`}>
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-800">#{p.id?.slice(-6).toUpperCase()}</span>
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full text-white ${p.status === 'entregado' ? 'bg-green-500' : p.status === 'cancelado' ? 'bg-red-500' : 'bg-orange-500'}`}>{p.status}</span>
@@ -92,7 +92,7 @@ export default function SoporteModal({ userId, userEmail, userName, whatsappUrl,
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Comentario adicional (opcional)</label>
             <textarea value={comentario} onChange={e => setComentario(e.target.value)}
               placeholder="Describe tu problema..."
-              className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-purple-400 resize-none h-24" />
+              className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-rose-400 resize-none h-24" />
           </div>
         )}
         {whatsappUrl && (

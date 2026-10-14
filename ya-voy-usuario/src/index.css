@@ -1,14 +1,36 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --color-carmine: #9C0D38;
+  --color-carmine-dark: #7F0D2B;
+  --color-gold: #FFB300;
+  --color-gold-light: #FFD54F;
+}
+
+.bg-carmine { background-color: #9C0D38 !important; }
+.bg-carmine-dark { background-color: #7F0D2B !important; }
+.text-carmine { color: #9C0D38 !important; }
+.border-carmine { border-color: #9C0D38 !important; }
+
+.bg-gold { background-color: #FFB300 !important; }
+.text-gold { color: #FFB300 !important; }
+.border-gold { border-color: #FFB300 !important; }
+
 html, body {
   overflow-x: hidden;
   max-width: 100vw;
   margin: 0;
   padding: 0;
-  background-color: transparent;
+  background-color: #f8fafc;
   user-select: none !important;
   -webkit-user-select: none !important;
   -webkit-touch-callout: none !important;
+}
+
+html.dark, html.dark body {
+  background-color: #020617;
 }
 
 input, textarea, [contenteditable="true"] {
@@ -101,4 +123,10 @@ input, select, textarea {
 
 .dark .shadow-sm,
 .dark .shadow-lg,
-.dark .shadow-xl { box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important; }
+.dark .shadow-xl { box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important; }.dark body, .dark .bg-slate-50, .dark main { background-color: #0f172a !important; }
+.dark .bg-white, .dark .bg-white\/95, .dark .bg-white\/90 { background-color: #1e293b !important; }
+.dark .text-slate-900, .dark .text-slate-800 { color: #f8fafc !important; }
+.dark .text-slate-700, .dark .text-slate-600 { color: #cbd5e1 !important; }
+.dark .text-slate-500 { color: #94a3b8 !important; }
+.dark .border-slate-100, .dark .border-slate-200, .dark .border-slate-200\/80 { border-color: #334155 !important; }
+.dark .bg-slate-100, .dark .bg-slate-200 { background-color: #334155 !important; }

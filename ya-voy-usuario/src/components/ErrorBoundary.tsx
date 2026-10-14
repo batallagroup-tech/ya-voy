@@ -20,7 +20,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           <p className="text-slate-500 text-sm mb-6">Recarga la página para continuar.</p>
           <button onClick={() => window.location.reload()}
             className="px-6 py-3 rounded-2xl text-white font-bold text-sm"
-            style={{ background: "linear-gradient(135deg,#6C3CE1,#E91E8C)" }}>
+            style={{ background: "linear-gradient(135deg,#9C0D38,#9C0D38)" }}>
             Recargar
           </button>
         </div>
@@ -48,7 +48,7 @@ export class TabErrorBoundary extends Component<Props, State> {
           <button
             onClick={() => this.setState({ error: null })}
             className="px-5 py-2.5 rounded-xl text-white text-sm font-bold"
-            style={{ background: "linear-gradient(135deg,#6C3CE1,#E91E8C)" }}>
+            style={{ background: "linear-gradient(135deg,#9C0D38,#9C0D38)" }}>
             Reintentar
           </button>
         </div>

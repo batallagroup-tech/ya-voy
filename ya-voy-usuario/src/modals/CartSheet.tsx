@@ -184,7 +184,7 @@ export default function CartSheet({
                 <div className="flex items-center gap-1 shrink-0 pt-0.5">
                   <button 
                     onClick={() => onRemoveFromCart(item.cartKey)} 
-                    className="w-6 h-6 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-purple-600 active:scale-90 shadow-2xs">
+                    className="w-6 h-6 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-rose-600 active:scale-90 shadow-2xs">
                     <Minus size={12} />
                   </button>
                   <span className="font-black text-slate-900 w-5 text-center text-xs">{item.cantidad}</span>
@@ -197,12 +197,12 @@ export default function CartSheet({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-slate-800 leading-tight">{item.nombre}</p>
-                  {item.opciones?.length ? (
+                  {Array.isArray(item.opciones) && item.opciones.length > 0 ? (
                     <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{item.opciones.map(o => o.nombre).join(' · ')}</p>
                   ) : null}
                 </div>
               </div>
-              <span className="font-black text-xs text-purple-700 shrink-0 pt-0.5">
+              <span className="font-black text-xs text-rose-700 shrink-0 pt-0.5">
                 ${(item.precio * item.cantidad).toFixed(2)}
               </span>
             </div>
@@ -218,7 +218,7 @@ export default function CartSheet({
                 value={cuponCodigo} 
                 onChange={e => { setCuponCodigo(e.target.value.toUpperCase()); setCuponError(""); }}
                 placeholder="Código de cupón" 
-                className="w-full pl-9 pr-3 py-2.5 bg-slate-50 rounded-2xl text-xs border border-slate-200 outline-none focus:border-purple-400 font-bold uppercase tracking-wider" 
+                className="w-full pl-9 pr-3 py-2.5 bg-slate-50 rounded-2xl text-xs border border-slate-200 outline-none focus:border-rose-400 font-bold uppercase tracking-wider" 
               />
             </div>
             <button 
@@ -290,7 +290,7 @@ export default function CartSheet({
                   setPropinaCustom(e.target.value); 
                   onPropinaChange(v); 
                 }}
-                className="w-16 px-2 py-2 rounded-2xl text-xs font-bold border border-slate-200 text-slate-700 text-center outline-none focus:border-purple-400" 
+                className="w-16 px-2 py-2 rounded-2xl text-xs font-bold border border-slate-200 text-slate-700 text-center outline-none focus:border-rose-400" 
               />
             </div>
           </div>
@@ -300,7 +300,7 @@ export default function CartSheet({
         {totalFinal > 0 && (
           <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-2xl mb-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-purple-600">
+              <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-rose-600">
                 {metodoPago === "efectivo" ? <Banknote size={16} /> : <CreditCard size={16} />}
               </div>
               <span className="text-xs font-bold text-slate-700">
@@ -309,7 +309,7 @@ export default function CartSheet({
             </div>
             <button 
               onClick={() => onMetodoPagoChange(metodoPago === "efectivo" ? "tarjeta" : "efectivo")}
-              className="text-[11px] font-black px-3 py-1.5 rounded-xl border border-slate-200 text-purple-600 bg-white hover:bg-slate-50">
+              className="text-[11px] font-black px-3 py-1.5 rounded-xl border border-slate-200 text-rose-600 bg-white hover:bg-slate-50">
               Cambiar
             </button>
           </div>
@@ -346,14 +346,14 @@ export default function CartSheet({
             </div>
           )}
           {propina > 0 && (
-            <div className="flex justify-between text-purple-600 font-bold">
+            <div className="flex justify-between text-rose-600 font-bold">
               <span>Propina al repartidor</span>
               <span>+${propina.toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between font-black text-slate-900 text-base border-t border-slate-100 pt-2 mt-2">
             <span>Total a Pagar</span>
-            <span className="text-purple-600">${totalFinal.toFixed(2)}</span>
+            <span className="text-rose-600">${totalFinal.toFixed(2)}</span>
           </div>
         </div>
 
@@ -379,7 +379,7 @@ export default function CartSheet({
                     <span className="font-bold">${(item.precio * item.cantidad).toFixed(2)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between font-black text-sm border-t border-slate-100 pt-2 text-purple-600">
+                <div className="flex justify-between font-black text-sm border-t border-slate-100 pt-2 text-rose-600">
                   <span>Total final</span>
                   <span>${totalFinal.toFixed(2)}</span>
                 </div>

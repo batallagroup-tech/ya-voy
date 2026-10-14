@@ -1,56 +1,22 @@
 import { useState, useEffect } from "react";
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  updateProfile, 
-  sendPasswordResetEmail, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signInWithCredential 
-} from "firebase/auth";
-import { Capacitor } from "@capacitor/core";
-import { auth } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 import { setStatusBarDark } from "../lib/statusBar";
 import { AnimatePresence, motion } from "motion/react";
 import { ShoppingBag, Mail, ArrowLeft, Eye, EyeOff, Loader2, User, Lock, Sparkles, CheckCircle2 } from "lucide-react";
 import { GRAD } from "../lib/constants";
 
+import { Browser } from "@capacitor/browser";
+import { App as CapApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+
 type Mode = "selection" | "email_login" | "email_register" | "reset_request";
 
-function mapError(code: string): string {
-  switch (code) {
-    case "auth/user-not-found":
-    case "auth/wrong-password":
-    case "auth/invalid-credential":
-      return "Correo o contraseña incorrectos.";
-    case "auth/email-already-in-use":
-      return "Este correo ya está registrado. Inicia sesión.";
-    case "auth/invalid-email":
-      return "Correo electrónico no válido.";
-    case "auth/weak-password":
-      return "La contraseña debe tener al menos 6 caracteres.";
-    case "auth/too-many-requests":
-      return "Demasiados intentos. Por favor espera unos minutos.";
-    case "auth/network-request-failed":
-      return "Error de conexión. Revisa tu internet.";
-    default:
-      return "Ocurrió un error. Inténtalo de nuevo.";
-  }
-}
-
-async function googleSignIn() {
-  if (Capacitor.isNativePlatform()) {
-    const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
-    const result = await FirebaseAuthentication.signInWithGoogle({
-      skipNativeAuth: true,
-    });
-    if (result.credential?.idToken) {
-      const credential = GoogleAuthProvider.credential(result.credential.idToken);
-      return await signInWithCredential(auth, credential);
-    }
-    throw new Error("No se pudo obtener el token de Google.");
-  }
-  return signInWithPopup(auth, new GoogleAuthProvider());
+function mapError(message: string): string {
+  if (message.includes("Invalid login credentials")) return "Correo o contraseña incorrectos.";
+  if (message.includes("User already registered")) return "Este correo ya está registrado. Inicia sesión.";
+  if (message.includes("Password should be at least")) return "La contraseña debe tener al menos 6 caracteres.";
+  if (message.includes("Unable to validate email")) return "Correo electrónico no válido.";
+  return message || "Ocurrió un error. Inténtalo de nuevo.";
 }
 
 export default function LoginScreen() {
@@ -66,6 +32,31 @@ export default function LoginScreen() {
 
   useEffect(() => {
     setStatusBarDark();
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener("appUrlOpen", async (data) => {
+        if (data.url.includes("login-callback") || data.url.includes("access_token") || data.url.includes("code=")) {
+          try {
+            await Browser.close();
+          } catch {}
+          const urlObj = new URL(data.url);
+          // Buscar code para PKCE (flujo por defecto de Supabase v2)
+          const code = urlObj.searchParams.get("code");
+          if (code) {
+            await supabase.auth.exchangeCodeForSession(code);
+            window.location.reload();
+            return;
+          }
+          // Fallback para Implicit Grant (si estuviera activado)
+          const hashParams = new URLSearchParams(urlObj.hash.substring(1));
+          const accessToken = hashParams.get("access_token");
+          const refreshToken = hashParams.get("refresh_token");
+          if (accessToken && refreshToken) {
+            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+            window.location.reload();
+          }
+        }
+      });
+    }
   }, []);
 
   const go = (m: Mode) => {
@@ -79,10 +70,14 @@ export default function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (err) throw err;
       window.location.reload();
     } catch (err: any) {
-      setError(mapError(err.code));
+      setError(mapError(err.message || err.error_description || ""));
     } finally {
       setLoading(false);
     }
@@ -105,13 +100,19 @@ export default function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      const res = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      if (res.user) {
-        await updateProfile(res.user, { displayName: nombre.trim() });
-      }
+      const { error: err } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            full_name: nombre.trim(),
+          },
+        },
+      });
+      if (err) throw err;
       window.location.reload();
     } catch (err: any) {
-      setError(mapError(err.code));
+      setError(mapError(err.message || err.error_description || ""));
     } finally {
       setLoading(false);
     }
@@ -121,12 +122,29 @@ export default function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      await googleSignIn();
-      window.location.reload();
-    } catch (err: any) {
-      if (err.code !== "auth/popup-closed-by-user" && err.code !== "auth/cancelled-popup-request") {
-        setError("No se pudo iniciar sesión con Google.");
+      if (Capacitor.isNativePlatform()) {
+        const { data, error: err } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: "yavoy://login-callback",
+            skipBrowserRedirect: true,
+          },
+        });
+        if (err) throw err;
+        if (data?.url) {
+          await Browser.open({ url: data.url });
+        }
+      } else {
+        const { error: err } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: window.location.origin,
+          },
+        });
+        if (err) throw err;
       }
+    } catch (err: any) {
+      setError("No se pudo iniciar sesión con Google.");
     } finally {
       setLoading(false);
     }
@@ -138,10 +156,11 @@ export default function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      await sendPasswordResetEmail(auth, email.trim());
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim());
+      if (err) throw err;
       setResetSent(true);
     } catch (err: any) {
-      setError(mapError(err.code) || "No encontramos una cuenta con este correo.");
+      setError(mapError(err.message || "No encontramos una cuenta con este correo."));
     } finally {
       setLoading(false);
     }
@@ -160,7 +179,7 @@ export default function LoginScreen() {
       
       {/* Decorative ambient glowing orbs */}
       <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-pink-500/20 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-purple-500/30 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-rose-500/30 blur-3xl pointer-events-none" />
 
       {/* Header spacer */}
       <div className="w-full flex justify-between items-center z-10">
@@ -172,7 +191,6 @@ export default function LoginScreen() {
           </button>
         ) : <div />}
         <div className="flex items-center gap-1 bg-white/15 backdrop-blur-md px-3 py-1 rounded-full border border-white/20">
-          <Sparkles size={12} className="text-yellow-300" />
           <span className="text-[10px] font-black text-white uppercase tracking-wider">Ya Voy v1.2</span>
         </div>
       </div>
@@ -205,8 +223,8 @@ export default function LoginScreen() {
                 <button 
                   onClick={handleGoogle} 
                   disabled={loading}
-                  className="w-full bg-white text-purple-700 font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60 text-sm">
-                  {loading ? <Loader2 className="animate-spin text-purple-700" size={20} /> : (
+                  className="w-full bg-white text-rose-700 font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60 text-sm">
+                  {loading ? <Loader2 className="animate-spin text-rose-700" size={20} /> : (
                     <svg width="20" height="20" viewBox="0 0 48 48">
                       <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                       <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -225,7 +243,7 @@ export default function LoginScreen() {
                   </button>
                   <button 
                     onClick={() => go("email_register")}
-                    className="w-full bg-purple-900/40 backdrop-blur-md text-white font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-purple-400/40 hover:bg-purple-900/60 active:scale-[0.99] transition-all text-xs">
+                    className="w-full bg-rose-900/40 backdrop-blur-md text-white font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-rose-400/40 hover:bg-rose-900/60 active:scale-[0.99] transition-all text-xs">
                     <User size={16} /> Crear Cuenta
                   </button>
                 </div>
@@ -294,8 +312,8 @@ export default function LoginScreen() {
                 <button 
                   type="submit" 
                   disabled={loading || !email || !password}
-                  className="w-full bg-white text-purple-700 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60 text-sm mt-1">
-                  {loading && <Loader2 className="animate-spin text-purple-700" size={18} />}
+                  className="w-full bg-white text-rose-700 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60 text-sm mt-1">
+                  {loading && <Loader2 className="animate-spin text-rose-700" size={18} />}
                   Iniciar Sesión
                 </button>
 
@@ -396,8 +414,8 @@ export default function LoginScreen() {
                 <button 
                   type="submit" 
                   disabled={loading || !nombre || !email || !password || !confirmPw}
-                  className="w-full bg-white text-purple-700 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60 text-sm mt-1">
-                  {loading && <Loader2 className="animate-spin text-purple-700" size={18} />}
+                  className="w-full bg-white text-rose-700 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60 text-sm mt-1">
+                  {loading && <Loader2 className="animate-spin text-rose-700" size={18} />}
                   Registrarme y Comenzar
                 </button>
 
@@ -437,7 +455,7 @@ export default function LoginScreen() {
                   </p>
                   <button 
                     onClick={() => go("email_login")}
-                    className="w-full bg-white text-purple-700 font-black py-3.5 rounded-2xl flex items-center justify-center shadow-lg hover:bg-slate-50 transition-all text-xs mt-2">
+                    className="w-full bg-white text-rose-700 font-black py-3.5 rounded-2xl flex items-center justify-center shadow-lg hover:bg-slate-50 transition-all text-xs mt-2">
                     Volver a Iniciar Sesión
                   </button>
                 </div>
@@ -464,8 +482,8 @@ export default function LoginScreen() {
                   <button 
                     type="submit" 
                     disabled={loading || !email}
-                    className="w-full bg-white text-purple-700 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60 text-sm mt-1">
-                    {loading && <Loader2 className="animate-spin text-purple-700" size={18} />}
+                    className="w-full bg-white text-rose-700 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60 text-sm mt-1">
+                    {loading && <Loader2 className="animate-spin text-rose-700" size={18} />}
                     Enviar enlace de recuperación
                   </button>
                 </form>

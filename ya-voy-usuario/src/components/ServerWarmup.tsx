@@ -31,7 +31,7 @@ export default function ServerWarmup() {
 
   if (estado === "mantenimiento" || estado === "fallo") return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-8"
-      style={{ background: "linear-gradient(135deg,#6C3CE1 0%,#9B59B6 50%,#E91E8C 100%)" }}>
+      style={{ background: "linear-gradient(135deg, #9C0D38 0%, #7A0A2C 50%, #4A051A 100%)" }}>
       <span className="text-7xl mb-6">{estado === "mantenimiento" ? "🔧" : "🛠️"}</span>
       <h1 className="text-2xl font-black text-white mb-2 text-center">
         {estado === "mantenimiento" ? "En mantenimiento" : "Sin conexion"}
@@ -42,7 +42,7 @@ export default function ServerWarmup() {
           : "No se pudo conectar al servidor. Intenta de nuevo."}
       </p>
       <button onClick={() => { setEstado("idle"); window.location.reload(); }}
-        className="bg-white font-black px-8 py-3 rounded-2xl text-sm" style={{ color: "#6C3CE1" }}>
+        className="bg-white font-black px-8 py-3 rounded-2xl text-sm" style={{ color: "#9C0D38" }}>
         Reintentar
       </button>
     </div>

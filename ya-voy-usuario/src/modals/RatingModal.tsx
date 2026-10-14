@@ -127,7 +127,7 @@ export default function RatingModal({ pedido, onClose, onRatingEnviado }: Props)
         {/* Calificación Restaurante */}
         <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
           <div className="flex items-center gap-2 mb-2">
-            <Utensils size={16} className="text-purple-600" />
+            <Utensils size={16} className="text-rose-600" />
             <span className="font-black text-slate-800 text-xs uppercase tracking-wider">
               {pedido.negocio_nombre || "Restaurante"}
             </span>
@@ -146,7 +146,7 @@ export default function RatingModal({ pedido, onClose, onRatingEnviado }: Props)
                   onClick={() => setFraseRest(fraseRest === f ? "" : f)}
                   className={`px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${
                     fraseRest === f 
-                      ? "border-purple-500 bg-purple-100 text-purple-700 shadow-sm" 
+                      ? "border-rose-500 bg-rose-100 text-rose-700 shadow-sm" 
                       : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                   }`}>
                   {f}
@@ -195,7 +195,7 @@ export default function RatingModal({ pedido, onClose, onRatingEnviado }: Props)
             onChange={e => setComentario(e.target.value.slice(0, 250))}
             placeholder="¿Algún comentario extra sobre tu comida o la entrega?"
             rows={2}
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs resize-none outline-none focus:border-purple-400 font-medium"
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs resize-none outline-none focus:border-rose-400 font-medium"
           />
           <p className="text-right text-[10px] text-slate-400 mt-0.5">{comentario.length}/250</p>
         </div>

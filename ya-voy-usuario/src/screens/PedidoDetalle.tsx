@@ -133,14 +133,14 @@ export default function PedidoDetalle({
                         completado 
                           ? "bg-green-500 text-white font-bold" 
                           : activo 
-                            ? "ring-4 ring-purple-100 text-white animate-pulse" 
+                            ? "ring-4 ring-rose-100 text-white animate-pulse" 
                             : "bg-slate-100 text-slate-400"
                       }`}
                         style={activo ? { background: GRAD } : {}}>
                         {completado ? "✓" : paso.icon}
                       </div>
                       <p className={`text-[9px] font-black text-center leading-tight ${
-                        activo ? "text-purple-600" : completado ? "text-green-600" : "text-slate-400"
+                        activo ? "text-rose-600" : completado ? "text-green-600" : "text-slate-400"
                       }`}>
                         {paso.label}
                       </p>
@@ -157,18 +157,18 @@ export default function PedidoDetalle({
 
         {/* Estado: EN CAMINO con MAPA y ETA */}
         {pedido.status === "en_camino" && (
-          <div className="bg-purple-50 border border-purple-200 rounded-3xl p-4 shadow-sm space-y-3">
+          <div className="bg-rose-50 border border-rose-200 rounded-3xl p-4 shadow-sm space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-purple-100 flex items-center justify-center shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-rose-100 flex items-center justify-center shrink-0">
                 <span className="text-2xl">🛵</span>
               </div>
               <div className="flex-1">
-                <p className="text-[10px] font-black text-purple-600 uppercase tracking-wider">¡Tu repartidor va en camino!</p>
+                <p className="text-[10px] font-black text-rose-600 uppercase tracking-wider">¡Tu repartidor va en camino!</p>
                 <p className="text-sm font-black text-slate-800">Preparando la entrega a tu puerta</p>
                 {etaMin !== null ? (
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <Clock size={12} className="text-purple-600" />
-                    <span className="text-xs font-black text-purple-700">Tiempo aproximado: ~{etaMin} min</span>
+                    <Clock size={12} className="text-rose-600" />
+                    <span className="text-xs font-black text-rose-700">Tiempo aproximado: ~{etaMin} min</span>
                   </div>
                 ) : pedido.tiempo_estimado ? (
                   <p className="text-xs font-medium text-slate-600">Tiempo estimado: {pedido.tiempo_estimado}</p>
@@ -178,9 +178,9 @@ export default function PedidoDetalle({
 
             {/* Repartidor Info */}
             {(pedido.repartidor_rating || pedido.repartidor_vehiculo) && (
-              <div className="flex items-center justify-between px-3 py-2 bg-white rounded-xl border border-purple-100 text-xs">
+              <div className="flex items-center justify-between px-3 py-2 bg-white rounded-xl border border-rose-100 text-xs">
                 <div className="flex items-center gap-1.5">
-                  <Bike size={14} className="text-purple-600" />
+                  <Bike size={14} className="text-rose-600" />
                   <span className="font-bold text-slate-700">{pedido.repartidor_vehiculo || "Motocicleta"}</span>
                 </div>
                 {pedido.repartidor_rating && (
@@ -193,7 +193,7 @@ export default function PedidoDetalle({
             )}
 
             {repUbicacion && (
-              <div className="rounded-2xl overflow-hidden border border-purple-200 shadow-inner" style={{ height: 180 }}>
+              <div className="rounded-2xl overflow-hidden border border-rose-200 shadow-inner" style={{ height: 180 }}>
                 <MapContainer center={[repUbicacion.lat, repUbicacion.lng]} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <Marker position={[repUbicacion.lat, repUbicacion.lng]} />
@@ -208,7 +208,7 @@ export default function PedidoDetalle({
         {["en_camino", "esperando_cliente"].includes(pedido.status) && (
           <button 
             onClick={() => onAbrirChat(pedido.id)}
-            className="relative w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 border-2 border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 active:scale-[0.99] transition-all shadow-sm">
+            className="relative w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 border-2 border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-[0.99] transition-all shadow-sm">
             <MessageSquare size={18} /> Chatear con el repartidor
             {(chatNoLeidos[pedido.id] || 0) > 0 && (
               <span className="absolute top-3 right-4 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-black flex items-center justify-center animate-bounce">
@@ -220,14 +220,14 @@ export default function PedidoDetalle({
 
         {/* Código de Verificación al Llegar */}
         {["en_camino", "esperando_cliente"].includes(pedido.status) && !codigoConfirmado && pedido.codigo_entrega && (
-          <div className="bg-white rounded-3xl border-2 border-purple-300 p-5 text-center shadow-md">
-            <div className="flex items-center justify-center gap-1.5 mb-1 text-purple-600">
+          <div className="bg-white rounded-3xl border-2 border-rose-300 p-5 text-center shadow-md">
+            <div className="flex items-center justify-center gap-1.5 mb-1 text-rose-600">
               <ShieldAlert size={16} />
               <p className="text-xs font-black uppercase tracking-wider">Código de Entrega Segura</p>
             </div>
             <p className="text-xs text-slate-500 mb-3">Muestra esta palabra al repartidor para recibir tu paquete:</p>
-            <div className="bg-purple-50 border-2 border-purple-400 rounded-2xl py-4 px-4 mb-2 shadow-inner">
-              <p className="text-3xl font-black tracking-widest text-purple-800 uppercase">{pedido.codigo_entrega}</p>
+            <div className="bg-rose-50 border-2 border-rose-400 rounded-2xl py-4 px-4 mb-2 shadow-inner">
+              <p className="text-3xl font-black tracking-widest text-rose-800 uppercase">{pedido.codigo_entrega}</p>
             </div>
             <p className="text-[10px] text-slate-400">Por seguridad, solo muéstrala en tu pantalla.</p>
           </div>
@@ -284,14 +284,14 @@ export default function PedidoDetalle({
               </div>
             )}
             {(pedido.propina ?? 0) > 0 && (
-              <div className="flex justify-between text-purple-600 font-bold">
+              <div className="flex justify-between text-rose-600 font-bold">
                 <span>Propina</span>
                 <span>+${Number(pedido.propina).toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between font-black text-slate-900 text-sm border-t border-slate-100 pt-2 mt-2">
               <span>Total pagado</span>
-              <span className="text-purple-600">${Number(pedido.total).toFixed(2)}</span>
+              <span className="text-rose-600">${Number(pedido.total).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -299,7 +299,7 @@ export default function PedidoDetalle({
         {/* Dirección de Entrega */}
         {!esPickup && pedido.direccion_entrega && (
           <div className="bg-white rounded-3xl border border-slate-100 p-4 shadow-sm flex items-start gap-3">
-            <div className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 shrink-0 mt-0.5">
+            <div className="w-8 h-8 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0 mt-0.5">
               <MapPin size={16} />
             </div>
             <div>

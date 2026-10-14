@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
+import { supabase } from "./lib/supabase";
 import { AnimatePresence } from "motion/react";
 import { ShoppingBag, Search, Clock, User, MapPin, ChevronDown, ShoppingCart, Loader2 } from "lucide-react";
 import { Toaster, toast } from "sonner";
@@ -25,6 +26,8 @@ import { TabErrorBoundary } from "./components/ErrorBoundary";
 import { usePushNotifications } from "./hooks/usePushNotifications";
 import { usePedidosWS } from "./hooks/usePedidosWS";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
+import LiveOrderBanner from "./components/LiveOrderBanner";
+import { updateLiveOrderNotification } from "./lib/liveNotifications";
 
 // Code splitting — se cargan solo cuando se necesitan
 const NegocioScreen    = lazy(() => import("./screens/NegocioScreen"));
@@ -47,7 +50,7 @@ const PerfilTab        = lazy(() => import("./tabs/PerfilTab"));
 function PageLoader() {
   return (
     <div className="flex-1 flex items-center justify-center">
-      <Loader2 size={28} className="animate-spin text-purple-400" />
+      <Loader2 size={28} className="animate-spin text-rose-400" />
     </div>
   );
 }
@@ -81,6 +84,7 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showDirecciones, setShowDirecciones] = useState(false);
+  
   const [tab, setTab] = useState<"home" | "explorar" | "pedidos" | "perfil">("home");
   const [categoria, setCategoria] = useState<"comida" | "tienda" | "envio">("comida");
   const [subCategoria, setSubCategoria] = useState("Todos");
@@ -96,10 +100,32 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [pedidosLoading, setPedidosLoading] = useState(false);
 
+  const pedidoActivo = pedidos.find(p => p.status !== "entregado" && p.status !== "cancelado") || null;
+
+  useEffect(() => {
+    if (pedidoActivo) {
+      updateLiveOrderNotification(pedidoActivo);
+    }
+  }, [pedidoActivo?.id, pedidoActivo?.status]);
+
   // Cart / negocio
   const [negocioSeleccionado, setNegocioSeleccionado] = useState<Negocio | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("ya_voy_cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("ya_voy_cart", JSON.stringify(cart));
+    } catch {}
+  }, [cart]);
+
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
 
   // Payment
@@ -117,6 +143,7 @@ export default function App() {
 
   // Profile
   const [fotoPerfil, setFotoPerfil] = useState("");
+  const [avatarError, setAvatarError] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
 
   // Location
@@ -124,7 +151,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("ya_voy_location") || "null"); } catch { return null; }
   });
   const [direcciones, setDirecciones] = useState<Direccion[]>(() => {
-    try { return JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]"); } catch { return []; }
+    try { const d = JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]"); return Array.isArray(d) ? d : []; } catch { return []; }
   });
   const direccionPrincipal = direcciones.find(d => d.principal) || direcciones[0];
 
@@ -178,8 +205,13 @@ export default function App() {
     fetch(API + "/api/config").then(r => r.json()).then(d => setAppConfig(d)).catch(() => {});
     getToken().then(token => {
       if (!token) return;
-      syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress?.split("@")[0] || "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }, token).catch(() => {});
-      fetch(API + "/api/usuario/perfil/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => { if (d.foto_perfil) setFotoPerfil(d.foto_perfil); }).catch(() => {});
+      const savedRealName = localStorage.getItem("ya_voy_real_name");
+      syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: savedRealName || user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress?.split("@")[0] || "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }, token).catch(() => {});
+      fetch(API + "/api/usuario/perfil/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => { 
+        if (d.foto_perfil) setFotoPerfil(d.foto_perfil); 
+        if (d.nombre) localStorage.setItem("ya_voy_real_name", d.nombre);
+        if (d.telefono) localStorage.setItem("ya_voy_phone", d.telefono);
+      }).catch(() => {});
       getFavoritos(userId, token).then(data => { setFavoritos(data); setFavoritosIds(new Set(data.map((n: Negocio) => n.id))); }).catch(() => {});
       fetch(API + "/api/usuario/wallet/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {});
     });
@@ -567,17 +599,26 @@ export default function App() {
   };
 
   // ── Handlers menores ──────────────────────────────────────────────────────
-  const handleOnboardingDone = ({ location, pago }: { location: [number, number] | null; pago: string }) => {
+  const handleOnboardingDone = async ({ location, address, pago, realName, phone }: { location: [number, number] | null; address?: string; pago: string; realName?: string; phone?: string }) => {
     localStorage.setItem("ya_voy_onboarding_done", "1");
+    if (realName) localStorage.setItem("ya_voy_real_name", realName);
+    if (phone) localStorage.setItem("ya_voy_phone", phone);
     if (location) { localStorage.setItem("ya_voy_location", JSON.stringify(location)); setUserLocation(location); }
     localStorage.setItem("ya_voy_pago", pago);
     setMetodoPago(pago);
     setShowOnboarding(false);
     loadNegocios(location);
+    try {
+      if (realName || phone) {
+        await supabase.auth.updateUser({
+          data: { full_name: realName, phone: phone }
+        });
+      }
+    } catch {}
   };
 
   const recargarDirecciones = () => {
-    try { setDirecciones(JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]")); } catch {}
+    try { const d = JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]"); setDirecciones(Array.isArray(d) ? d : []); } catch {}
   };
 
   // Importar la función de getDirecciones para cargar al iniciar
@@ -625,7 +666,14 @@ export default function App() {
 
   // ── Routing / early returns ───────────────────────────────────────────────
   if (showSplash) return <AnimatePresence><SplashScreen onDone={() => setShowSplash(false)} /></AnimatePresence>;
-  if (!isLoaded || !isSignedIn) return <LoginScreen />;
+  if (!isLoaded) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center" style={{ background: GRAD }}>
+        <Loader2 size={36} className="text-white animate-spin" />
+      </div>
+    );
+  }
+  if (!isSignedIn) return <LoginScreen />;
   if (showOnboarding) return <AnimatePresence><OnboardingFlow userName={user?.firstName || "amigo"} onDone={handleOnboardingDone} /></AnimatePresence>;
   if (showDirecciones) return (
     <DireccionesScreen
@@ -633,19 +681,32 @@ export default function App() {
       getToken={getToken}
       onBack={() => { setShowDirecciones(false); recargarDirecciones(); }}
       onSelect={(d) => {
-        const dirs = direcciones.map(x => ({ ...x, principal: x.id === d.id }));
+        let freshDirs: Direccion[] = [];
+        try {
+          const raw = JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]");
+          if (Array.isArray(raw)) freshDirs = raw;
+        } catch {}
+        if (!freshDirs.some(x => x.id === d.id)) {
+          freshDirs.push(d);
+        }
+        const dirs = freshDirs.map(x => ({ ...x, principal: x.id === d.id }));
         setDirecciones(dirs);
         localStorage.setItem("ya_voy_direcciones", JSON.stringify(dirs));
+        if (d.lat && d.lng) {
+          const loc: [number, number] = [d.lat, d.lng];
+          setUserLocation(loc);
+          localStorage.setItem("ya_voy_location", JSON.stringify(loc));
+          loadNegocios(loc);
+        }
         setShowDirecciones(false);
-        recargarDirecciones();
       }}
     />
   );
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
-    <div className="min-h-[100dvh] bg-slate-50 flex flex-col">
-      <Toaster position="top-center" />
+    <div className="h-[100dvh] overflow-hidden bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors">
+      <Toaster position="top-center" toastOptions={{ style: { marginTop: "50px" } }} />
       <ServerWarmup />
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-slate-800 text-white text-center text-xs font-bold py-2 flex items-center justify-center gap-2">
@@ -815,12 +876,23 @@ export default function App() {
         )}
       </AnimatePresence>
       </Suspense>
+      <AnimatePresence>
+        {pedidoActivo && (
+          <LiveOrderBanner
+            pedido={pedidoActivo}
+            onOpenPedido={(p) => {
+              setTab("pedidos");
+              handlePedidoClick(p);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* HEADER */}
       <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 shadow-2xs" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
         <div className="flex items-center justify-between">
           <button onClick={() => setShowDirecciones(true)} className="flex items-center gap-2.5 active:scale-95 transition-transform text-left">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-md shadow-purple-500/20" style={{ background: GRAD }}>
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-md shadow-rose-500/20" style={{ background: GRAD }}>
               <MapPin size={18} className="text-white" />
             </div>
             <div className="text-left">
@@ -833,18 +905,23 @@ export default function App() {
           </button>
           <div className="flex items-center gap-2">
             {cartCount > 0 && (
-              <button onClick={() => setShowCart(true)} className="relative p-2.5 rounded-2xl bg-purple-50 border border-purple-100 text-purple-600 active:scale-90 transition-transform">
+              <button onClick={() => setShowCart(true)} className="relative p-2.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 active:scale-90 transition-transform">
                 <ShoppingCart size={20} />
                 <span className="absolute -top-1 -right-1 w-5 h-5 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md" style={{ background: GRAD }}>{cartCount}</span>
               </button>
             )}
-            <button onClick={() => setTab("perfil")} className="w-10 h-10 rounded-2xl overflow-hidden bg-purple-100 border-2 border-purple-200/80 shadow-2xs flex items-center justify-center active:scale-90 transition-transform">
-              {fotoPerfil ? (
-                <img src={fotoPerfil} alt="User" className="w-full h-full object-cover" />
-              ) : user?.imageUrl ? (
-                <img src={user.imageUrl} alt="User" className="w-full h-full object-cover" />
+            <button onClick={() => setTab("perfil")} className="w-10 h-10 rounded-2xl overflow-hidden bg-rose-100 border-2 border-rose-200/80 shadow-2xs flex items-center justify-center active:scale-90 transition-transform">
+              {(fotoPerfil || user?.imageUrl) && !avatarError ? (
+                <img 
+                  src={fotoPerfil || user?.imageUrl || ""} 
+                  alt="" 
+                  referrerPolicy="no-referrer"
+                  crossOrigin="anonymous"
+                  onError={() => setAvatarError(true)}
+                  className="w-full h-full object-cover" 
+                />
               ) : (
-                <User size={18} className="text-purple-600" />
+                <User size={18} className="text-rose-600" />
               )}
             </button>
           </div>
@@ -867,6 +944,7 @@ export default function App() {
               favoritosIds={favoritosIds}
               pedidos={pedidos}
               userLocation={userLocation}
+              direccionPrincipal={direccionPrincipal}
               onCategoriaChange={setCategoria}
               onSubCategoriaChange={setSubCategoria}
               onOpenNegocio={openNegocio}
@@ -924,7 +1002,7 @@ export default function App() {
       </div>
 
       {/* BOTTOM NAV */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 px-3 pt-2 z-40 shadow-lg" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 dark:border-slate-800 backdrop-blur-md border-t border-slate-100 px-3 pt-2 z-40 shadow-lg transition-colors" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
         <div className="flex justify-around items-center max-w-md mx-auto">
           {(() => {
             const pedidoActivo = pedidos.find(p => !["entregado", "cancelado"].includes(p.status));
@@ -941,7 +1019,7 @@ export default function App() {
                   if (id === "home") { loadProductosFeed(); loadNegocios(); } 
                 }}
                 className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-2xl transition-all relative ${
-                  tab === id ? "text-purple-600 scale-105" : "text-slate-400 hover:text-slate-600"
+                  tab === id ? "text-rose-600 scale-105" : "text-slate-400 hover:text-slate-600"
                 }`}>
                 <div className="relative">
                   <Icon size={22} strokeWidth={tab === id ? 2.5 : 2} />
@@ -949,7 +1027,7 @@ export default function App() {
                     <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
                   )}
                 </div>
-                <span className={`text-[9px] font-black uppercase tracking-tight ${tab === id ? "opacity-100 font-black text-purple-700" : "opacity-60"}`}>{label}</span>
+                <span className={`text-[9px] font-black uppercase tracking-tight ${tab === id ? "opacity-100 font-black text-rose-700" : "opacity-60"}`}>{label}</span>
               </button>
             ));
           })()}
@@ -960,7 +1038,7 @@ export default function App() {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70">
           <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl">
             <div className="text-center mb-5">
-              <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <div className="w-14 h-14 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <span className="text-2xl">🔀</span>
               </div>
               <h2 className="text-xl font-black text-slate-900">Cuenta duplicada</h2>

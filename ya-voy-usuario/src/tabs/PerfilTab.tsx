@@ -1,9 +1,14 @@
 import { useState, useEffect } from "react";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
-import { motion } from "motion/react";
-import { MapPin, Banknote, CreditCard, Bell, HelpCircle, FileText, ChevronRight, LogOut, Trash2, User, Camera, Loader2, Wallet, Star, Share2, Sparkles, ShieldCheck } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { 
+  MapPin, Banknote, CreditCard, Bell, HelpCircle, FileText, 
+  ChevronRight, LogOut, Trash2, User, Loader2, Wallet, 
+  Star, Share2, Sparkles, Pencil, Phone, Mail, X, Check 
+} from "lucide-react";
 import { toast } from "sonner";
-import { GRAD, API } from "../lib/constants";
+import { GRAD, API, COLOR_CARMINE } from "../lib/constants";
+import { supabase } from "../lib/supabase";
 import type { Direccion } from "../components/DireccionesScreen";
 
 interface Props {
@@ -30,7 +35,7 @@ export default function PerfilTab({
   tarjetas, 
   metodoPago, 
   onMetodoPagoChange, 
-  onFotoChange, 
+  onFotoChange: _onFotoChange, 
   onShowDirecciones, 
   onShowTarjetas, 
   onShowSoporte, 
@@ -38,7 +43,7 @@ export default function PerfilTab({
   onSignOut 
 }: Props) {
   const { getToken } = useFirebaseAuth();
-  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const [notificaciones, setNotificaciones] = useState(() => localStorage.getItem("ya_voy_notif") !== "0");
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -49,6 +54,18 @@ export default function PerfilTab({
   const [codigoReferido, setCodigoReferido] = useState("");
   const [aplicandoRef, setAplicandoRef] = useState(false);
 
+  // User details state & edit modal
+  const [userNombre, setUserNombre] = useState(() => {
+    return localStorage.getItem("ya_voy_real_name") || user?.fullName || "Cliente Ya Voy";
+  });
+  const [userPhone, setUserPhone] = useState(() => {
+    return localStorage.getItem("ya_voy_phone") || "";
+  });
+  const [showEditarPerfil, setShowEditarPerfil] = useState(false);
+  const [editNombre, setEditNombre] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+
   useEffect(() => {
     if (!userId) return;
     getToken().then(token => {
@@ -57,31 +74,74 @@ export default function PerfilTab({
       fetch(API + "/api/usuario/wallet/" + userId, { headers: h }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {});
       fetch(API + "/api/usuario/puntos/" + userId, { headers: h }).then(r => r.json()).then(d => setPuntos(Number(d.puntos || 0))).catch(() => {});
       fetch(API + "/api/usuario/referral/" + userId, { headers: h }).then(r => r.json()).then(d => setReferralCode(d.code || null)).catch(() => {});
+      fetch(API + "/api/usuario/perfil/" + userId, { headers: h }).then(r => r.json()).then(d => {
+        if (d.nombre) {
+          setUserNombre(d.nombre);
+          localStorage.setItem("ya_voy_real_name", d.nombre);
+        }
+        if (d.telefono) {
+          setUserPhone(d.telefono);
+          localStorage.setItem("ya_voy_phone", d.telefono);
+        }
+      }).catch(() => {});
     });
   }, [userId]);
 
-  const subirFoto = async (file: File) => {
-    setSubiendoFoto(true);
+  const abrirEditarPerfil = () => {
+    setEditNombre(userNombre);
+    setEditPhone(userPhone);
+    setShowEditarPerfil(true);
+  };
+
+  const guardarPerfil = async () => {
+    if (!editNombre.trim()) {
+      toast.error("Por favor ingresa tu nombre completo.");
+      return;
+    }
+    const cleanPhone = editPhone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      toast.error("El número de teléfono debe tener al menos 10 dígitos.");
+      return;
+    }
+
+    setGuardandoPerfil(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "ya_voy_preset");
-      const r = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dpihs4gtg"}/image/upload`, { method: "POST", body: fd });
-      const d = await r.json();
-      if (d.secure_url) {
-        onFotoChange(d.secure_url);
-        const token = await getToken();
-        await fetch(API + "/api/usuario/perfil/" + userId, { 
-          method: "PATCH", 
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, 
-          body: JSON.stringify({ foto_perfil: d.secure_url }) 
+      const token = await getToken();
+      // 1. Guardar en backend Postgres
+      if (token) {
+        await fetch(API + "/api/usuario/perfil/" + userId, {
+          method: "PATCH",
+          headers: { 
+            "Content-Type": "application/json", 
+            "Authorization": "Bearer " + token 
+          },
+          body: JSON.stringify({ 
+            nombre: editNombre.trim(), 
+            telefono: editPhone.trim() 
+          })
         });
-        toast.success("Foto de perfil actualizada");
       }
-    } catch { 
-      toast.error("Error al subir la imagen"); 
-    } finally { 
-      setSubiendoFoto(false); 
+
+      // 2. Actualizar metadata de Supabase Auth
+      await supabase.auth.updateUser({
+        data: {
+          full_name: editNombre.trim(),
+          phone: editPhone.trim()
+        }
+      });
+
+      // 3. Persistir en localStorage
+      localStorage.setItem("ya_voy_real_name", editNombre.trim());
+      localStorage.setItem("ya_voy_phone", editPhone.trim());
+
+      setUserNombre(editNombre.trim());
+      setUserPhone(editPhone.trim());
+      setShowEditarPerfil(false);
+      toast.success("¡Perfil actualizado con éxito!");
+    } catch (e: any) {
+      toast.error(e.message || "Error al actualizar el perfil");
+    } finally {
+      setGuardandoPerfil(false);
     }
   };
 
@@ -122,6 +182,8 @@ export default function PerfilTab({
     }
   };
 
+  const imagenAvatar = fotoPerfil || user?.imageUrl;
+
   return (
     <motion.div 
       key="perfil" 
@@ -132,35 +194,54 @@ export default function PerfilTab({
 
       {/* Profile Card Header */}
       <div className="bg-white rounded-3xl border border-slate-100 p-6 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10" />
+        <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-r from-[#9C0D38]/10 via-[#7A0A2C]/10 to-[#9C0D38]/10" />
         
+        {/* Avatar sin botón de subida manual (usando Google / sesión) */}
         <div className="relative w-20 h-20 mb-3 mt-2">
-          <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-md bg-purple-100">
-            {fotoPerfil ? (
-              <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
-            ) : user?.imageUrl ? (
-              <img src={user.imageUrl} alt="Perfil" className="w-full h-full object-cover" />
+          <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-md bg-rose-50 flex items-center justify-center">
+            {imagenAvatar && !avatarError ? (
+              <img 
+                src={imagenAvatar} 
+                alt="" 
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
+                onError={() => setAvatarError(true)}
+                className="w-full h-full object-cover" 
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <User size={36} className="text-purple-600" />
+                <User size={36} className="text-[#9C0D38]" />
               </div>
             )}
           </div>
-          <label className="absolute bottom-0 right-0 w-7 h-7 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center cursor-pointer shadow-md text-white active:scale-90 transition-transform">
-            {subiendoFoto ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
-            <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) subirFoto(f); }} />
-          </label>
         </div>
 
-        <p className="font-black text-slate-900 text-lg">{user?.fullName || "Cliente Ya Voy"}</p>
+        {/* Nombre con botón de lapicito */}
+        <div className="flex items-center gap-2 justify-center">
+          <p className="font-black text-slate-900 text-lg">{userNombre}</p>
+          <button 
+            onClick={abrirEditarPerfil}
+            className="w-7 h-7 rounded-xl bg-rose-50 hover:bg-rose-100 text-[#9C0D38] flex items-center justify-center transition-all active:scale-90 shadow-2xs"
+            title="Editar nombre y teléfono">
+            <Pencil size={13} />
+          </button>
+        </div>
+
+        {/* Correo */}
         <p className="text-xs text-slate-400 mt-0.5">{user?.primaryEmailAddress?.emailAddress || "Usuario verificado"}</p>
+
+        {/* Teléfono obligatorio */}
+        <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-200/80 rounded-full text-xs font-semibold text-slate-600">
+          <Phone size={12} className="text-[#9C0D38]" />
+          <span>{userPhone || "Sin teléfono (toca el lápiz para agregar)"}</span>
+        </div>
       </div>
 
       {/* Wallet + Loyalty Points */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white rounded-3xl border border-slate-100 p-4 shadow-sm flex flex-col justify-between">
-          <div className="w-9 h-9 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center mb-2">
-            <Wallet size={18} className="text-indigo-600" />
+          <div className="w-9 h-9 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-center mb-2">
+            <Wallet size={18} className="text-[#9C0D38]" />
           </div>
           <div>
             <p className="font-black text-slate-900 text-xl tracking-tight">${walletBalance.toFixed(2)}</p>
@@ -183,43 +264,41 @@ export default function PerfilTab({
       {referralCode && (
         <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Sparkles size={16} className="text-purple-600" />
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-[#9C0D38]" />
               <p className="font-black text-slate-900 text-xs uppercase tracking-wider">Gana Dinero con Referidos</p>
             </div>
             <button 
-              onClick={compartirReferido} 
-              className="flex items-center gap-1 text-xs font-black text-purple-600 hover:text-purple-700 bg-purple-50 px-2.5 py-1 rounded-xl">
+              onClick={compartirReferido}
+              className="flex items-center gap-1 text-xs font-black text-[#9C0D38] hover:text-[#7A0A2C] bg-rose-50 px-2.5 py-1 rounded-xl transition-colors">
               <Share2 size={13} /> Compartir
             </button>
           </div>
-
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl py-3 px-4 text-center">
-            <p className="font-black text-purple-700 text-2xl tracking-widest">{referralCode}</p>
+          <div className="bg-gradient-to-r from-rose-50 to-orange-50 border-2 border-rose-200 rounded-2xl py-3 px-4 text-center">
+            <p className="font-black text-[#9C0D38] text-2xl tracking-widest">{referralCode}</p>
           </div>
-
-          <p className="text-[11px] text-slate-500 text-center leading-relaxed">
-            Comparte tu código con amigos y ambos reciben <span className="font-black text-green-600">$30 MXN</span> en su primer pedido.
+          <p className="text-[11px] text-slate-400 text-center">
+            Comparte tu código con amigos. Cuando hagan su primer pedido, ambos recibirán saldo en monedero.
           </p>
 
           {!showReferral ? (
             <button 
-              onClick={() => setShowReferral(true)} 
-              className="w-full py-2.5 text-xs font-bold text-purple-600 border border-purple-200 rounded-2xl hover:bg-purple-50 transition-colors">
+              onClick={() => setShowReferral(true)}
+              className="w-full py-2.5 text-xs font-bold text-[#9C0D38] border border-rose-200 rounded-2xl hover:bg-rose-50 transition-colors">
               ¿Tienes un código de referido?
             </button>
           ) : (
             <div className="flex gap-2 pt-1">
               <input 
-                value={codigoReferido} 
+                value={codigoReferido}
                 onChange={e => setCodigoReferido(e.target.value.toUpperCase())}
-                placeholder="YV-XXXXX" 
-                className="flex-1 px-3 py-2.5 bg-slate-50 rounded-2xl text-xs border border-slate-200 outline-none font-bold tracking-wider uppercase focus:border-purple-400" 
+                placeholder="CÓDIGO DE AMIGO"
+                className="flex-1 px-3 py-2.5 bg-slate-50 rounded-2xl text-xs border border-slate-200 outline-none font-bold tracking-wider uppercase focus:border-[#9C0D38]" 
               />
               <button 
-                onClick={aplicarReferido} 
-                disabled={aplicandoRef || !codigoReferido} 
-                className="px-4 py-2.5 rounded-2xl text-xs font-black text-white disabled:opacity-50 shadow-sm" 
+                onClick={aplicarReferido}
+                disabled={aplicandoRef || !codigoReferido.trim()}
+                className="px-4 py-2.5 rounded-2xl text-xs font-black text-white disabled:opacity-50 transition-transform active:scale-95"
                 style={{ background: GRAD }}>
                 {aplicandoRef ? "..." : "Canjear"}
               </button>
@@ -228,12 +307,12 @@ export default function PerfilTab({
         </div>
       )}
 
-      {/* Settings & Options List */}
+      {/* Main Settings Menu */}
       <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
         <button 
           onClick={onShowDirecciones}
           className="w-full px-4 py-4 flex items-center gap-3.5 hover:bg-slate-50 transition-colors border-b border-slate-50">
-          <div className="w-9 h-9 bg-purple-100 rounded-2xl flex items-center justify-center text-purple-600 shrink-0">
+          <div className="w-9 h-9 bg-rose-50 rounded-2xl flex items-center justify-center text-[#9C0D38] shrink-0">
             <MapPin size={18} />
           </div>
           <div className="flex-1 text-left">
@@ -244,7 +323,7 @@ export default function PerfilTab({
         </button>
 
         <div className="px-4 py-4 flex items-center gap-3.5 border-b border-slate-50">
-          <div className="w-9 h-9 bg-purple-100 rounded-2xl flex items-center justify-center text-purple-600 shrink-0">
+          <div className="w-9 h-9 bg-rose-50 rounded-2xl flex items-center justify-center text-[#9C0D38] shrink-0">
             {metodoPago === "efectivo" ? <Banknote size={18} /> : <CreditCard size={18} />}
           </div>
           <div className="flex-1 text-left">
@@ -257,7 +336,7 @@ export default function PerfilTab({
               onMetodoPagoChange(nuevo); 
               localStorage.setItem("ya_voy_pago", nuevo); 
             }}
-            className="text-xs font-black px-3 py-1.5 rounded-xl border border-slate-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors">
+            className="text-xs font-black px-3 py-1.5 rounded-xl border border-rose-200 text-[#9C0D38] bg-rose-50 hover:bg-rose-100 transition-colors">
             Cambiar
           </button>
         </div>
@@ -265,7 +344,7 @@ export default function PerfilTab({
         <button 
           onClick={onShowTarjetas}
           className="w-full px-4 py-4 flex items-center gap-3.5 hover:bg-slate-50 transition-colors border-b border-slate-50">
-          <div className="w-9 h-9 bg-purple-100 rounded-2xl flex items-center justify-center text-purple-600 shrink-0">
+          <div className="w-9 h-9 bg-rose-50 rounded-2xl flex items-center justify-center text-[#9C0D38] shrink-0">
             <CreditCard size={18} />
           </div>
           <div className="flex-1 text-left">
@@ -278,7 +357,7 @@ export default function PerfilTab({
         </button>
 
         <div className="px-4 py-4 flex items-center gap-3.5 border-b border-slate-50">
-          <div className="w-9 h-9 bg-purple-100 rounded-2xl flex items-center justify-center text-purple-600 shrink-0">
+          <div className="w-9 h-9 bg-rose-50 rounded-2xl flex items-center justify-center text-[#9C0D38] shrink-0">
             <Bell size={18} />
           </div>
           <div className="flex-1 text-left">
@@ -298,7 +377,7 @@ export default function PerfilTab({
         </div>
 
         <div className="px-4 py-4 flex items-center gap-3.5">
-          <div className="w-9 h-9 bg-purple-100 rounded-2xl flex items-center justify-center text-purple-600 shrink-0">
+          <div className="w-9 h-9 bg-rose-50 rounded-2xl flex items-center justify-center text-[#9C0D38] shrink-0">
             <span className="text-base">🌙</span>
           </div>
           <div className="flex-1 text-left">
@@ -357,11 +436,97 @@ export default function PerfilTab({
         </button>
       </div>
 
+      {/* Modal Editar Perfil (Lapicito) */}
+      <AnimatePresence>
+        {showEditarPerfil && (
+          <div className="fixed inset-0 bg-black/60 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+            <motion.div 
+              initial={{ y: 200, opacity: 0 }} 
+              animate={{ y: 0, opacity: 1 }} 
+              exit={{ y: 200, opacity: 0 }}
+              className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4">
+              
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center text-[#9C0D38]">
+                    <Pencil size={15} />
+                  </div>
+                  <h3 className="font-black text-slate-900 text-base">Editar Mis Datos</h3>
+                </div>
+                <button 
+                  onClick={() => setShowEditarPerfil(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="space-y-3.5 pt-1">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                    <User size={12} className="text-[#9C0D38]" /> Nombre Completo
+                  </label>
+                  <input 
+                    type="text"
+                    value={editNombre}
+                    onChange={e => setEditNombre(e.target.value)}
+                    placeholder="Ej. Juan Pérez"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:border-[#9C0D38] focus:bg-white transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                    <Phone size={12} className="text-[#9C0D38]" /> Teléfono Móvil (10 dígitos) *
+                  </label>
+                  <input 
+                    type="tel"
+                    value={editPhone}
+                    onChange={e => setEditPhone(e.target.value)}
+                    placeholder="Ej. 7971234567"
+                    maxLength={10}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:border-[#9C0D38] focus:bg-white transition-colors"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Obligatorio para que los repartidores puedan contactarte al entregar.</p>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                    <Mail size={12} className="text-slate-400" /> Correo Electrónico
+                  </label>
+                  <div className="px-4 py-3 bg-slate-100 border border-slate-200/80 rounded-2xl text-xs font-semibold text-slate-500 flex items-center justify-between">
+                    <span className="truncate">{user?.primaryEmailAddress?.emailAddress || "Sin correo"}</span>
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 shrink-0 ml-2">Google</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 pt-3">
+                <button 
+                  onClick={() => setShowEditarPerfil(false)}
+                  disabled={guardandoPerfil}
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-700 font-bold rounded-2xl text-xs hover:bg-slate-200 transition-colors">
+                  Cancelar
+                </button>
+                <button 
+                  onClick={guardarPerfil}
+                  disabled={guardandoPerfil}
+                  className="flex-1 py-3.5 text-white font-black rounded-2xl text-xs flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md"
+                  style={{ background: GRAD }}>
+                  {guardandoPerfil ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+                  Guardar Datos
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Confirmar Cierre de Sesión */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-6 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4">
             <div className="text-center">
-              <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center mx-auto mb-2 text-purple-600">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center mx-auto mb-2 text-[#9C0D38]">
                 <LogOut size={24} />
               </div>
               <h3 className="font-black text-slate-900 text-lg">¿Cerrar sesión?</h3>
@@ -385,7 +550,7 @@ export default function PerfilTab({
 
       <div className="text-center pt-2">
         <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
-          Desarrollado por <span className="text-purple-600">Batalla Group</span>
+          Desarrollado por <span className="text-[#9C0D38]">Batalla Group</span>
         </p>
       </div>
     </motion.div>

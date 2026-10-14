@@ -130,7 +130,7 @@ export default function TarjetasModal({ userId, userEmail, userName, tarjetas, o
           <button onClick={onClose}><X size={22} className="text-slate-400" /></button>
         </div>
         {loading ? (
-          <div className="text-center py-8"><Loader2 className="animate-spin mx-auto text-purple-500" size={28} /></div>
+          <div className="text-center py-8"><Loader2 className="animate-spin mx-auto text-rose-500" size={28} /></div>
         ) : tarjetas.length === 0 ? (
           <div className="text-center py-8 text-slate-400">
             <CreditCard size={40} className="mx-auto mb-3 opacity-30" />

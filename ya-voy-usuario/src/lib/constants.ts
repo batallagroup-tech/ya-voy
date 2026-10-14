@@ -1,4 +1,6 @@
-export const GRAD = "linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%)";
+export const GRAD = "linear-gradient(135deg, #9C0D38 0%, #7A0A2C 50%, #4A051A 100%)";
+export const COLOR_CARMINE = "#9C0D38";
+export const COLOR_GOLD = "#FFB300";
 export const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export const STATUS_COLOR: Record<string, string> = {

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { ShoppingBag, Utensils, Store, Package, Star, Plus, Heart, Map, List, MapPin, Sparkles, Flame } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { GRAD } from "../lib/constants";
@@ -9,11 +9,36 @@ import type { CartItem } from "../lib/constants";
 import type { Negocio, Producto, Pedido } from "../types";
 import { imgUrl } from "../lib/cloudinary";
 
+delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
 });
+
+const redPinIcon = L.icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [28, 44],
+  iconAnchor: [14, 44],
+  popupAnchor: [0, -40],
+});
+
+const storePinIcon = L.icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [24, 38],
+  iconAnchor: [12, 38],
+  popupAnchor: [0, -35],
+});
+
+function MapRecenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, Math.max(map.getZoom(), 14));
+  }, [center, map]);
+  return null;
+}
 
 const SUB_CATEGORIAS: Record<string, string[]> = {
   comida: ["Todos", "Tacos", "Hamburguesas", "Pizza", "Sushi", "Comida Corrida", "Alitas", "Ensaladas", "Mariscos", "Postres", "Bebidas"],
@@ -32,6 +57,7 @@ interface Props {
   favoritosIds: Set<string>;
   pedidos: Pedido[];
   userLocation: [number, number] | null;
+  direccionPrincipal?: { id?: string; label?: string; direccion?: string; lat?: number; lng?: number } | null;
   onCategoriaChange: (c: "comida" | "tienda" | "envio") => void;
   onSubCategoriaChange: (s: string) => void;
   onOpenNegocio: (n: Negocio) => void;
@@ -59,6 +85,7 @@ export default function HomeTab({
   favoritosIds, 
   pedidos, 
   userLocation, 
+  direccionPrincipal,
   onCategoriaChange, 
   onSubCategoriaChange, 
   onOpenNegocio, 
@@ -67,6 +94,10 @@ export default function HomeTab({
   onToggleFavorito 
 }: Props) {
   const [vistaLista, setVistaLista] = useState(true);
+
+  const mapCenter: [number, number] = (direccionPrincipal?.lat && direccionPrincipal?.lng)
+    ? [direccionPrincipal.lat, direccionPrincipal.lng]
+    : (userLocation ?? [19.9342, -97.9612]);
 
   const negociosFiltrados = negocios.filter(n => {
     const tipo = categoria === "comida" ? "restaurante" : "tienda";
@@ -112,7 +143,7 @@ export default function HomeTab({
             onClick={() => { onCategoriaChange(id); onSubCategoriaChange("Todos"); }}
             className={`py-3.5 px-2 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all ${
               categoria === id 
-                ? "text-white shadow-lg shadow-purple-500/25 scale-[1.02]" 
+                ? "text-white shadow-lg shadow-rose-500/25 scale-[1.02]" 
                 : "bg-white border border-slate-100 text-slate-500 hover:bg-slate-50"
             }`}
             style={categoria === id ? { background: GRAD } : {}}>
@@ -125,7 +156,7 @@ export default function HomeTab({
       {categoria === "envio" && (
         <div className="bg-white rounded-3xl p-8 text-center border border-slate-100 shadow-sm space-y-4">
           <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto" style={{ background: "linear-gradient(135deg,#f3f0ff,#fdf2f8)" }}>
-            <Package size={40} className="text-purple-600" />
+            <Package size={40} className="text-rose-600" />
           </div>
           <div>
             <h2 className="text-2xl font-black text-slate-900">Envío de Paquetes</h2>
@@ -154,7 +185,7 @@ export default function HomeTab({
                     key={n.id} 
                     onClick={() => onOpenNegocio(n)}
                     className="shrink-0 flex flex-col items-center gap-1.5 w-16 group active:scale-95 transition-transform">
-                    <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-purple-200 bg-slate-100 shadow-sm group-hover:border-purple-400 transition-colors">
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-rose-200 bg-slate-100 shadow-sm group-hover:border-rose-400 transition-colors">
                       {n.imagen_url ? (
                         <img src={imgUrl(n.imagen_url, 120)} alt={n.nombre} className="w-full h-full object-cover" loading="lazy" />
                       ) : (
@@ -181,7 +212,7 @@ export default function HomeTab({
                     key={n.id} 
                     onClick={() => onOpenNegocio(n)}
                     className="shrink-0 flex flex-col items-center gap-1.5 w-16 group active:scale-95 transition-transform">
-                    <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm group-hover:border-purple-300 transition-colors">
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm group-hover:border-rose-300 transition-colors">
                       {n.imagen_url ? (
                         <img src={imgUrl(n.imagen_url, 120)} alt={n.nombre} className="w-full h-full object-cover" loading="lazy" />
                       ) : (
@@ -221,27 +252,38 @@ export default function HomeTab({
 
           {/* Vista de Mapa */}
           {!vistaLista && (
-            <div className="rounded-3xl overflow-hidden border border-slate-200 shadow-sm" style={{ height: 380 }}>
+            <div className="rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative" style={{ height: 380 }}>
               <MapContainer
-                center={userLocation ?? (negMapaData[0] ? [negMapaData[0].lat!, negMapaData[0].lng!] : [19.9342, -97.9612])}
+                center={mapCenter}
                 zoom={14} 
                 style={{ height: "100%", width: "100%" }} 
                 zoomControl={false}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                {userLocation && (
-                  <Marker position={userLocation}>
-                    <Popup><p className="font-bold text-xs">📍 Tu ubicación actual</p></Popup>
-                  </Marker>
-                )}
+                <MapRecenter center={mapCenter} />
+
+                {/* Marcador de destino / entrega */}
+                <Marker position={mapCenter} icon={redPinIcon}>
+                  <Popup>
+                    <div style={{ minWidth: 150 }}>
+                      <p className="font-black text-xs text-[#9C0D38] uppercase tracking-wider mb-0.5">📍 Entregar aquí</p>
+                      <p className="font-black text-xs text-slate-800">{direccionPrincipal?.label || "Mi ubicación"}</p>
+                      {direccionPrincipal?.direccion && (
+                        <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{direccionPrincipal.direccion}</p>
+                      )}
+                    </div>
+                  </Popup>
+                </Marker>
+
+                {/* Marcadores de locales y restaurantes cercanos */}
                 {negMapaData.map(n => (
-                  <Marker key={n.id} position={[n.lat!, n.lng!]}>
+                  <Marker key={n.id} position={[n.lat!, n.lng!]} icon={storePinIcon}>
                     <Popup>
                       <div style={{ minWidth: 150 }}>
                         <p className="font-black text-sm mb-0.5">{n.nombre}</p>
                         <p className="text-[11px] text-slate-500 mb-2">⭐ {Number(n.rating || 0).toFixed(1)} · {n.tipo}</p>
                         <button 
                           onClick={() => onOpenNegocio(n)}
-                          className="w-full py-1.5 rounded-xl text-white text-xs font-black"
+                          className="w-full py-1.5 rounded-xl text-white text-xs font-black shadow-xs active:scale-95 transition-transform"
                           style={{ background: GRAD }}>
                           Ver Menú
                         </button>
@@ -314,7 +356,7 @@ export default function HomeTab({
                           )}
                         </div>
                         <p className="text-xs text-slate-400 truncate mt-0.5">{p.negocio_nombre}</p>
-                        <p className="font-black text-base mt-1 text-purple-600">${Number(p.precio).toFixed(2)}</p>
+                        <p className="font-black text-base mt-1 text-rose-600">${Number(p.precio).toFixed(2)}</p>
                       </div>
 
                       <button 

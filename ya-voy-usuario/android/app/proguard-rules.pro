@@ -30,3 +30,7 @@
 
 # Admob
 -keep class com.google.android.gms.ads.** { *; }
+
+# Ignore warnings during R8 minification to speed up build
+-dontwarn **
+

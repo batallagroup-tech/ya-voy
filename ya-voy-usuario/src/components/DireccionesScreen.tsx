@@ -2,18 +2,19 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { MapPin, Home, Briefcase, Star, Plus, Pencil, Trash2, X, Check, ArrowLeft, Loader2, Navigation } from "lucide-react";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
+import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { getDirecciones, addDireccion, updateDireccion, setPrincipalDireccion, deleteDireccion } from "../lib/api";
+import { GRAD, COLOR_CARMINE } from "../lib/constants";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
 });
 
-const GRAD = "linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%)";
 const DEFAULT_LAT = 19.9342;
 const DEFAULT_LNG = -97.9612;
 
@@ -49,7 +50,7 @@ interface Props {
 
 export default function DireccionesScreen({ onBack, onSelect, userId, getToken }: Props) {
   const [direcciones, setDirecciones] = useState<Direccion[]>(() => {
-    try { return JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]"); }
+    try { const d = JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]"); return Array.isArray(d) ? d : []; }
     catch { return []; }
   });
   const [loadingBD, setLoadingBD] = useState(false);
@@ -115,7 +116,10 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
   }, [showForm]);
 
   const guardar = async () => {
-    if (!form.direccion.trim()) return;
+    if (!form.direccion.trim()) {
+      toast.error("Ingresa o selecciona una dirección válida");
+      return;
+    }
     setSaving(true);
     try {
       if (editando) {
@@ -128,6 +132,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
         } else {
           syncLocal(direcciones.map(d => d.id === editando.id ? { ...d, ...form } : d));
         }
+        toast.success("Dirección actualizada");
       } else {
         if (userId && getToken) {
           const token = await getToken();
@@ -135,17 +140,32 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
             const nueva = await addDireccion({ userId, label: form.label, icono: form.icono, direccion: form.direccion, lat: form.lat, lng: form.lng }, token);
             const mapped: Direccion = { id: nueva.id, label: nueva.label, icono: nueva.icono, direccion: nueva.direccion, lat: nueva.lat, lng: nueva.lng, principal: nueva.principal };
             syncLocal([...direcciones, mapped]);
+          } else {
+            const nueva: Direccion = { id: Date.now().toString(), ...form, principal: direcciones.length === 0 };
+            syncLocal([...direcciones, nueva]);
           }
         } else {
           const nueva: Direccion = { id: Date.now().toString(), ...form, principal: direcciones.length === 0 };
           syncLocal([...direcciones, nueva]);
         }
+        toast.success("Dirección guardada con éxito");
       }
-    } catch { /* fallback */ }
-    finally { setSaving(false); }
-    setShowForm(false);
-    setEditando(null);
-    setForm({ label: "Casa", icono: "casa", direccion: "", lat: DEFAULT_LAT, lng: DEFAULT_LNG });
+    } catch (e: any) { 
+      console.warn("Error guardando dirección en servidor:", e);
+      // Fallback local para que el usuario no pierda su dirección
+      if (editando) {
+        syncLocal(direcciones.map(d => d.id === editando.id ? { ...d, ...form } : d));
+      } else {
+        const nueva: Direccion = { id: Date.now().toString(), ...form, principal: direcciones.length === 0 };
+        syncLocal([...direcciones, nueva]);
+      }
+      toast.success("Dirección guardada en tu dispositivo");
+    } finally { 
+      setSaving(false); 
+      setShowForm(false);
+      setEditando(null);
+      setForm({ label: "Casa", icono: "casa", direccion: "", lat: DEFAULT_LAT, lng: DEFAULT_LNG });
+    }
   };
 
   const setPrincipal = async (id: string) => {
@@ -183,7 +203,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
           </button>
           <h1 className="text-sm font-black text-slate-900">Mis Direcciones de Entrega</h1>
         </div>
-        {loadingBD && <Loader2 size={16} className="animate-spin text-purple-600 mr-2" />}
+        {loadingBD && <Loader2 size={16} className="animate-spin text-[#9C0D38] mr-2" />}
       </div>
 
       {/* Address Cards List */}
@@ -196,7 +216,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
               layout 
               onClick={() => onSelect?.(d)}
               className={`bg-white rounded-3xl p-4 flex items-center gap-3.5 border-2 shadow-sm transition-all ${
-                d.principal ? "border-purple-500/80 bg-purple-50/20" : "border-slate-100"
+                d.principal ? "border-[#9C0D38]/80 bg-rose-50/30" : "border-slate-100"
               } ${onSelect ? "cursor-pointer active:scale-[0.99]" : ""}`}>
               
               <div 
@@ -229,7 +249,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
                   )}
                   <button 
                     onClick={e => { e.stopPropagation(); abrirEditar(d); }}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#9C0D38] hover:bg-rose-50 transition-colors"
                     title="Editar">
                     <Pencil size={15} />
                   </button>
@@ -251,7 +271,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
             setForm({ label: "Casa", icono: "casa", direccion: "", lat: DEFAULT_LAT, lng: DEFAULT_LNG }); 
             setShowForm(true); 
           }}
-          className="w-full border-2 border-dashed border-slate-300 rounded-3xl p-4 flex items-center justify-center gap-2 text-slate-500 hover:border-purple-500 hover:text-purple-600 bg-white/50 active:scale-[0.99] transition-all text-xs font-bold shadow-2xs">
+          className="w-full border-2 border-dashed border-slate-300 rounded-3xl p-4 flex items-center justify-center gap-2 text-slate-500 hover:border-[#9C0D38] hover:text-[#9C0D38] bg-white/50 active:scale-[0.99] transition-all text-xs font-bold shadow-2xs">
           <Plus size={18} /> Agregar nueva dirección
         </button>
       </div>
@@ -279,7 +299,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
 
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-1">
-                  <MapPin size={12} className="text-purple-600" /> Toca o arrastra el pin en el mapa
+                  <MapPin size={12} className="text-[#9C0D38]" /> Toca o arrastra el pin en el mapa
                 </label>
                 <div className="relative w-full h-52 rounded-3xl overflow-hidden border border-slate-200 shadow-inner">
                   <MapContainer
@@ -305,7 +325,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
                         handleMapClick(pos.coords.latitude, pos.coords.longitude); 
                       }, () => {}); 
                     }}
-                    className="absolute bottom-3 right-3 z-[1000] bg-white/95 backdrop-blur-md shadow-lg rounded-2xl p-2.5 border border-slate-200 text-purple-600 hover:bg-purple-50 active:scale-90 transition-all"
+                    className="absolute bottom-3 right-3 z-[1000] bg-white/95 backdrop-blur-md shadow-lg rounded-2xl p-2.5 border border-slate-200 text-[#9C0D38] hover:bg-rose-50 active:scale-90 transition-all"
                     title="Mi ubicación GPS"
                   >
                     <Navigation size={18} />
@@ -342,14 +362,14 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
                   value={form.label} 
                   onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
                   placeholder="Ej: Casa, Oficina, Casa de mamá"
-                  className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-xs font-bold border border-slate-200 outline-none focus:border-purple-400" 
+                  className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-xs font-bold border border-slate-200 outline-none focus:border-[#9C0D38]" 
                 />
               </div>
 
               <div className="relative">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 block flex items-center justify-between">
                   <span>Calle y número / Referencias</span>
-                  {geocoding && <span className="text-purple-600 flex items-center gap-1 font-bold"><Loader2 size={10} className="animate-spin" /> Buscando...</span>}
+                  {geocoding && <span className="text-[#9C0D38] flex items-center gap-1 font-bold"><Loader2 size={10} className="animate-spin" /> Buscando...</span>}
                 </label>
                 <input 
                   value={form.direccion} 
@@ -370,7 +390,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
                     } 
                   }}
                   placeholder="Calle, número exterior, colonia o referencia"
-                  className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-xs font-bold border border-slate-200 outline-none focus:border-purple-400" 
+                  className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-xs font-bold border border-slate-200 outline-none focus:border-[#9C0D38]" 
                 />
                 {sugerencias.length > 0 && (
                   <div className="absolute z-20 w-full bg-white border border-slate-200 rounded-2xl shadow-xl mt-1 overflow-hidden">
@@ -382,7 +402,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
                           setForm(f => ({ ...f, direccion: s.display_name, lat: parseFloat(s.lat), lng: parseFloat(s.lon) })); 
                           setSugerencias([]); 
                         }}
-                        className="w-full px-4 py-3 text-left text-xs text-slate-700 hover:bg-purple-50 border-b border-slate-100 last:border-0 truncate font-medium">
+                        className="w-full px-4 py-3 text-left text-xs text-slate-700 hover:bg-rose-50 border-b border-slate-100 last:border-0 truncate font-medium">
                         {s.display_name}
                       </button>
                     ))}

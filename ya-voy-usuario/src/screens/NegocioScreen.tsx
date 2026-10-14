@@ -28,7 +28,7 @@ function HorarioHoy({ horarios }: { horarios?: Negocio['horarios'] }) {
   if (!hoy.abierto) return <span className="text-xs font-bold text-red-500">Cerrado hoy</span>;
   return (
     <span className="text-xs text-slate-500 flex items-center gap-1">
-      <Clock size={12} className="text-purple-600 inline" /> Hoy {hoy.desde} – {hoy.hasta}
+      <Clock size={12} className="text-rose-600 inline" /> Hoy {hoy.desde} – {hoy.hasta}
     </span>
   );
 }
@@ -82,8 +82,8 @@ export default function NegocioScreen({
             onClick={onViewCart}
             className="absolute top-4 right-4 bg-white/95 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2 shadow-xl border border-white/40 active:scale-95 transition-transform"
             style={{ marginTop: "env(safe-area-inset-top)" }}>
-            <ShoppingCart size={18} className="text-purple-600" />
-            <span className="font-black text-purple-600 text-xs">{cartCount} items</span>
+            <ShoppingCart size={18} className="text-rose-600" />
+            <span className="font-black text-rose-600 text-xs">{cartCount} items</span>
           </button>
         )}
       </div>
@@ -139,10 +139,14 @@ export default function NegocioScreen({
           </div>
         ) : (
           productos.map(p => {
-            const tieneOpciones = (p.opciones?.length ?? 0) > 0;
+            let rawOps = p.opciones;
+            if (typeof rawOps === 'string') {
+              try { rawOps = JSON.parse(rawOps); } catch { rawOps = []; }
+            }
+            const tieneOpciones = Array.isArray(rawOps) && rawOps.length > 0;
             const itemsEnCarrito = cart.filter(i => i.productoId === p.id);
             const cantidadTotal = itemsEnCarrito.reduce((a, i) => a + i.cantidad, 0);
-            const itemSimple = itemsEnCarrito.find(i => !i.opciones?.length);
+            const itemSimple = itemsEnCarrito.find(i => !Array.isArray(i.opciones) || i.opciones.length === 0);
 
             return (
               <div 
@@ -187,7 +191,7 @@ export default function NegocioScreen({
                     <p className="text-xs text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">{p.descripcion}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="font-black text-base text-purple-600">${Number(p.precio).toFixed(2)}</span>
+                    <span className="font-black text-base text-rose-600">${Number(p.precio).toFixed(2)}</span>
                     {tieneOpciones && (
                       <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Personalizable</span>
                     )}
@@ -203,7 +207,7 @@ export default function NegocioScreen({
                       className="px-3 py-2 rounded-2xl text-white font-black text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-transform disabled:opacity-30" 
                       style={{ background: GRAD }}>
                       {cantidadTotal > 0 ? (
-                        <span className="w-4 h-4 bg-white text-purple-600 rounded-full flex items-center justify-center text-[10px] font-black mr-0.5">
+                        <span className="w-4 h-4 bg-white text-rose-600 rounded-full flex items-center justify-center text-[10px] font-black mr-0.5">
                           {cantidadTotal}
                         </span>
                       ) : <Plus size={14} />}
@@ -215,7 +219,7 @@ export default function NegocioScreen({
                         <>
                           <button 
                             onClick={() => onRemoveFromCart(itemSimple.cartKey)} 
-                            className="w-8 h-8 bg-purple-100 rounded-2xl flex items-center justify-center text-purple-600 hover:bg-purple-200 active:scale-90 transition-all">
+                            className="w-8 h-8 bg-rose-100 rounded-2xl flex items-center justify-center text-rose-600 hover:bg-rose-200 active:scale-90 transition-all">
                             <Minus size={14} />
                           </button>
                           <span className="font-black text-slate-900 w-5 text-center text-xs">{itemSimple.cantidad}</span>

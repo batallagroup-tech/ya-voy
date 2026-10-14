@@ -122,7 +122,7 @@ export default function PedidosTab({
       
       {pullY > 0 && (
         <div className="flex justify-center -mt-2 mb-1" style={{ height: pullY }}>
-          <Loader2 size={22} className={`text-purple-600 transition-all ${pullY > 45 ? "animate-spin" : ""}`} style={{ marginTop: pullY / 2 - 11 }} />
+          <Loader2 size={22} className={`text-rose-600 transition-all ${pullY > 45 ? "animate-spin" : ""}`} style={{ marginTop: pullY / 2 - 11 }} />
         </div>
       )}
 
@@ -147,7 +147,7 @@ export default function PedidosTab({
         </div>
       ) : pedidos.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 p-8 shadow-sm">
-          <Clock size={48} className="mx-auto mb-3 opacity-25 text-purple-600" />
+          <Clock size={48} className="mx-auto mb-3 opacity-25 text-rose-600" />
           <h3 className="font-black text-slate-800 text-lg">Aún no tienes pedidos</h3>
           <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
             Explora tus restaurantes favoritos y haz tu primera orden en minutos.
@@ -184,7 +184,7 @@ export default function PedidosTab({
                     <p className="text-[11px] text-slate-400 mt-0.5">
                       {new Date(p.creado_en).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </p>
-                    <p className="text-xs font-black text-purple-600 mt-1">${Number(p.total).toFixed(2)}</p>
+                    <p className="text-xs font-black text-rose-600 mt-1">${Number(p.total).toFixed(2)}</p>
                   </div>
 
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -204,7 +204,7 @@ export default function PedidosTab({
                   {esEntregado && !tieneRating && onCalificarPedido && (
                     <button 
                       onClick={() => onCalificarPedido(p)}
-                      className="flex-1 py-2.5 rounded-2xl text-xs font-black text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+                      className="flex-1 py-2.5 rounded-2xl text-xs font-black text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 flex items-center justify-center gap-1.5 active:scale-95 transition-all">
                       <Sparkles size={13} className="text-yellow-500" /> Calificar
                     </button>
                   )}
@@ -241,7 +241,7 @@ export default function PedidosTab({
               onClick={onLoadMore} 
               disabled={masLoading}
               className="w-full py-3.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-sm hover:bg-slate-50 active:scale-95 transition-all">
-              {masLoading ? <Loader2 size={16} className="animate-spin text-purple-600" /> : null}
+              {masLoading ? <Loader2 size={16} className="animate-spin text-rose-600" /> : null}
               Cargar pedidos anteriores
             </button>
           )}

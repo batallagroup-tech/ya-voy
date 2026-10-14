@@ -88,7 +88,7 @@ export default function ChatModal({ pedidoId, userId, onClose, onMensajesLeidos 
         {/* Chat Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-white shadow-sm shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-600">
+            <div className="w-10 h-10 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600">
               <Bike size={20} />
             </div>
             <div>
@@ -142,7 +142,7 @@ export default function ChatModal({ pedidoId, userId, onClose, onMensajesLeidos 
             onChange={e => setTexto(e.target.value)}
             onKeyDown={e => e.key === "Enter" && !e.shiftKey && enviar()}
             placeholder="Escribe un mensaje al repartidor..."
-            className="flex-1 px-4 py-3 bg-slate-50 rounded-2xl text-xs border border-slate-200 outline-none focus:border-purple-400 font-medium" 
+            className="flex-1 px-4 py-3 bg-slate-50 rounded-2xl text-xs border border-slate-200 outline-none focus:border-rose-400 font-medium" 
           />
           <button 
             onClick={enviar} 

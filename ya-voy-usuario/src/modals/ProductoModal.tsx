@@ -12,7 +12,23 @@ interface Props {
 }
 
 export default function ProductoModal({ producto, onClose, onAddToCart, onVerNegocio }: Props) {
-  const grupos: OpcionGrupo[] = producto.opciones || [];
+  let rawGrupos = producto.opciones;
+  if (typeof rawGrupos === 'string') {
+    try { rawGrupos = JSON.parse(rawGrupos); } catch { rawGrupos = []; }
+  }
+  const grupos: OpcionGrupo[] = (Array.isArray(rawGrupos) ? rawGrupos : []).map(g => {
+    let rawOps = g.opciones;
+    if (typeof rawOps === 'string') {
+      try { rawOps = JSON.parse(rawOps); } catch { rawOps = []; }
+    }
+    return {
+      ...g,
+      opciones: (Array.isArray(rawOps) ? rawOps : []).map(o => ({
+        ...o,
+        precio: Number(o.precio) || 0
+      }))
+    };
+  });
   const [seleccion, setSeleccion] = useState<Record<string, string[]>>({});
 
   const toggle = (grupoId: string, opcionId: string, tipo: 'unico' | 'multiple') => {
@@ -60,7 +76,7 @@ export default function ProductoModal({ producto, onClose, onAddToCart, onVerNeg
         <div className="p-5 flex-1 overflow-y-auto">
           <div className="flex items-start justify-between mb-1">
             <h2 className="font-black text-xl text-slate-900 flex-1">{producto.nombre}</h2>
-            <span className="font-black text-xl ml-3" style={{ color: "#6C3CE1" }}>${Number(producto.precio).toFixed(2)}</span>
+            <span className="font-black text-xl ml-3" style={{ color: "#9C0D38" }}>${Number(producto.precio).toFixed(2)}</span>
           </div>
           {producto.descripcion && (
             <p className="text-slate-500 text-sm mb-4 leading-relaxed">{producto.descripcion}</p>
@@ -71,7 +87,7 @@ export default function ProductoModal({ producto, onClose, onAddToCart, onVerNeg
               <div className="flex items-center gap-2 mb-2">
                 <p className="font-black text-slate-800 text-sm">{grupo.nombre}</p>
                 {grupo.requerido
-                  ? <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "#6C3CE1" }}>Requerido</span>
+                  ? <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "#9C0D38" }}>Requerido</span>
                   : <span className="text-[10px] font-bold text-slate-400 border border-slate-200 px-2 py-0.5 rounded-full">Opcional</span>}
                 <span className="text-[10px] text-slate-400 ml-auto">{grupo.tipo === 'unico' ? 'Elige 1' : 'Elige varios'}</span>
               </div>
@@ -80,15 +96,15 @@ export default function ProductoModal({ producto, onClose, onAddToCart, onVerNeg
                   const selected = (seleccion[grupo.id] || []).includes(opcion.id);
                   return (
                     <button key={opcion.id} onClick={() => toggle(grupo.id, opcion.id, grupo.tipo)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 transition-all text-left ${selected ? 'border-purple-400 bg-purple-50' : 'border-slate-100 bg-white'}`}>
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 transition-all text-left ${selected ? 'border-rose-400 bg-rose-50' : 'border-slate-100 bg-white'}`}>
                       <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded-${grupo.tipo === 'unico' ? 'full' : 'md'} border-2 flex items-center justify-center shrink-0 transition-all ${selected ? 'border-purple-500 bg-purple-500' : 'border-slate-300'}`}>
+                        <div className={`w-5 h-5 rounded-${grupo.tipo === 'unico' ? 'full' : 'md'} border-2 flex items-center justify-center shrink-0 transition-all ${selected ? 'border-rose-500 bg-rose-500' : 'border-slate-300'}`}>
                           {selected && <Check size={12} className="text-white" strokeWidth={3} />}
                         </div>
                         <span className="font-medium text-slate-800 text-sm">{opcion.nombre}</span>
                       </div>
                       {opcion.precio > 0 && (
-                        <span className="text-sm font-black text-purple-600">+${opcion.precio.toFixed(2)}</span>
+                        <span className="text-sm font-black text-rose-600">+${opcion.precio.toFixed(2)}</span>
                       )}
                     </button>
                   );

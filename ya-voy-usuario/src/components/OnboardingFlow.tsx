@@ -18,7 +18,7 @@ const pinIcon = L.icon({
   iconSize: [25, 41], iconAnchor: [12, 41],
 });
 
-const GRAD = "linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%)";
+const GRAD = "linear-gradient(135deg, #9C0D38 0%, #7A0A2C 50%, #9C0D38 100%)";
 const CENTER: [number, number] = [19.9342, -97.9612];
 
 function DraggablePin({ position, setPosition }: { position: [number,number]; setPosition: (p:[number,number]) => void }) {
@@ -38,12 +38,16 @@ function MapUpdater({ center }: { center: [number,number] }) {
 
 interface OnboardingProps {
   userName: string;
-  onDone: (data: { location: [number,number]; address: string; pago: string }) => void;
+  onDone: (data: { location: [number,number]; address: string; pago: string; realName: string; phone: string }) => void;
 }
 
 export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
   useLayoutEffect(() => { setStatusBarDark(); }, []);
   const [step, setStep] = useState(0);
+  const [realName, setRealName] = useState(userName !== "amigo" ? userName : "");
+  const [phone, setPhone] = useState("");
+  const [nameError, setNameError] = useState("");
+
   const [location, setLocation] = useState<[number,number]>(CENTER);
   const [address, setAddress] = useState("");
   const [locating, setLocating] = useState(false);
@@ -80,24 +84,34 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
     } catch { setAddress("Ubicación seleccionada"); }
   };
 
-  const confirmLocation = () => {
-    setLocationConfirmed(true);
-    setTimeout(() => setStep(1), 500);
+  const handleConfirmName = () => {
+    if (!realName.trim()) {
+      setNameError("Por favor ingresa tu nombre completo real.");
+      return;
+    }
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      setNameError("El número de teléfono es obligatorio (10 dígitos) para contactarte en tus entregas.");
+      return;
+    }
+    setNameError("");
+    setStep(1);
   };
 
-  const validateCard = () => { return ""; };
+  const confirmLocation = () => {
+    setLocationConfirmed(true);
+    setTimeout(() => setStep(2), 500);
+  };
 
-  const handleNext = () => {
-    const err = validateCard();
-    if (err) { setCardError(err); return; }
-    setStep(2);
+  const handleNextPayment = () => {
+    setStep(3);
   };
 
   const handleDone = () => {
-    onDone({ location, address: address || "Mi ubicacion", pago });
+    onDone({ location, address: address || "Mi ubicación", pago, realName: realName.trim(), phone: phone.trim() });
   };
 
-  const steps = ["Ubicación", "Pago", "¡Listo!"];
+  const steps = ["Datos", "Ubicación", "Pago", "¡Listo!"];
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -113,12 +127,64 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
       <div className="flex-1 flex flex-col overflow-hidden">
         <AnimatePresence mode="wait">
 
-          {/* PASO 0 — UBICACIÓN */}
+          {/* PASO 0 — DATOS PERSONALES */}
           {step === 0 && (
             <motion.div key="s0" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
+              className="flex-1 flex flex-col justify-between px-6 pb-6 pt-4">
+              <div>
+                <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mb-4">
+                  <ShoppingBag size={32} className="text-white" />
+                </div>
+                <h1 className="text-3xl font-black text-white mb-2">¡Bienvenido a Ya Voy! 👋</h1>
+                <p className="text-white/80 text-sm mb-6 leading-relaxed">
+                  Para asegurarnos de entregar tus pedidos correctamente, confirma tu nombre real y un teléfono de contacto.
+                </p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-white uppercase tracking-wider block mb-1">Nombre Completo Real</label>
+                    <input 
+                      type="text" 
+                      value={realName} 
+                      onChange={e => setRealName(e.target.value)} 
+                      placeholder="Ej. Juan Pérez"
+                      className="w-full px-4 py-3.5 rounded-2xl bg-white/20 text-white placeholder-white/50 border border-white/30 outline-none focus:border-white font-medium text-sm backdrop-blur" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-white uppercase tracking-wider block mb-1">Teléfono Móvil (10 dígitos)</label>
+                    <input 
+                      type="tel" 
+                      value={phone} 
+                      onChange={e => setPhone(e.target.value)} 
+                      placeholder="Ej. 7971234567"
+                      maxLength={10}
+                      className="w-full px-4 py-3.5 rounded-2xl bg-white/20 text-white placeholder-white/50 border border-white/30 outline-none focus:border-white font-medium text-sm backdrop-blur" 
+                    />
+                  </div>
+                </div>
+
+                {nameError && (
+                  <div className="mt-3 p-3 bg-red-500/30 border border-red-300/40 rounded-xl text-white text-xs font-bold text-center">
+                    {nameError}
+                  </div>
+                )}
+              </div>
+
+              <button onClick={handleConfirmName}
+                className="w-full bg-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 text-base mt-6 shadow-xl" style={{ color: "#9C0D38" }}>
+                Siguiente Paso <ArrowRight size={18} />
+              </button>
+            </motion.div>
+          )}
+
+          {/* PASO 1 — UBICACIÓN */}
+          {step === 1 && (
+            <motion.div key="s1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
               className="flex-1 flex flex-col overflow-hidden">
               <div className="px-6 pb-3 shrink-0">
-                <h1 className="text-2xl font-black text-white mb-1">Hola, {userName} 👋</h1>
+                <h1 className="text-2xl font-black text-white mb-1">Hola, {realName || userName} 👋</h1>
                 <p className="text-white/70 text-sm">Mueve el pin exactamente donde quieres tu entrega.</p>
               </div>
 
@@ -145,29 +211,29 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
                   {locating ? "Detectando..." : "Usar mi ubicación actual"}
                 </button>
                 <button onClick={confirmLocation}
-                  className="w-full bg-white py-4 rounded-2xl font-black flex items-center justify-center gap-2" style={{ color: "#6C3CE1" }}>
+                  className="w-full bg-white py-4 rounded-2xl font-black flex items-center justify-center gap-2" style={{ color: "#9C0D38" }}>
                   Confirmar este punto <ArrowRight size={18} />
                 </button>
               </div>
             </motion.div>
           )}
 
-          {/* PASO 1 — PAGO */}
-          {step === 1 && (
-            <motion.div key="s1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
+          {/* PASO 2 — PAGO */}
+          {step === 2 && (
+            <motion.div key="s2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
               className="flex-1 flex flex-col overflow-y-auto px-6 pb-6">
               <div className="mb-6 shrink-0">
                 <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mb-4">
                   <CreditCard size={32} className="text-white" />
                 </div>
                 <h1 className="text-2xl font-black text-white mb-1">¿Cómo pagas?</h1>
-                <p className="text-white/70 text-sm">Puedes cambiarlo en cada pedido.</p>
+                <p className="text-white/70 text-sm">Puedes cambiarlo en cada pedido o agregar tu tarjeta ahora.</p>
               </div>
 
               <div className="space-y-3 mb-4">
                 {[
                   { id: "efectivo", label: "Efectivo", desc: "Paga al repartidor al recibir", icon: Banknote },
-                  { id: "tarjeta", label: "Tarjeta", desc: "Débito o crédito", icon: CreditCard },
+                  { id: "tarjeta", label: "Tarjeta de Débito / Crédito", desc: "Pago en línea 100% seguro via Stripe", icon: CreditCard },
                 ].map(({ id, label, desc, icon: Icon }) => (
                   <button key={id} onClick={() => { setPago(id); setCardError(""); }}
                     className={`w-full p-4 rounded-2xl flex items-center gap-4 text-left transition-all ${pago === id ? "bg-white" : "bg-white/20 backdrop-blur border border-white/30"}`}>
@@ -179,7 +245,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
                       <p className={`font-black text-sm ${pago === id ? "text-slate-900" : "text-white"}`}>{label}</p>
                       <p className={`text-xs ${pago === id ? "text-slate-500" : "text-white/60"}`}>{desc}</p>
                     </div>
-                    {pago === id && <Check size={18} className="text-purple-600" />}
+                    {pago === id && <Check size={18} className="text-rose-600" />}
                   </button>
                 ))}
               </div>
@@ -187,41 +253,47 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
               {pago === "tarjeta" && (
                 <div className="bg-white/20 backdrop-blur rounded-2xl p-4 mb-4 flex items-center gap-3">
                   <CreditCard size={20} className="text-white shrink-0" />
-                  <p className="text-white text-xs">Tu tarjeta se agrega de forma segura al realizar tu primer pedido via Stripe.</p>
+                  <p className="text-white text-xs">Tu tarjeta se guarda de forma encriptada y segura via Stripe al momento de realizar tu primer pedido.</p>
                 </div>
               )}
 
-              <button onClick={handleNext}
-                className="w-full bg-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 mt-auto" style={{ color: "#6C3CE1" }}>
+              <button onClick={handleNextPayment}
+                className="w-full bg-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 mt-auto" style={{ color: "#9C0D38" }}>
                 Continuar <ArrowRight size={18} />
               </button>
             </motion.div>
           )}
 
-          {/* PASO 2 — LISTO */}
-          {step === 2 && (
-            <motion.div key="s2" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          {/* PASO 3 — LISTO */}
+          {step === 3 && (
+            <motion.div key="s3" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
               className="flex-1 flex flex-col items-center justify-center text-center px-6 pb-8">
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 150 }}
-                className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-8 shadow-2xl">
-                <span className="text-6xl">🎉</span>
+                className="w-28 h-28 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl">
+                <span className="text-5xl">🎉</span>
               </motion.div>
-              <h1 className="text-4xl font-black text-white mb-3">¡Todo listo!</h1>
-              <p className="text-white/80 text-lg mb-2">Ya puedes empezar a pedir</p>
-              <div className="bg-white/20 backdrop-blur rounded-2xl p-4 w-full text-left space-y-2 mb-8">
+              <h1 className="text-3xl font-black text-white mb-2">¡Todo listo, {realName.split(" ")[0]}!</h1>
+              <p className="text-white/80 text-sm mb-6">Tu perfil está configurado correctamente</p>
+              
+              <div className="bg-white/20 backdrop-blur rounded-2xl p-4 w-full text-left space-y-2 mb-6">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag size={16} className="text-white shrink-0" />
+                  <p className="text-white text-xs font-bold">{realName} {phone ? `(${phone})` : ""}</p>
+                </div>
                 <div className="flex items-center gap-2">
                   <MapPin size={16} className="text-white shrink-0" />
-                  <p className="text-white text-xs">{address || "Ubicación configurada"}</p>
+                  <p className="text-white text-xs line-clamp-1">{address || "Ubicación configurada"}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {pago === "efectivo" ? <Banknote size={16} className="text-white" /> : <CreditCard size={16} className="text-white" />}
-                  <p className="text-white text-xs">{pago === "efectivo" ? "Pago en efectivo" : "Tarjeta (se agrega al pedir)"}</p>
+                  <p className="text-white text-xs">{pago === "efectivo" ? "Pago en efectivo" : "Tarjeta (vía Stripe)"}</p>
                 </div>
               </div>
-              <label className="flex items-start gap-3 cursor-pointer mb-2">
+
+              <label className="flex items-start gap-3 cursor-pointer mb-4">
                 <input type="checkbox" checked={tcAceptado} onChange={e => setTcAceptado(e.target.checked)}
-                  className="mt-1 w-5 h-5 rounded accent-purple-600 shrink-0 cursor-pointer" />
-                <span className="text-white/80 text-xs leading-relaxed">
+                  className="mt-1 w-5 h-5 rounded accent-rose-600 shrink-0 cursor-pointer" />
+                <span className="text-white/80 text-xs leading-relaxed text-left">
                   He leído y acepto los{" "}
                   <a href="https://batallagroup-tech.github.io/ya-voy/terminos" target="_blank" rel="noopener noreferrer"
                     className="underline font-bold text-white">Términos y Condiciones</a>{" "}
@@ -230,9 +302,10 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
                     className="underline font-bold text-white">Política de Privacidad</a>.
                 </span>
               </label>
+
               <button onClick={handleDone} disabled={!tcAceptado}
-                className="w-full bg-white py-5 rounded-2xl font-black text-xl flex items-center justify-center gap-2 disabled:opacity-40" style={{ color: "#6C3CE1" }}>
-                <ShoppingBag size={24} /> ¡Empezar a pedir!
+                className="w-full bg-white py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 disabled:opacity-40 shadow-xl" style={{ color: "#9C0D38" }}>
+                <ShoppingBag size={22} /> ¡Empezar a pedir!
               </button>
             </motion.div>
           )}
@@ -240,10 +313,10 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
         </AnimatePresence>
       </div>
 
-      {step < 2 && (
-        <button onClick={() => step === 0 ? confirmLocation() : step === 1 ? setStep(2) : null}
-          className="text-white/50 text-sm font-bold pb-6 text-center hover:text-white/80 transition-colors shrink-0">
-          Omitir
+      {step < 3 && (
+        <button onClick={() => setStep(prev => Math.min(prev + 1, 3))}
+          className="text-white/50 text-xs font-bold pb-4 text-center hover:text-white/80 transition-colors shrink-0">
+          Omitir por ahora
         </button>
       )}
     </motion.div>
