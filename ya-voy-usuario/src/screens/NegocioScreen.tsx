@@ -46,6 +46,7 @@ export default function NegocioScreen({
   onOpenProducto 
 }: Props) {
   const costoEnvioBase = negocio.costo_envio_base || 35;
+  const estaFueraDeServicio = negocio.esta_abierto === false || negocio.aceptando_pedidos === false;
 
   return (
     <motion.div 
@@ -77,7 +78,7 @@ export default function NegocioScreen({
           <ArrowLeft size={20} />
         </button>
 
-        {cartCount > 0 && (
+        {cartCount > 0 && !estaFueraDeServicio && (
           <button 
             onClick={onViewCart}
             className="absolute top-4 right-4 bg-white/95 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2 shadow-xl border border-white/40 active:scale-95 transition-transform"
@@ -92,9 +93,9 @@ export default function NegocioScreen({
       <div className="p-4 bg-white border-b border-slate-100 shadow-sm shrink-0">
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-xl font-black text-slate-900 leading-tight">{negocio.nombre}</h2>
-          {negocio.aceptando_pedidos === false && (
-            <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200 shrink-0">
-              PAUSADO
+          {estaFueraDeServicio && (
+            <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 border border-rose-200 shrink-0 uppercase tracking-wider">
+              {negocio.esta_abierto === false ? 'Cerrado' : 'Pausado'}
             </span>
           )}
         </div>
@@ -121,6 +122,19 @@ export default function NegocioScreen({
             <MapPin size={13} className="shrink-0 text-slate-400" />
             <span className="truncate">{negocio.direccion}</span>
           </p>
+        )}
+
+        {/* Banner Fuera de servicio */}
+        {estaFueraDeServicio && (
+          <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-rose-900">
+            <span className="text-xl shrink-0">⛔</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-xs leading-none">Negocio fuera de servicio</p>
+              <p className="text-[11px] text-rose-700 mt-1 font-medium leading-tight">
+                No está aceptando pedidos en este horario. Puedes consultar sus platillos, pero la compra se encuentra deshabilitada temporalmente.
+              </p>
+            </div>
+          </div>
         )}
       </div>
 
@@ -152,13 +166,13 @@ export default function NegocioScreen({
               <div 
                 key={p.id} 
                 onClick={() => {
-                  if (p.agotado) return;
+                  if (p.agotado || estaFueraDeServicio) return;
                   if (tieneOpciones) onOpenProducto(p);
                   else onAddToCart(p);
                 }}
                 className={`bg-white rounded-3xl border border-slate-100 p-3.5 flex items-center gap-3.5 shadow-sm transition-all ${
-                  p.agotado 
-                    ? "opacity-50 cursor-not-allowed" 
+                  (p.agotado || estaFueraDeServicio)
+                    ? "opacity-60 cursor-not-allowed" 
                     : "hover:shadow-md cursor-pointer active:scale-[0.99]"
                 }`}>
                 
@@ -173,11 +187,15 @@ export default function NegocioScreen({
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>
                   )}
-                  {p.agotado && (
+                  {p.agotado ? (
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center">
                       <span className="text-[9px] font-black text-white px-1.5 py-0.5 rounded-full bg-red-600">Agotado</span>
                     </div>
-                  )}
+                  ) : estaFueraDeServicio ? (
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
+                      <span className="text-[8px] font-black text-white px-1.5 py-0.5 rounded-full bg-slate-700/80 uppercase">No disponible</span>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -200,10 +218,14 @@ export default function NegocioScreen({
 
                 {/* Botones de Carrito */}
                 <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-                  {tieneOpciones ? (
+                  {estaFueraDeServicio ? (
+                    <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200">
+                      Cerrado
+                    </span>
+                  ) : tieneOpciones ? (
                     <button 
                       onClick={() => onOpenProducto(p)}
-                      disabled={p.agotado}
+                      disabled={p.agotado || estaFueraDeServicio}
                       className="px-3 py-2 rounded-2xl text-white font-black text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-transform disabled:opacity-30" 
                       style={{ background: GRAD }}>
                       {cantidadTotal > 0 ? (
@@ -227,7 +249,7 @@ export default function NegocioScreen({
                       )}
                       <button 
                         onClick={() => onAddToCart(p)} 
-                        disabled={p.agotado}
+                        disabled={p.agotado || estaFueraDeServicio}
                         className="w-9 h-9 rounded-2xl flex items-center justify-center text-white shadow-sm active:scale-90 transition-all disabled:opacity-30" 
                         style={{ background: GRAD }}>
                         <Plus size={16} />

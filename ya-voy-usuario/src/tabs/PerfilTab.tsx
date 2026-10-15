@@ -48,8 +48,14 @@ export default function PerfilTab({
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [userAspectosStats, setUserAspectosStats] = useState<{ rating: number; total: number; aspectos: Record<string, number> } | null>(null);
+  const [ratingLoading, setRatingLoading] = useState(false);
   const [puntos, setPuntos] = useState(0);
-  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referralCode, setReferralCode] = useState<string | null>(() => {
+    return localStorage.getItem("ya_voy_ref_code_" + (userId || "")) || null;
+  });
   const [showReferral, setShowReferral] = useState(false);
   const [codigoReferido, setCodigoReferido] = useState("");
   const [aplicandoRef, setAplicandoRef] = useState(false);
@@ -73,7 +79,12 @@ export default function PerfilTab({
       const h = { Authorization: "Bearer " + token };
       fetch(API + "/api/usuario/wallet/" + userId, { headers: h }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {});
       fetch(API + "/api/usuario/puntos/" + userId, { headers: h }).then(r => r.json()).then(d => setPuntos(Number(d.puntos || 0))).catch(() => {});
-      fetch(API + "/api/usuario/referral/" + userId, { headers: h }).then(r => r.json()).then(d => setReferralCode(d.code || null)).catch(() => {});
+      fetch(API + "/api/usuario/referral/" + userId, { headers: h }).then(r => r.json()).then(d => {
+        if (d.code) {
+          setReferralCode(d.code);
+          localStorage.setItem("ya_voy_ref_code_" + userId, d.code);
+        }
+      }).catch(() => {});
       fetch(API + "/api/usuario/perfil/" + userId, { headers: h }).then(r => r.json()).then(d => {
         if (d.nombre) {
           setUserNombre(d.nombre);
@@ -84,6 +95,10 @@ export default function PerfilTab({
           localStorage.setItem("ya_voy_phone", d.telefono);
         }
       }).catch(() => {});
+      fetch(API + "/api/usuario/perfil/" + userId + "/calificaciones-aspectos", { headers: h })
+        .then(r => r.json())
+        .then(d => setUserAspectosStats(d))
+        .catch(() => {});
     });
   }, [userId]);
 
@@ -237,27 +252,39 @@ export default function PerfilTab({
         </div>
       </div>
 
-      {/* Wallet + Loyalty Points */}
+      {/* Wallet + Calificación del Cliente */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-3xl border border-slate-100 p-4 shadow-sm flex flex-col justify-between">
-          <div className="w-9 h-9 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-center mb-2">
-            <Wallet size={18} className="text-[#9C0D38]" />
+        <button 
+          onClick={() => setShowWalletModal(true)}
+          className="bg-white rounded-3xl border border-slate-100 p-4 shadow-sm flex flex-col justify-between text-left hover:border-rose-200 active:scale-[0.98] transition-all cursor-pointer">
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-9 h-9 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-center">
+              <Wallet size={18} className="text-[#9C0D38]" />
+            </div>
+            <span className="text-[10px] font-black text-[#9C0D38] bg-rose-50 px-2 py-0.5 rounded-full">Ver ▸</span>
           </div>
           <div>
             <p className="font-black text-slate-900 text-xl tracking-tight">${walletBalance.toFixed(2)}</p>
             <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Saldo en Monedero</p>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-3xl border border-slate-100 p-4 shadow-sm flex flex-col justify-between">
-          <div className="w-9 h-9 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-center mb-2">
-            <Star size={18} className="text-amber-500 fill-amber-500" />
+        <button 
+          onClick={() => setShowRatingModal(true)}
+          className="bg-white rounded-3xl border border-slate-100 p-4 shadow-sm flex flex-col justify-between text-left hover:border-amber-200 active:scale-[0.98] transition-all cursor-pointer">
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-9 h-9 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-center">
+              <Star size={18} className="text-amber-500 fill-amber-500" />
+            </div>
+            <span className="text-[10px] font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Aspectos ▸</span>
           </div>
           <div>
-            <p className="font-black text-slate-900 text-xl tracking-tight">{puntos}</p>
-            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Puntos de Lealtad</p>
+            <p className="font-black text-slate-900 text-xl tracking-tight">
+              {userAspectosStats?.total ? Number(userAspectosStats.rating || 5.0).toFixed(1) : "5.0"} ⭐
+            </p>
+            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Mi Calificación</p>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Referral Program */}
@@ -516,6 +543,171 @@ export default function PerfilTab({
                   Guardar Datos
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Monedero con Movimientos */}
+      <AnimatePresence>
+        {showWalletModal && (
+          <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#9C0D38] flex items-center justify-center">
+                    <Wallet size={16} />
+                  </div>
+                  <h3 className="font-black text-slate-900 text-base">Monedero Ya Voy</h3>
+                </div>
+                <button onClick={() => setShowWalletModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Balance Card */}
+              <div className="p-4 rounded-2xl text-white text-center shadow-lg" style={{ background: GRAD }}>
+                <p className="text-xs uppercase tracking-wider font-bold opacity-80">Saldo Disponible</p>
+                <p className="text-3xl font-black mt-1">${walletBalance.toFixed(2)} <span className="text-sm font-bold">MXN</span></p>
+                <p className="text-[11px] opacity-90 mt-1">Usa tu saldo directamente al pagar tus pedidos</p>
+              </div>
+
+              {/* Movimientos */}
+              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Historial de movimientos</p>
+                
+                {walletBalance > 0 ? (
+                  <div className="space-y-2">
+                    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">🎁</span>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">Bono por referidos / bienvenida</p>
+                          <p className="text-[10px] text-slate-400">Acreditado a tu monedero</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-green-600">+${walletBalance.toFixed(2)}</span>
+                    </div>
+
+                    <div className="p-3 bg-slate-50/60 rounded-2xl border border-slate-100/60 flex items-center justify-between opacity-80">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">🎟️</span>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">Cupones y promociones</p>
+                          <p className="text-[10px] text-slate-400">Canjeables en carrito</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500">Activo</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-400 space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-300">
+                      <Wallet size={24} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-600">No tienes movimientos recientes</p>
+                    <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto">
+                      Comparte tu código de referido para ganar saldo gratis para tus órdenes.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <button onClick={() => setShowWalletModal(false)}
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-xs transition-colors">
+                Entendido
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Mi Calificación con Desglose de Aspectos */}
+      <AnimatePresence>
+        {showRatingModal && (
+          <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center">
+                    <Star size={16} className="fill-amber-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900 text-base">Mi Calificación</h3>
+                    <p className="text-[10px] text-slate-400 font-medium">Valoración como comensal</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowRatingModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="bg-amber-50/60 border border-amber-200/60 rounded-2xl p-4 text-center">
+                <p className="text-4xl font-black text-slate-900">
+                  {userAspectosStats?.total ? Number(userAspectosStats.rating || 5.0).toFixed(1) : "5.0"}
+                </p>
+                <div className="flex justify-center gap-1 mt-1">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <Star key={i} size={15} className={i <= Math.round(Number(userAspectosStats?.rating || 5.0)) ? "text-amber-400 fill-amber-400" : "text-slate-200 fill-slate-200"} />
+                  ))}
+                </div>
+                <p className="text-xs font-bold text-amber-800 mt-1">
+                  {userAspectosStats?.total ?? 0} entregas evaluadas por repartidores
+                </p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Aspectos destacados</p>
+                {userAspectosStats?.aspectos && Object.keys(userAspectosStats.aspectos).length > 0 ? (
+                  <div className="space-y-2.5">
+                    {(() => {
+                      const maxV = Math.max(...Object.values(userAspectosStats.aspectos), 1);
+                      return Object.entries(userAspectosStats.aspectos)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([aspecto, count]) => (
+                          <div key={aspecto} className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="font-bold text-slate-700">{aspecto}</span>
+                              <span className="font-black text-[#9C0D38]">{count} voto{count !== 1 ? "s" : ""}</span>
+                            </div>
+                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${(count / maxV) * 100}%`, background: GRAD }} />
+                            </div>
+                          </div>
+                        ));
+                    })()}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {[
+                      { nombre: "Puntualidad al recibir", base: 100 },
+                      { nombre: "Buena comunicación", base: 100 },
+                      { nombre: "Amabilidad", base: 100 },
+                      { nombre: "Ubicación clara", base: 100 },
+                    ].map(a => (
+                      <div key={a.nombre} className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="font-bold text-slate-700">{a.nombre}</span>
+                          <span className="text-[10px] font-black text-green-600">⭐ Excelente</span>
+                        </div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-green-500" style={{ width: `${a.base}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-slate-400 text-center pt-1">
+                      Tus repartidores valoran cada entrega. Mantén un trato cordial para conservar tu excelente puntuación.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <button onClick={() => setShowRatingModal(false)}
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-xs transition-colors">
+                Cerrar
+              </button>
             </motion.div>
           </div>
         )}

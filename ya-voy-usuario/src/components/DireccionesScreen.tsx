@@ -70,12 +70,33 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
       if (!token) return;
       getDirecciones(userId, token)
         .then(data => {
+          let activeId: string | null = null;
+          let currentLocal: Direccion[] = [];
+          try {
+            currentLocal = JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]");
+            activeId = currentLocal.find(x => x.principal)?.id || null;
+          } catch {}
+
+          const dbIds = new Set(data.map((d: any) => d.id));
+          const localOnly = currentLocal.filter(d => !dbIds.has(d.id));
+
           const mapped: Direccion[] = data.map(d => ({
-            id: d.id, label: d.label, icono: d.icono as Direccion["icono"],
-            direccion: d.direccion, lat: d.lat, lng: d.lng, principal: d.principal,
+            id: d.id, 
+            label: d.label, 
+            icono: d.icono as Direccion["icono"],
+            direccion: d.direccion, 
+            lat: d.lat, 
+            lng: d.lng, 
+            principal: activeId ? d.id === activeId : d.principal,
           }));
-          setDirecciones(mapped);
-          localStorage.setItem("ya_voy_direcciones", JSON.stringify(mapped));
+
+          const combined = [...mapped, ...localOnly];
+          if (!combined.some(x => x.principal) && combined.length > 0) {
+            combined[0].principal = true;
+          }
+
+          setDirecciones(combined);
+          localStorage.setItem("ya_voy_direcciones", JSON.stringify(combined));
         })
         .catch(() => {})
         .finally(() => setLoadingBD(false));

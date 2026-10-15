@@ -62,6 +62,7 @@ export default function CartSheet({
   const [cuponError, setCuponError] = useState("");
   const [propinaCustom, setPropinaCustom] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showConfirmVaciar, setShowConfirmVaciar] = useState(false);
   const [tipoEntrega, setTipoEntrega] = useState<"domicilio" | "pickup">("domicilio");
   const [programarParaDespues, setProgramarParaDespues] = useState(false);
   const [fechaProgramada, setFechaProgramada] = useState("");
@@ -141,7 +142,7 @@ export default function CartSheet({
           <div className="flex items-center gap-2">
             {cart.length > 0 && (
               <button 
-                onClick={() => { onClearCart(); onClose(); }} 
+                onClick={() => setShowConfirmVaciar(true)} 
                 className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-red-500 bg-red-50 hover:bg-red-100 transition-colors">
                 <Trash2 size={13} /> Vaciar
               </button>
@@ -151,6 +152,37 @@ export default function CartSheet({
             </button>
           </div>
         </div>
+
+        {/* Modal de confirmación para vaciar carrito */}
+        {showConfirmVaciar && (
+          <div className="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-6">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+              <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto text-red-500">
+                <Trash2 size={24} />
+              </div>
+              <div className="text-center">
+                <h4 className="font-black text-slate-900 text-lg">¿Vaciar carrito?</h4>
+                <p className="text-xs text-slate-500 mt-1">Se eliminarán todos los platillos y productos seleccionados de tu pedido.</p>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button 
+                  onClick={() => setShowConfirmVaciar(false)} 
+                  className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-2xl text-xs hover:bg-slate-200">
+                  Cancelar
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowConfirmVaciar(false);
+                    onClearCart();
+                    onClose();
+                  }} 
+                  className="flex-1 py-3 bg-red-500 text-white font-black rounded-2xl text-xs hover:bg-red-600 shadow-md">
+                  Sí, vaciar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tipo de Entrega Toggle */}
         <div className="mb-4 bg-slate-100 p-1 rounded-2xl grid grid-cols-2 gap-1 shrink-0">

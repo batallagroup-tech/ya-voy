@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { App as CapApp } from "@capacitor/app";
@@ -63,6 +63,18 @@ export function useFirebaseAuth(): UseFirebaseAuth {
     };
   }, []);
 
+  const user = useMemo<FirebaseUser | null>(() => {
+    if (!spUser) return null;
+    const customLocalName = typeof window !== 'undefined' ? localStorage.getItem("ya_voy_real_name") : null;
+    const finalFullName = customLocalName || spUser.user_metadata?.custom_name || spUser.user_metadata?.full_name || spUser.email?.split("@")[0] || null;
+    return {
+      fullName: finalFullName,
+      firstName: finalFullName ? finalFullName.split(" ")[0] : null,
+      imageUrl: spUser.user_metadata?.avatar_url || spUser.user_metadata?.picture || spUser.user_metadata?.photo_url || null,
+      primaryEmailAddress: spUser.email ? { emailAddress: spUser.email } : null,
+    };
+  }, [spUser?.id, spUser?.email, spUser?.user_metadata]);
+
   return {
     isLoaded,
     isSignedIn: !!spUser,
@@ -77,14 +89,7 @@ export function useFirebaseAuth(): UseFirebaseAuth {
         return null;
       }
     },
-    user: spUser
-      ? {
-          fullName: spUser.user_metadata?.full_name || spUser.email?.split("@")[0] || null,
-          firstName: (spUser.user_metadata?.full_name || spUser.email)?.split(" ")[0] || null,
-          imageUrl: spUser.user_metadata?.avatar_url || spUser.user_metadata?.picture || spUser.user_metadata?.photo_url || null,
-          primaryEmailAddress: spUser.email ? { emailAddress: spUser.email } : null,
-        }
-      : null,
+    user,
     signOut: async () => {
       await supabase.auth.signOut();
     },

@@ -692,6 +692,11 @@ export default function App() {
         const dirs = freshDirs.map(x => ({ ...x, principal: x.id === d.id }));
         setDirecciones(dirs);
         localStorage.setItem("ya_voy_direcciones", JSON.stringify(dirs));
+        if (userId && getToken) {
+          getToken().then(tok => {
+            if (tok) import("./lib/api").then(m => m.setPrincipalDireccion(d.id, userId, tok).catch(() => {}));
+          });
+        }
         if (d.lat && d.lng) {
           const loc: [number, number] = [d.lat, d.lng];
           setUserLocation(loc);

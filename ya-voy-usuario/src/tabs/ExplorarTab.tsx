@@ -79,7 +79,17 @@ export default function ExplorarTab({ negocios, userLocation, onOpenNegocio }: P
     : negocios.filter(n => n.nombre?.toLowerCase().includes(search.toLowerCase()));
 
   const filtrados = base
-    .filter(n => filtroTipo === "todos" || n.tipo?.toLowerCase() === filtroTipo)
+    .filter(n => {
+      if (filtroTipo === "todos") return true;
+      const rawTipo = (n.tipo || 'restaurante').toLowerCase().trim();
+      if (filtroTipo === "comida") {
+        return rawTipo === "restaurante" || rawTipo === "comida";
+      }
+      if (filtroTipo === "tienda") {
+        return rawTipo === "tienda" || rawTipo === "abarrotes" || rawTipo === "tiendita";
+      }
+      return true;
+    })
     .sort((a, b) => {
       if (ordenDistancia && userLocation && a.lat && b.lat) {
         const da = haversineKm(userLocation[0], userLocation[1], a.lat, a.lng!);

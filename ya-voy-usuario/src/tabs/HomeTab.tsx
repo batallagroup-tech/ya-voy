@@ -100,8 +100,14 @@ export default function HomeTab({
     : (userLocation ?? [19.9342, -97.9612]);
 
   const negociosFiltrados = negocios.filter(n => {
-    const tipo = categoria === "comida" ? "restaurante" : "tienda";
-    return n.tipo?.toLowerCase().includes(tipo);
+    const rawTipo = (n.tipo || 'restaurante').toLowerCase().trim();
+    if (categoria === "comida") {
+      return rawTipo === "restaurante" || rawTipo === "comida";
+    }
+    if (categoria === "tienda") {
+      return rawTipo === "tienda" || rawTipo === "abarrotes" || rawTipo === "tiendita";
+    }
+    return true;
   });
 
   const productosFiltrados = productosFeed.filter(p =>
