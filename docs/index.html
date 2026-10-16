@@ -7,14 +7,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --grad: linear-gradient(135deg, #6C3CE1 0%, #9B59B6 50%, #E91E8C 100%);
-      --purple: #6C3CE1;
-      --pink: #E91E8C;
-      --dark: #0f0f1a;
-      --card: #1a1a2e;
+      --grad: linear-gradient(135deg, #9C0D38 0%, #7A0A2C 100%);
+      --purple: #9C0D38;
+      --pink: #E11D48;
+      --dark: #0f0a0d;
+      --card: #1c1015;
       --border: rgba(255,255,255,0.08);
       --text: #f0f0f0;
-      --muted: #a0a0b8;
+      --muted: #b8a0a8;
+      --accent-link: #FF6584;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', -apple-system, sans-serif; background: var(--dark); color: var(--text); line-height: 1.7; min-height: 100vh; }
@@ -47,11 +48,11 @@
     .card p, .card li { font-size: 14px; color: var(--muted); line-height: 1.8; }
     .card ul { padding-left: 20px; }
     .card ul li { margin-bottom: 4px; }
-    a { color: #a78bfa; }
+    a { color: var(--accent-link); }
 
     /* UPDATE */
-    .update { display: flex; align-items: center; gap: 10px; background: rgba(108,60,225,0.1); border: 1px solid rgba(108,60,225,0.25); border-radius: 10px; padding: 12px 18px; margin-bottom: 32px; font-size: 13px; color: var(--muted); }
-    .update strong { color: #a78bfa; }
+    .update { display: flex; align-items: center; gap: 10px; background: rgba(156,13,56,0.12); border: 1px solid rgba(156,13,56,0.3); border-radius: 10px; padding: 12px 18px; margin-bottom: 32px; font-size: 13px; color: var(--muted); }
+    .update strong { color: var(--accent-link); }
 
     /* APPS GRID */
     .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px; }
@@ -68,7 +69,7 @@
 
     /* FOOTER */
     footer { text-align: center; padding: 32px 24px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
-    footer strong { color: #a78bfa; }
+    footer strong { color: var(--accent-link); }
 
     @media (max-width: 520px) {
       .apps { grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -96,7 +97,7 @@
 
   <!-- PRIVACIDAD -->
   <section id="privacidad" class="active">
-    <div class="update"><strong>Ultima actualizacion:</strong>&nbsp;Mayo 2026 — Juan Galindo, Necaxa, Puebla, Mexico</div>
+    <div class="update"><strong>Ultima actualizacion:</strong>&nbsp;Octubre 2026 — Juan Galindo, Necaxa, Puebla, Mexico</div>
 
     <div class="apps">
       <div class="app-card"><div class="icon">📱</div><p>App Usuario</p></div>
@@ -108,7 +109,7 @@
       <div class="card-icon">📋</div>
       <h2>Datos que recopilamos</h2>
       <ul>
-        <li>Nombre completo y correo electronico (via Clerk)</li>
+        <li>Nombre completo y correo electronico (via Supabase Auth y Google OAuth)</li>
         <li>Direccion de entrega y coordenadas GPS</li>
         <li>Historial de pedidos y preferencias</li>
         <li>Documentos de identidad para repartidores y restaurantes (INE, selfie, tarjeta de circulacion)</li>
@@ -138,10 +139,10 @@
       <div class="card-icon">🔐</div>
       <h2>Seguridad</h2>
       <ul>
-        <li>Autenticacion segura mediante <strong>Clerk</strong></li>
-        <li>Base de datos cifrada en reposo (NeonDB)</li>
-        <li>Conexiones HTTPS en toda la plataforma</li>
-        <li>Imagenes almacenadas en Cloudinary con acceso controlado</li>
+        <li>Autenticacion segura mediante <strong>Supabase Auth</strong> y <strong>Google OAuth</strong></li>
+        <li>Base de datos cifrada en reposo con conexiones SSL obligatorias</li>
+        <li>Conexiones HTTPS seguras en toda la plataforma</li>
+        <li>Documentos e imagenes almacenados en Supabase Storage con politicas de acceso seguro (RLS)</li>
         <li>Pagos procesados por <strong>Stripe</strong> — nunca almacenamos datos de tarjetas</li>
       </ul>
     </div>
@@ -167,7 +168,7 @@
 
   <!-- TERMINOS -->
   <section id="terminos">
-    <div class="update"><strong>Vigentes desde:</strong>&nbsp;Mayo 2026</div>
+    <div class="update"><strong>Vigentes desde:</strong>&nbsp;Octubre 2026</div>
 
     <div class="card">
       <div class="card-icon">📱</div>
@@ -255,7 +256,7 @@
         <li><strong>Responsable:</strong> Ramses Antonio Batalla Franco</li>
         <li><strong>Ubicacion:</strong> Juan Galindo, Necaxa, Puebla, Mexico</li>
         <li><strong>Email:</strong> <a href="mailto:batallagroup@gmail.com">batallagroup@gmail.com</a></li>
-        <li><strong>Telefono:</strong> 764131374</li>
+        <li><strong>Telefono:</strong> +52 764 131 3774</li>
       </ul>
     </div>
 
