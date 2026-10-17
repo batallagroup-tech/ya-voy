@@ -157,7 +157,10 @@ export default function NegocioScreen({
             if (typeof rawOps === 'string') {
               try { rawOps = JSON.parse(rawOps); } catch { rawOps = []; }
             }
-            const tieneOpciones = Array.isArray(rawOps) && rawOps.length > 0;
+            const tieneOpciones = Array.isArray(rawOps) && rawOps.some((g: any) => 
+              g && g.nombre && String(g.nombre).trim().length > 0 &&
+              Array.isArray(g.opciones) && g.opciones.some((o: any) => o && o.nombre && String(o.nombre).trim().length > 0)
+            );
             const itemsEnCarrito = cart.filter(i => i.productoId === p.id);
             const cantidadTotal = itemsEnCarrito.reduce((a, i) => a + i.cantidad, 0);
             const itemSimple = itemsEnCarrito.find(i => !Array.isArray(i.opciones) || i.opciones.length === 0);

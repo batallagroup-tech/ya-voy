@@ -15,6 +15,8 @@ export interface Negocio {
   tiempo_estimado?: string;
   owner_id?: string;
   costo_envio_base?: number;
+  costo_envio?: number;
+  distancia_km?: number;
 }
 
 export interface OpcionItem {

@@ -60,20 +60,26 @@ export default function TarjetasModal({ userId, userEmail, userName, tarjetas, o
       const res = await fetch(API + "/api/stripe/setup-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, email: userEmail, nombre: userName }),
       });
       const data = await res.json();
-      if (!data.clientSecret) throw new Error("No se pudo iniciar");
+      if (!res.ok || !data.clientSecret) {
+        throw new Error(data.error || "No se pudo iniciar el registro de tarjeta");
+      }
       const stripe = await loadStripe(STRIPE_PK);
+      if (!stripe) throw new Error("No se pudo cargar Stripe. Verifica tu conexión.");
       setSetupStripe(stripe);
       setSetupClientSecret(data.clientSecret);
       setTimeout(() => {
-        const elements = stripe!.elements({ clientSecret: data.clientSecret, appearance: { theme: "stripe" } });
+        const elements = stripe.elements({ clientSecret: data.clientSecret, appearance: { theme: "stripe" } });
         const card = elements.create("payment");
         card.mount("#stripe-setup-element");
         setSetupCard({ elements, card });
       }, 300);
-    } catch (e: any) { toast.error(e.message); setShowAgregar(false); }
+    } catch (e: any) { 
+      toast.error(e.message || "Error al iniciar"); 
+      setShowAgregar(false); 
+    }
   };
 
   const confirmarTarjeta = async () => {

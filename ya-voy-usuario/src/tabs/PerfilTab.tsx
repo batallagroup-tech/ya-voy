@@ -86,7 +86,10 @@ export default function PerfilTab({
         }
       }).catch(() => {});
       fetch(API + "/api/usuario/perfil/" + userId, { headers: h }).then(r => r.json()).then(d => {
-        if (d.nombre) {
+        const localCustom = localStorage.getItem("ya_voy_custom_name_" + userId) || localStorage.getItem("ya_voy_real_name");
+        if (localCustom) {
+          setUserNombre(localCustom);
+        } else if (d.nombre) {
           setUserNombre(d.nombre);
           localStorage.setItem("ya_voy_real_name", d.nombre);
         }
@@ -114,7 +117,7 @@ export default function PerfilTab({
       return;
     }
     const cleanPhone = editPhone.replace(/\D/g, "");
-    if (cleanPhone.length < 10) {
+    if (editPhone.trim() && cleanPhone.length < 10) {
       toast.error("El número de teléfono debe tener al menos 10 dígitos.");
       return;
     }
@@ -147,10 +150,11 @@ export default function PerfilTab({
 
       // 3. Persistir en localStorage
       localStorage.setItem("ya_voy_real_name", editNombre.trim());
-      localStorage.setItem("ya_voy_phone", editPhone.trim());
+      if (userId) localStorage.setItem("ya_voy_custom_name_" + userId, editNombre.trim());
+      if (editPhone.trim()) localStorage.setItem("ya_voy_phone", editPhone.trim());
 
       setUserNombre(editNombre.trim());
-      setUserPhone(editPhone.trim());
+      if (editPhone.trim()) setUserPhone(editPhone.trim());
       setShowEditarPerfil(false);
       toast.success("¡Perfil actualizado con éxito!");
     } catch (e: any) {
@@ -280,7 +284,7 @@ export default function PerfilTab({
           </div>
           <div>
             <p className="font-black text-slate-900 text-xl tracking-tight">
-              {userAspectosStats?.total ? Number(userAspectosStats.rating || 5.0).toFixed(1) : "5.0"} ⭐
+              {userAspectosStats?.total ? Number(userAspectosStats.rating || 0).toFixed(1) : "0.0"} ⭐
             </p>
             <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Mi Calificación</p>
           </div>
@@ -646,11 +650,11 @@ export default function PerfilTab({
 
               <div className="bg-amber-50/60 border border-amber-200/60 rounded-2xl p-4 text-center">
                 <p className="text-4xl font-black text-slate-900">
-                  {userAspectosStats?.total ? Number(userAspectosStats.rating || 5.0).toFixed(1) : "5.0"}
+                  {userAspectosStats?.total ? Number(userAspectosStats.rating || 0).toFixed(1) : "0.0"}
                 </p>
                 <div className="flex justify-center gap-1 mt-1">
                   {[1, 2, 3, 4, 5].map(i => (
-                    <Star key={i} size={15} className={i <= Math.round(Number(userAspectosStats?.rating || 5.0)) ? "text-amber-400 fill-amber-400" : "text-slate-200 fill-slate-200"} />
+                    <Star key={i} size={15} className={Boolean(userAspectosStats?.total) && i <= Math.round(Number(userAspectosStats?.rating || 0)) ? "text-amber-400 fill-amber-400" : "text-slate-200 fill-slate-200"} />
                   ))}
                 </div>
                 <p className="text-xs font-bold text-amber-800 mt-1">

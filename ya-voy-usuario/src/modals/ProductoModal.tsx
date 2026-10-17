@@ -16,19 +16,27 @@ export default function ProductoModal({ producto, onClose, onAddToCart, onVerNeg
   if (typeof rawGrupos === 'string') {
     try { rawGrupos = JSON.parse(rawGrupos); } catch { rawGrupos = []; }
   }
-  const grupos: OpcionGrupo[] = (Array.isArray(rawGrupos) ? rawGrupos : []).map(g => {
-    let rawOps = g.opciones;
-    if (typeof rawOps === 'string') {
-      try { rawOps = JSON.parse(rawOps); } catch { rawOps = []; }
-    }
-    return {
-      ...g,
-      opciones: (Array.isArray(rawOps) ? rawOps : []).map(o => ({
-        ...o,
-        precio: Number(o.precio) || 0
-      }))
-    };
-  });
+  const grupos: OpcionGrupo[] = (Array.isArray(rawGrupos) ? rawGrupos : [])
+    .filter(g => g && typeof g === 'object' && g.nombre && String(g.nombre).trim().length > 0)
+    .map(g => {
+      let rawOps = g.opciones;
+      if (typeof rawOps === 'string') {
+        try { rawOps = JSON.parse(rawOps); } catch { rawOps = []; }
+      }
+      const validOptions = (Array.isArray(rawOps) ? rawOps : [])
+        .filter(o => o && typeof o === 'object' && o.nombre && String(o.nombre).trim().length > 0)
+        .map(o => ({
+          ...o,
+          nombre: String(o.nombre).trim(),
+          precio: Number(o.precio) || 0
+        }));
+      return {
+        ...g,
+        nombre: String(g.nombre).trim(),
+        opciones: validOptions
+      };
+    })
+    .filter(g => g.opciones.length > 0);
   const [seleccion, setSeleccion] = useState<Record<string, string[]>>({});
 
   const toggle = (grupoId: string, opcionId: string, tipo: 'unico' | 'multiple') => {

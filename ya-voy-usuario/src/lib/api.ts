@@ -1,22 +1,64 @@
 const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
-export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options.headers },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Error de conexion, intenta de nuevo" }));
-    throw new Error(err.error || "Error en la solicitud");
+export async function apiFetch<T>(path: string, options: RequestInit = {}, timeoutMs = 6500): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json", ...options.headers },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Error de conexion, intenta de nuevo" }));
+      throw new Error(err.error || "Error en la solicitud");
+    }
+    return res.json();
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error("Tiempo de espera agotado");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json();
 }
 
 export const syncUsuario = (data: any, token: string) =>
   apiFetch("/api/auth/sync", { method: "POST", body: JSON.stringify(data), headers: { Authorization: "Bearer " + token } });
 
-export const getProductosFeed = () => apiFetch("/api/usuario/productos/feed");
-export const getNegocios = (lat?: number, lng?: number) => apiFetch(`/api/usuario/negocios${lat && lng ? "?lat=" + lat + "&lng=" + lng : ""}`);
+export const getProductosFeed = async () => {
+  try {
+    const data = await apiFetch<any[]>("/api/usuario/productos/feed", {}, 6000);
+    if (Array.isArray(data) && data.length > 0) {
+      try { localStorage.setItem("ya_voy_cache_feed", JSON.stringify(data)); } catch {}
+    }
+    return data;
+  } catch (e) {
+    try {
+      const cached = localStorage.getItem("ya_voy_cache_feed");
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  }
+};
+
+export const getNegocios = async (lat?: number, lng?: number) => {
+  const url = `/api/usuario/negocios${lat != null && lng != null ? "?lat=" + lat + "&lng=" + lng : ""}`;
+  try {
+    const data = await apiFetch<any[]>(url, {}, 6000);
+    if (Array.isArray(data) && data.length > 0) {
+      try { localStorage.setItem("ya_voy_cache_negocios", JSON.stringify(data)); } catch {}
+    }
+    return data;
+  } catch (e) {
+    try {
+      const cached = localStorage.getItem("ya_voy_cache_negocios");
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  }
+};
 
 export const getNegocioById = (id: string) => apiFetch(`/api/usuario/negocios/${id}`);
 

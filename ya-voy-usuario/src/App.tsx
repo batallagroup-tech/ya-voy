@@ -90,8 +90,18 @@ export default function App() {
   const [subCategoria, setSubCategoria] = useState("Todos");
 
   // Data
-  const [negocios, setNegocios] = useState<Negocio[]>([]);
-  const [productosFeed, setProductosFeed] = useState<Producto[]>([]);
+  const [negocios, setNegocios] = useState<Negocio[]>(() => {
+    try {
+      const c = localStorage.getItem("ya_voy_cache_negocios");
+      return c ? JSON.parse(c) : [];
+    } catch { return []; }
+  });
+  const [productosFeed, setProductosFeed] = useState<Producto[]>(() => {
+    try {
+      const c = localStorage.getItem("ya_voy_cache_feed");
+      return c ? JSON.parse(c) : [];
+    } catch { return []; }
+  });
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [pedidosOffset, setPedidosOffset] = useState(0);
   const [pedidosHayMas, setPedidosHayMas] = useState(false);
@@ -205,15 +215,19 @@ export default function App() {
     fetch(API + "/api/config").then(r => r.json()).then(d => setAppConfig(d)).catch(() => {});
     getToken().then(token => {
       if (!token) return;
-      const savedRealName = localStorage.getItem("ya_voy_real_name");
+      const savedRealName = localStorage.getItem("ya_voy_custom_name_" + userId) || localStorage.getItem("ya_voy_real_name");
       syncUsuario({ userId, email: user.primaryEmailAddress?.emailAddress ?? "", nombre: savedRealName || user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress?.split("@")[0] || "", fotoUrl: user.imageUrl ?? "", rol: "cliente" }, token).catch(() => {});
       fetch(API + "/api/usuario/perfil/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => { 
         if (d.foto_perfil) setFotoPerfil(d.foto_perfil); 
-        if (d.nombre) localStorage.setItem("ya_voy_real_name", d.nombre);
+        const localCustom = localStorage.getItem("ya_voy_custom_name_" + userId) || localStorage.getItem("ya_voy_real_name");
+        if (!localCustom && d.nombre) {
+          localStorage.setItem("ya_voy_real_name", d.nombre);
+        }
         if (d.telefono) localStorage.setItem("ya_voy_phone", d.telefono);
       }).catch(() => {});
       getFavoritos(userId, token).then(data => { setFavoritos(data); setFavoritosIds(new Set(data.map((n: Negocio) => n.id))); }).catch(() => {});
       fetch(API + "/api/usuario/wallet/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {});
+      fetch(API + "/api/stripe/payment-methods/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => { if (Array.isArray(d.cards)) setTarjetas(d.cards); }).catch(() => {});
     });
     if (!localStorage.getItem("ya_voy_onboarding_done")) {
       setShowOnboarding(true);
@@ -319,23 +333,38 @@ export default function App() {
 
   // ── Data load ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (categoria === "comida" && productosFeed.length === 0) loadProductosFeed();
+    loadProductosFeed();
+    loadNegocios();
+  }, []);
+
+  useEffect(() => {
+    if (categoria === "comida") loadProductosFeed();
     if (categoria === "tienda") loadNegocios();
   }, [categoria]);
 
   const loadNegocios = async (loc?: [number, number] | null) => {
-    setLoading(true);
-    const coords = loc ?? userLocation;
-    try { setNegocios(await getNegocios(coords?.[0], coords?.[1]) as Negocio[]); }
-    catch (e: any) { console.error("loadNegocios:", e.message); }
-    finally { setLoading(false); }
+    if (negocios.length === 0) setLoading(true);
+    const coords = loc ?? userLocation ?? (direccionPrincipal?.lat != null && direccionPrincipal?.lng != null ? [direccionPrincipal.lat, direccionPrincipal.lng] : null);
+    try {
+      const data = await getNegocios(coords?.[0], coords?.[1]);
+      if (Array.isArray(data)) setNegocios(data as Negocio[]);
+    } catch (e: any) {
+      console.error("loadNegocios:", e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadProductosFeed = async () => {
-    setLoading(true);
-    try { setProductosFeed((await getProductosFeed() as Producto[]) || []); }
-    catch (e: any) { console.error("loadProductosFeed:", e.message); }
-    finally { setLoading(false); }
+    if (productosFeed.length === 0) setLoading(true);
+    try {
+      const data = await getProductosFeed();
+      if (Array.isArray(data)) setProductosFeed(data as Producto[]);
+    } catch (e: any) {
+      console.error("loadProductosFeed:", e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const playSound = (tipo: "enCamino" | "llegando") => {
@@ -772,6 +801,8 @@ export default function App() {
             negocioId={negocioSeleccionado?.id}
             propina={propina}
             walletBalance={walletBalance}
+            tarjetas={tarjetas}
+            onManageCards={() => setShowTarjetas(true)}
             onPropinaChange={(p) => { setPropina(p); localStorage.setItem("ya_voy_propina", String(p)); }}
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}

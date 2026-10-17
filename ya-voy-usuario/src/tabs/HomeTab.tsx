@@ -380,9 +380,9 @@ export default function HomeTab({
               <div className="space-y-3">
                 {negociosFiltrados.map(n => {
                   const pausado = n.aceptando_pedidos === false;
-                  const distKm = userLocation && n.lat && n.lng
+                  const distKm = n.distancia_km ?? (userLocation && n.lat && n.lng
                     ? haversineKm(userLocation[0], userLocation[1], n.lat, n.lng)
-                    : null;
+                    : null);
 
                   return (
                     <div 
@@ -420,7 +420,7 @@ export default function HomeTab({
                             {pausado ? (
                               <span className="text-[11px] font-black text-yellow-700">Pausado</span>
                             ) : (
-                              <span className="text-[11px] text-slate-500">Envío ${n.costo_envio_base || 35}</span>
+                              <span className="text-[11px] text-slate-500">Envío ${n.costo_envio ?? n.costo_envio_base ?? 35}</span>
                             )}
                           </div>
                         </div>

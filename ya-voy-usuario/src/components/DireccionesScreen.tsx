@@ -229,36 +229,58 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
 
       {/* Address Cards List */}
       <div className="p-4 space-y-3 flex-1 pb-20">
+        {direcciones.length > 0 && (
+          <p className="text-[11px] text-slate-400 font-medium px-1 flex items-center justify-between">
+            <span>Tus ubicaciones guardadas</span>
+            <span className="text-[10px] text-slate-400 italic">Desliza a la izquierda para eliminar</span>
+          </p>
+        )}
         {direcciones.map(d => {
           const Icon = ICONOS[d.icono];
           return (
-            <motion.div 
-              key={d.id} 
-              layout 
-              onClick={() => onSelect?.(d)}
-              className={`bg-white rounded-3xl p-4 flex items-center gap-3.5 border-2 shadow-sm transition-all ${
-                d.principal ? "border-[#9C0D38]/80 bg-rose-50/30" : "border-slate-100"
-              } ${onSelect ? "cursor-pointer active:scale-[0.99]" : ""}`}>
-              
+            <div key={d.id} className="relative overflow-hidden rounded-3xl group">
+              {/* Fondo de acción al deslizar a la izquierda */}
               <div 
-                className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
-                style={{ background: d.principal ? GRAD : "#f1f5f9" }}>
-                <Icon size={20} className={d.principal ? "text-white" : "text-slate-500"} />
+                onClick={() => setShowDeleteConfirm(d.id)}
+                className="absolute inset-0 bg-red-500 rounded-3xl flex items-center justify-end px-5 text-white font-bold text-xs gap-1.5 cursor-pointer active:bg-red-600 transition-colors">
+                <Trash2 size={18} />
+                <span>Eliminar</span>
               </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-black text-slate-900 text-xs">{d.label}</p>
-                  {d.principal && (
-                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full text-white shadow-2xs" style={{ background: GRAD }}>
-                      PRINCIPAL
-                    </span>
-                  )}
+              {/* Tarjeta deslizable */}
+              <motion.div 
+                layout 
+                drag="x"
+                dragConstraints={{ left: -90, right: 0 }}
+                dragElastic={0.15}
+                onDragEnd={(_, info) => {
+                  if (info.offset.x < -60) {
+                    setShowDeleteConfirm(d.id);
+                  }
+                }}
+                onClick={() => onSelect?.(d)}
+                className={`relative bg-white rounded-3xl p-4 flex items-center gap-3.5 border-2 shadow-sm transition-all select-none ${
+                  d.principal ? "border-[#9C0D38]/80 bg-rose-50/30" : "border-slate-100"
+                } ${onSelect ? "cursor-pointer active:scale-[0.99]" : ""}`}>
+                
+                <div 
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
+                  style={{ background: d.principal ? GRAD : "#f1f5f9" }}>
+                  <Icon size={20} className={d.principal ? "text-white" : "text-slate-500"} />
                 </div>
-                <p className="text-[11px] text-slate-500 truncate mt-0.5">{d.direccion}</p>
-              </div>
 
-              {!onSelect && (
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-black text-slate-900 text-xs">{d.label}</p>
+                    {d.principal && (
+                      <span className="text-[9px] font-black px-2 py-0.5 rounded-full text-white shadow-2xs" style={{ background: GRAD }}>
+                        PRINCIPAL
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 truncate mt-0.5">{d.direccion}</p>
+                </div>
+
                 <div className="flex items-center gap-1 shrink-0">
                   {!d.principal && (
                     <button 
@@ -281,8 +303,8 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
                     <Trash2 size={15} />
                   </button>
                 </div>
-              )}
-            </motion.div>
+              </motion.div>
+            </div>
           );
         })}
 

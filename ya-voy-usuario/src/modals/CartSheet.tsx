@@ -27,6 +27,8 @@ interface Props {
   negocioId: string | undefined;
   propina: number;
   walletBalance: number;
+  tarjetas?: any[];
+  onManageCards?: () => void;
   onPropinaChange: (p: number) => void;
   onAddToCart: (item: any) => void;
   onRemoveFromCart: (id: string) => void;
@@ -49,6 +51,8 @@ export default function CartSheet({
   negocioId, 
   propina, 
   walletBalance, 
+  tarjetas,
+  onManageCards,
   onPropinaChange, 
   onAddToCart, 
   onRemoveFromCart, 
@@ -330,20 +334,52 @@ export default function CartSheet({
 
         {/* Método de Pago */}
         {totalFinal > 0 && (
-          <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-2xl mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-rose-600">
-                {metodoPago === "efectivo" ? <Banknote size={16} /> : <CreditCard size={16} />}
+          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 mb-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-rose-600 shadow-2xs">
+                  {metodoPago === "efectivo" ? <Banknote size={16} /> : <CreditCard size={16} />}
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">
+                    {metodoPago === "efectivo" ? "Pago en Efectivo al recibir" : "Pago con Tarjeta bancaria"}
+                  </span>
+                  {metodoPago === "tarjeta" && (
+                    <span className="text-[10px] text-slate-500 font-medium block">
+                      {tarjetas && tarjetas.length > 0 
+                        ? `Tarjeta vinculada •••• ${tarjetas[0].card?.last4 || tarjetas[0].last4 || "guardada"}`
+                        : "Sin tarjeta vinculada aún"}
+                    </span>
+                  )}
+                </div>
               </div>
-              <span className="text-xs font-bold text-slate-700">
-                {metodoPago === "efectivo" ? "Pago en Efectivo al recibir" : "Pago con Tarjeta bancaria"}
-              </span>
+              <button 
+                onClick={() => onMetodoPagoChange(metodoPago === "efectivo" ? "tarjeta" : "efectivo")}
+                className="text-[11px] font-black px-3 py-1.5 rounded-xl border border-slate-200 text-rose-600 bg-white hover:bg-slate-50 transition-colors shadow-2xs">
+                {metodoPago === "efectivo" ? "Pagar con Tarjeta" : "Pagar con Efectivo"}
+              </button>
             </div>
-            <button 
-              onClick={() => onMetodoPagoChange(metodoPago === "efectivo" ? "tarjeta" : "efectivo")}
-              className="text-[11px] font-black px-3 py-1.5 rounded-xl border border-slate-200 text-rose-600 bg-white hover:bg-slate-50">
-              Cambiar
-            </button>
+
+            {/* Acciones de tarjeta si el método es tarjeta */}
+            {metodoPago === "tarjeta" && (
+              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                  <CreditCard size={13} className="text-rose-600" />
+                  {tarjetas && tarjetas.length > 0 ? (
+                    <span className="font-semibold text-slate-700">
+                      {tarjetas[0].card?.brand ? `${tarjetas[0].card.brand.toUpperCase()} ` : ""}•••• {tarjetas[0].card?.last4 || tarjetas[0].last4}
+                    </span>
+                  ) : (
+                    <span className="text-amber-600 font-medium">Debes ingresar tu tarjeta</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => onManageCards?.()}
+                  className="text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-200/80 active:scale-95 transition-all">
+                  {tarjetas && tarjetas.length > 0 ? "Cambiar / Nueva tarjeta" : "+ Agregar tarjeta (real)"}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -391,7 +427,14 @@ export default function CartSheet({
 
         {/* Botón Principal */}
         <button 
-          onClick={() => setShowConfirm(true)} 
+          onClick={() => {
+            if (metodoPago === "tarjeta" && totalFinal > 0 && (!tarjetas || tarjetas.length === 0)) {
+              toast.info("Por favor ingresa los datos de tu tarjeta bancaria");
+              onManageCards?.();
+              return;
+            }
+            setShowConfirm(true);
+          }} 
           disabled={loading || cart.length === 0} 
           style={{ background: GRAD }}
           className="w-full py-4 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-xl active:scale-[0.99] transition-transform disabled:opacity-50 text-sm">
