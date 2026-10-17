@@ -65,30 +65,52 @@ export default function ProductoModal({ producto, onClose, onAddToCart, onVerNeg
         .map(o => ({ grupoNombre: g.nombre, nombre: o.nombre, precio: o.precio }))
     );
 
+  const [ isWideImg, setIsWideImg ] = useState<boolean | null>(null);
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 z-[60] flex items-end">
+      onClick={onClose}
+      className="fixed inset-0 bg-black/50 z-[60] flex items-end backdrop-blur-[1px]">
       <motion.div initial={{ y: 400 }} animate={{ y: 0 }} exit={{ y: 400 }}
-        className="bg-white w-full rounded-t-3xl overflow-hidden max-h-[92vh] flex flex-col">
+        onClick={e => e.stopPropagation()}
+        className="bg-white w-full rounded-t-3xl overflow-hidden max-h-[92vh] flex flex-col relative shadow-2xl">
 
-        <div className="relative h-48 shrink-0">
-          {producto.imagen_url
-            ? <img src={producto.imagen_url} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center text-6xl" style={{ background: GRAD }}>🍽️</div>}
-          <button onClick={onClose}
-            className="absolute top-3 right-3 w-9 h-9 bg-black/40 backdrop-blur rounded-full flex items-center justify-center">
-            <X size={18} className="text-white" />
-          </button>
-        </div>
+        <button onClick={onClose}
+          className="absolute top-3 right-3 z-20 w-9 h-9 bg-black/50 backdrop-blur rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform">
+          <X size={18} className="text-white" />
+        </button>
 
-        <div className="p-5 flex-1 overflow-y-auto">
-          <div className="flex items-start justify-between mb-1">
-            <h2 className="font-black text-xl text-slate-900 flex-1">{producto.nombre}</h2>
-            <span className="font-black text-xl ml-3" style={{ color: "#9C0D38" }}>${Number(producto.precio).toFixed(2)}</span>
+        <div className="flex-1 overflow-y-auto">
+          <div className={`relative w-full bg-slate-100 overflow-hidden ${
+            producto.imagen_url
+              ? (isWideImg === true ? "aspect-video" : isWideImg === false ? "aspect-square max-h-[360px]" : "aspect-video")
+              : "h-44"
+          }`}>
+            {producto.imagen_url ? (
+              <img
+                src={producto.imagen_url}
+                alt={producto.nombre}
+                onLoad={e => {
+                  const img = e.currentTarget;
+                  if (img.naturalWidth && img.naturalHeight) {
+                    setIsWideImg(img.naturalWidth / img.naturalHeight > 1.25);
+                  }
+                }}
+                className="w-full h-full object-contain bg-slate-900/5"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-6xl" style={{ background: GRAD }}>🍽️</div>
+            )}
           </div>
-          {producto.descripcion && (
-            <p className="text-slate-500 text-sm mb-4 leading-relaxed">{producto.descripcion}</p>
-          )}
+
+          <div className="p-5">
+            <div className="flex items-start justify-between mb-1">
+              <h2 className="font-black text-xl text-slate-900 flex-1">{producto.nombre}</h2>
+              <span className="font-black text-xl ml-3" style={{ color: "#9C0D38" }}>${Number(producto.precio).toFixed(2)}</span>
+            </div>
+            {producto.descripcion && (
+              <p className="text-slate-500 text-sm mb-4 leading-relaxed">{producto.descripcion}</p>
+            )}
 
           {grupos.map(grupo => (
             <div key={grupo.id} className="mb-5">
@@ -129,9 +151,10 @@ export default function ProductoModal({ producto, onClose, onAddToCart, onVerNeg
               🏪 Ver todos los productos de {producto.negocio_nombre}
             </button>
           )}
+          </div>
         </div>
 
-        <div className="p-4 border-t bg-white shrink-0">
+        <div className="p-4 border-t border-slate-100 bg-white shrink-0">
           {!canAdd && (
             <p className="text-xs text-center text-slate-400 mb-2">Selecciona las opciones requeridas para continuar</p>
           )}

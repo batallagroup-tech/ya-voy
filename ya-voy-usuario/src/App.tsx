@@ -182,6 +182,11 @@ export default function App() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [showCancelar, setShowCancelar] = useState(false);
+  const [confirmReplaceCart, setConfirmReplaceCart] = useState<{
+    p: any;
+    opciones?: { grupoNombre: string; nombre: string; precio: number }[];
+    pNegocioId: string;
+  } | null>(null);
 
   const prevPedidosStatusRef = useRef<Record<string, string>>({});
 
@@ -228,6 +233,7 @@ export default function App() {
       getFavoritos(userId, token).then(data => { setFavoritos(data); setFavoritosIds(new Set(data.map((n: Negocio) => n.id))); }).catch(() => {});
       fetch(API + "/api/usuario/wallet/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {});
       fetch(API + "/api/stripe/payment-methods/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => { if (Array.isArray(d.cards)) setTarjetas(d.cards); }).catch(() => {});
+      getPedidos(userId, token, 0).then((data: any) => { if (Array.isArray(data)) setPedidos(data); }).catch(() => {});
     });
     if (!localStorage.getItem("ya_voy_onboarding_done")) {
       setShowOnboarding(true);
@@ -268,6 +274,7 @@ export default function App() {
   // ── Android back button ───────────────────────────────────────────────────
   useEffect(() => {
     const handleBack = () => {
+      if (confirmReplaceCart) { setConfirmReplaceCart(null); return; }
       if (showDeleteConfirm) { setShowDeleteConfirm(false); return; }
       if (showCancelar)      { setShowCancelar(false); return; }
       if (showRating)        { setShowRating(false); return; }
@@ -285,21 +292,41 @@ export default function App() {
     };
     document.addEventListener("backbutton", handleBack);
     return () => document.removeEventListener("backbutton", handleBack);
-  }, [showDeleteConfirm, showCancelar, showRating, showSoporte, showTarjetas,
+  }, [confirmReplaceCart, showDeleteConfirm, showCancelar, showRating, showSoporte, showTarjetas,
       showChatPedido, showStripeModal, pedidoDetalle, productoSeleccionado,
       showCart, negocioSeleccionado, tab]);
 
 
   // ── WebSocket pedidos (reemplaza polling de 4s) ───────────────────────────
-  usePedidosWS(userId, getToken, (pedidoActualizado) => {
-    setPedidos(prev => {
-      const existe = prev.find(p => p.id === pedidoActualizado.id);
-      if (existe) return prev.map(p => p.id === pedidoActualizado.id ? { ...p, ...pedidoActualizado } : p);
-      return prev; // pedido nuevo se carga en el próximo loadPedidos
-    });
-    // Actualizar detalle si está abierto
-    setPedidoDetalle(prev => prev?.id === pedidoActualizado.id ? { ...prev, ...pedidoActualizado } : prev);
-  });
+  usePedidosWS(
+    userId,
+    getToken,
+    (pedidoActualizado) => {
+      const prevSt = prevPedidosStatusRef.current[pedidoActualizado.id];
+      if (prevSt && prevSt !== pedidoActualizado.status) {
+        if (pedidoActualizado.status === "en_camino") playSound("enCamino");
+        if (pedidoActualizado.status === "esperando_cliente") playSound("llegando");
+      }
+      prevPedidosStatusRef.current[pedidoActualizado.id] = pedidoActualizado.status;
+
+      setPedidos(prev => {
+        const existe = prev.find(p => p.id === pedidoActualizado.id);
+        if (existe) return prev.map(p => p.id === pedidoActualizado.id ? { ...p, ...pedidoActualizado } : p);
+        return [pedidoActualizado, ...prev];
+      });
+      // Actualizar detalle si está abierto
+      setPedidoDetalle(prev => prev?.id === pedidoActualizado.id ? { ...prev, ...pedidoActualizado } : prev);
+    },
+    (msg) => {
+      if (msg.pedidoId && msg.mensaje && msg.mensaje.remitente_tipo === "repartidor") {
+        playSound("enCamino");
+        if (showChatPedido !== msg.pedidoId) {
+          setChatNoLeidos(prev => ({ ...prev, [msg.pedidoId]: (prev[msg.pedidoId] || 0) + 1 }));
+          toast("💬 Nuevo mensaje de tu repartidor: " + (msg.mensaje.texto || ""));
+        }
+      }
+    }
+  );
 
   // ── Carga pedidos al entrar al tab ────────────────────────────────────────
   useEffect(() => {
@@ -355,10 +382,11 @@ export default function App() {
     }
   };
 
-  const loadProductosFeed = async () => {
+  const loadProductosFeed = async (loc?: [number, number] | null) => {
     if (productosFeed.length === 0) setLoading(true);
+    const coords = loc ?? userLocation ?? (direccionPrincipal?.lat != null && direccionPrincipal?.lng != null ? [direccionPrincipal.lat, direccionPrincipal.lng] : null);
     try {
-      const data = await getProductosFeed();
+      const data = await getProductosFeed(coords?.[0], coords?.[1]);
       if (Array.isArray(data)) setProductosFeed(data as Producto[]);
     } catch (e: any) {
       console.error("loadProductosFeed:", e.message);
@@ -433,15 +461,15 @@ export default function App() {
   }, [userId, pedidosOffset, pedidosMasLoading]);
 
   // ── Cart ──────────────────────────────────────────────────────────────────
-  const addToCart = (p: any, opcionesSeleccionadas?: { grupoNombre: string; nombre: string; precio: number }[]) => {
+  const addToCart = (p: any, opcionesSeleccionadas?: { grupoNombre: string; nombre: string; precio: number }[], forceReplace = false) => {
     // Incrementar item existente desde el carrito (p ya tiene cartKey)
     if (p.cartKey) {
       setCart(prev => prev.map(i => i.cartKey === p.cartKey ? { ...i, cantidad: i.cantidad + 1 } : i));
       return;
     }
     const pNegocioId = p.negocioId || p.negocio_id || negocioSeleccionado?.id || "";
-    if (cart.length > 0 && cart[0].negocioId !== pNegocioId) {
-      toast.error("Solo puedes pedir de un restaurante a la vez");
+    if (!forceReplace && cart.length > 0 && cart[0].negocioId !== pNegocioId) {
+      setConfirmReplaceCart({ p, opciones: opcionesSeleccionadas, pNegocioId });
       return;
     }
     const extrasTotal = (opcionesSeleccionadas || []).reduce((a, o) => a + o.precio, 0);
@@ -449,11 +477,17 @@ export default function App() {
     const cartKey = opcionesSeleccionadas?.length
       ? `${p.id}-${opcionesSeleccionadas.map(o => o.nombre).sort().join('-')}`
       : String(p.id);
-    setCart(prev => {
-      const exists = prev.find(i => i.cartKey === cartKey);
-      if (exists) return prev.map(i => i.cartKey === cartKey ? { ...i, cantidad: i.cantidad + 1 } : i);
-      return [...prev, { cartKey, productoId: p.id, nombre: p.nombre, precio: precioFinal, precioBase: Number(p.precio), cantidad: 1, negocioId: pNegocioId, opciones: opcionesSeleccionadas }];
-    });
+    if (forceReplace) {
+      setCart([{ cartKey, productoId: p.id, nombre: p.nombre, precio: precioFinal, precioBase: Number(p.precio), cantidad: 1, negocioId: pNegocioId, opciones: opcionesSeleccionadas }]);
+      const nuevoNegocio = negocios.find(n => n.id === pNegocioId);
+      if (nuevoNegocio) calcularEnvio(nuevoNegocio);
+    } else {
+      setCart(prev => {
+        const exists = prev.find(i => i.cartKey === cartKey);
+        if (exists) return prev.map(i => i.cartKey === cartKey ? { ...i, cantidad: i.cantidad + 1 } : i);
+        return [...prev, { cartKey, productoId: p.id, nombre: p.nombre, precio: precioFinal, precioBase: Number(p.precio), cantidad: 1, negocioId: pNegocioId, opciones: opcionesSeleccionadas }];
+      });
+    }
     toast.success(`${p.nombre} agregado`);
   };
 
@@ -561,6 +595,14 @@ export default function App() {
           direccionEntrega: tipoEntrega === "pickup" ? "Recoger en tienda" : (direccionPrincipal?.direccion || ""),
         };
 
+        if (metodoPago === "efectivo" && pedidoData.total > 400) {
+          const entregadosCount = pedidos.filter(p => p.status === "entregado").length;
+          if (entregadosCount < 3) {
+            toast.error("Por seguridad, los pedidos en efectivo para cuentas nuevas tienen un límite máximo de $400 MXN. Te invitamos a pagar con tarjeta o reducir el monto.");
+            return;
+          }
+        }
+
         if (metodoPago === "tarjeta" && pedidoData.total > 0) {
           const pedido = await crearPedido({ ...pedidoData, status: "pendiente_pago" }, token!) as any;
           const pedidoId = pedido?.id;
@@ -570,14 +612,38 @@ export default function App() {
             body: JSON.stringify({ amount: pedidoData.total, currency: "mxn", costoEnvio: envioEfectivo, metadata: { pedidoId: pedidoId || "" } }),
           });
           const data = await res.json();
-          if (!data.clientSecret) throw new Error("No se pudo iniciar el pago");
+          if (!data.clientSecret) {
+            if (pedidoId) {
+              fetch(API + "/api/usuario/pedidos/" + pedidoId + "/borrador", {
+                method: "DELETE",
+                headers: { Authorization: "Bearer " + token },
+              }).catch(() => {});
+            }
+            throw new Error("No se pudo iniciar el pago");
+          }
           if (Capacitor.isNativePlatform()) {
             await Stripe.initialize({ publishableKey: STRIPE_PK });
             await Stripe.createPaymentSheet({ paymentIntentClientSecret: data.clientSecret, merchantDisplayName: "Ya Voy Batalla Group", style: "alwaysLight" });
             const result = await Stripe.presentPaymentSheet();
-            if (result.paymentResult !== PaymentSheetEventsEnum.Completed) { toast.error("Pago cancelado"); return; }
+            if (result.paymentResult !== PaymentSheetEventsEnum.Completed) {
+              if (pedidoId) {
+                fetch(API + "/api/usuario/pedidos/" + pedidoId + "/borrador", {
+                  method: "DELETE",
+                  headers: { Authorization: "Bearer " + token },
+                }).catch(() => {});
+              }
+              toast.error("Pago cancelado");
+              return;
+            }
+            if (pedidoId) {
+              await fetch(API + "/api/usuario/pedidos/" + pedidoId + "/confirmar-pago", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+                body: JSON.stringify({ paymentIntentId: data.paymentIntentId }),
+              }).catch(() => {});
+            }
           } else {
-            setStripePaymentData({ clientSecret: data.clientSecret, pedidoData: { ...pedidoData, paymentIntentId: data.paymentIntentId }, token: token! });
+            setStripePaymentData({ clientSecret: data.clientSecret, pedidoData: { ...pedidoData, pedidoId, paymentIntentId: data.paymentIntentId }, token: token! });
             setShowCart(false); setShowStripeModal(true); return;
           }
         } else {
@@ -637,6 +703,7 @@ export default function App() {
     setMetodoPago(pago);
     setShowOnboarding(false);
     loadNegocios(location);
+    loadProductosFeed(location);
     try {
       if (realName || phone) {
         await supabase.auth.updateUser({
@@ -647,7 +714,16 @@ export default function App() {
   };
 
   const recargarDirecciones = () => {
-    try { const d = JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]"); setDirecciones(Array.isArray(d) ? d : []); } catch {}
+    try {
+      const d = JSON.parse(localStorage.getItem("ya_voy_direcciones") || "[]");
+      const arr = Array.isArray(d) ? d : [];
+      setDirecciones(arr);
+      const prin = arr.find((x: any) => x.principal) || arr[0];
+      if (prin?.lat != null && prin?.lng != null) {
+        loadNegocios([Number(prin.lat), Number(prin.lng)]);
+        loadProductosFeed([Number(prin.lat), Number(prin.lng)]);
+      }
+    } catch {}
   };
 
   // Importar la función de getDirecciones para cargar al iniciar
@@ -660,6 +736,11 @@ export default function App() {
           const mapped = data.map((d: any) => ({ id: d.id, label: d.label, icono: d.icono, direccion: d.direccion, lat: d.lat, lng: d.lng, principal: d.principal }));
           setDirecciones(mapped);
           localStorage.setItem("ya_voy_direcciones", JSON.stringify(mapped));
+          const prin = mapped.find((x: any) => x.principal) || mapped[0];
+          if (prin?.lat != null && prin?.lng != null) {
+            loadNegocios([Number(prin.lat), Number(prin.lng)]);
+            loadProductosFeed([Number(prin.lat), Number(prin.lng)]);
+          }
         }).catch(() => {});
       });
     });
@@ -678,9 +759,10 @@ export default function App() {
         toast.error(d.error || "No se pudo eliminar la cuenta");
         return;
       }
-      await auth.currentUser?.delete();
-      localStorage.clear();
       setShowDeleteConfirm(false);
+      toast.success("Tu cuenta y todos tus datos han sido eliminados permanentemente.");
+      await signOut();
+      localStorage.clear();
     } catch {
       toast.error("Error de conexión. Intenta nuevamente.");
     } finally { setLoading(false); }
@@ -1069,6 +1151,37 @@ export default function App() {
           })()}
         </div>
       </div>
+
+      {confirmReplaceCart && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-800">
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <ShoppingCart className="text-amber-600" size={26} />
+              </div>
+              <h2 className="text-lg font-black text-slate-900 dark:text-white">¿Cambiar de restaurante?</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1.5 leading-relaxed">
+                Ya tienes productos de otro restaurante en tu carrito. ¿Deseas vaciar tu carrito actual y agregar <span className="font-bold text-slate-800 dark:text-slate-200">{confirmReplaceCart.p?.nombre}</span>?
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const { p, opciones } = confirmReplaceCart;
+                setConfirmReplaceCart(null);
+                addToCart(p, opciones, true);
+              }}
+              className="w-full py-3.5 rounded-2xl font-black text-white mb-2.5 shadow-md active:scale-95 transition-transform"
+              style={{ background: GRAD }}>
+              Sí, vaciar carrito y agregar
+            </button>
+            <button
+              onClick={() => setConfirmReplaceCart(null)}
+              className="w-full py-2.5 rounded-2xl text-slate-500 dark:text-slate-400 font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
+              Conservar mi carrito actual
+            </button>
+          </div>
+        </div>
+      )}
 
       {duplicadoCuenta && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70">

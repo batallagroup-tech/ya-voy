@@ -664,48 +664,46 @@ export default function PerfilTab({
 
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Aspectos destacados</p>
-                {userAspectosStats?.aspectos && Object.keys(userAspectosStats.aspectos).length > 0 ? (
-                  <div className="space-y-2.5">
-                    {(() => {
-                      const maxV = Math.max(...Object.values(userAspectosStats.aspectos), 1);
-                      return Object.entries(userAspectosStats.aspectos)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([aspecto, count]) => (
+                {(() => {
+                  const defaultAspectos: Record<string, number> = {
+                    "Puntualidad al recibir": 0,
+                    "Instrucciones claras": 0,
+                    "Amabilidad y respeto": 0,
+                  };
+                  const rawAspectos = userAspectosStats?.aspectos && Object.keys(userAspectosStats.aspectos).length > 0
+                    ? userAspectosStats.aspectos
+                    : defaultAspectos;
+                  const entries = Object.entries(rawAspectos).sort((a, b) => Number(b[1]) - Number(a[1]));
+                  const totalVotos = entries.reduce((acc, [, c]) => acc + Number(c || 0), 0);
+                  const maxV = Math.max(...entries.map(([, c]) => Number(c || 0)), 1);
+
+                  return (
+                    <div className="space-y-2.5">
+                      {entries.map(([aspecto, count]) => {
+                        const numCount = Number(count || 0);
+                        const pct = totalVotos > 0 ? (numCount / maxV) * 100 : 0;
+                        return (
                           <div key={aspecto} className="space-y-1">
                             <div className="flex justify-between text-xs">
                               <span className="font-bold text-slate-700">{aspecto}</span>
-                              <span className="font-black text-[#9C0D38]">{count} voto{count !== 1 ? "s" : ""}</span>
+                              <span className={`font-black ${numCount > 0 ? "text-[#9C0D38]" : "text-slate-400"}`}>
+                                {numCount} voto{numCount !== 1 ? "s" : ""}
+                              </span>
                             </div>
                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all" style={{ width: `${(count / maxV) * 100}%`, background: GRAD }} />
+                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: GRAD }} />
                             </div>
                           </div>
-                        ));
-                    })()}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {[
-                      { nombre: "Puntualidad al recibir", base: 100 },
-                      { nombre: "Buena comunicación", base: 100 },
-                      { nombre: "Amabilidad", base: 100 },
-                      { nombre: "Ubicación clara", base: 100 },
-                    ].map(a => (
-                      <div key={a.nombre} className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="font-bold text-slate-700">{a.nombre}</span>
-                          <span className="text-[10px] font-black text-green-600">⭐ Excelente</span>
-                        </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-green-500" style={{ width: `${a.base}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                    <p className="text-[10px] text-slate-400 text-center pt-1">
-                      Tus repartidores valoran cada entrega. Mantén un trato cordial para conservar tu excelente puntuación.
-                    </p>
-                  </div>
-                )}
+                        );
+                      })}
+                      <p className="text-[10px] text-slate-400 text-center pt-1">
+                        {totalVotos > 0
+                          ? "Tus repartidores valoran cada entrega. Mantén un trato cordial para conservar tu puntuación."
+                          : "Aún no tienes aspectos destacados evaluados. Se irán sumando conforme recibas tus pedidos."}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
 
               <button onClick={() => setShowRatingModal(false)}

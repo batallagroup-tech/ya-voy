@@ -27,9 +27,10 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}, timeo
 export const syncUsuario = (data: any, token: string) =>
   apiFetch("/api/auth/sync", { method: "POST", body: JSON.stringify(data), headers: { Authorization: "Bearer " + token } });
 
-export const getProductosFeed = async () => {
+export const getProductosFeed = async (lat?: number, lng?: number) => {
+  const url = `/api/usuario/productos/feed${lat != null && lng != null ? "?lat=" + lat + "&lng=" + lng : ""}`;
   try {
-    const data = await apiFetch<any[]>("/api/usuario/productos/feed", {}, 6000);
+    const data = await apiFetch<any[]>(url, {}, 6000);
     if (Array.isArray(data) && data.length > 0) {
       try { localStorage.setItem("ya_voy_cache_feed", JSON.stringify(data)); } catch {}
     }

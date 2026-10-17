@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { App as CapApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
 
 interface FirebaseUser {
   fullName: string | null;
@@ -20,33 +21,127 @@ export interface UseFirebaseAuth {
   signOut: () => Promise<void>;
 }
 
+const CACHED_USER_KEY = "ya_voy_usuario_cached_session_v1";
+const SB_STORAGE_KEY = "sb-qqwpfypjwdetljyzkogo-auth-token";
+
+function getInitialCachedUser(): { user: SupabaseUser | null; accessToken: string | null } {
+  if (typeof window === "undefined") return { user: null, accessToken: null };
+  try {
+    const rawSb = localStorage.getItem(SB_STORAGE_KEY);
+    if (rawSb) {
+      const parsed = JSON.parse(rawSb);
+      if (parsed?.user?.id) {
+        return { user: parsed.user, accessToken: parsed.access_token || null };
+      }
+    }
+    const rawCustom = localStorage.getItem(CACHED_USER_KEY);
+    if (rawCustom) {
+      const parsed = JSON.parse(rawCustom);
+      if (parsed?.user?.id) {
+        return { user: parsed.user, accessToken: parsed.accessToken || null };
+      }
+    }
+  } catch {}
+  return { user: null, accessToken: null };
+}
+
+function persistCachedSession(user: SupabaseUser | null, accessToken?: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (user?.id) {
+      const payload = JSON.stringify({ user, accessToken: accessToken || null, savedAt: Date.now() });
+      localStorage.setItem(CACHED_USER_KEY, payload);
+      Preferences.set({ key: CACHED_USER_KEY, value: payload }).catch(() => {});
+    }
+  } catch {}
+}
+
+function clearCachedSession() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(CACHED_USER_KEY);
+    localStorage.removeItem(SB_STORAGE_KEY);
+    Preferences.remove({ key: CACHED_USER_KEY }).catch(() => {});
+    Preferences.remove({ key: SB_STORAGE_KEY }).catch(() => {});
+  } catch {}
+}
+
 export function useFirebaseAuth(): UseFirebaseAuth {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [spUser, setSpUser] = useState<SupabaseUser | null>(null);
+  const initial = useMemo(() => getInitialCachedUser(), []);
+  const [isLoaded, setIsLoaded] = useState<boolean>(!!initial.user);
+  const [spUser, setSpUser] = useState<SupabaseUser | null>(initial.user);
+  const cachedTokenRef = useRef<string | null>(initial.accessToken);
+  const explicitSignOutRef = useRef<boolean>(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSpUser(session?.user ?? null);
-      setIsLoaded(true);
-    });
+    let mounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSpUser(session?.user ?? null);
-      setIsLoaded(true);
+    const initSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+        if (session?.user) {
+          explicitSignOutRef.current = false;
+          cachedTokenRef.current = session.access_token;
+          setSpUser(session.user);
+          persistCachedSession(session.user, session.access_token);
+          setIsLoaded(true);
+          return;
+        }
+        // Si getSession() vino vacío pero no hubo cierre explícito, revisar Preferences nativo
+        if (!explicitSignOutRef.current) {
+          const { value: prefVal } = await Preferences.get({ key: CACHED_USER_KEY });
+          if (prefVal && mounted) {
+            try {
+              const parsed = JSON.parse(prefVal);
+              if (parsed?.user?.id) {
+                cachedTokenRef.current = parsed.accessToken || cachedTokenRef.current;
+                setSpUser(parsed.user);
+                localStorage.setItem(CACHED_USER_KEY, prefVal);
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+      if (mounted) setIsLoaded(true);
+    };
+
+    initSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (session?.user) {
+        explicitSignOutRef.current = false;
+        cachedTokenRef.current = session.access_token;
+        setSpUser(session.user);
+        persistCachedSession(session.user, session.access_token);
+        setIsLoaded(true);
+      } else if (event === "SIGNED_OUT" && explicitSignOutRef.current) {
+        cachedTokenRef.current = null;
+        setSpUser(null);
+        setIsLoaded(true);
+      } else {
+        // Nunca cerrar la sesión automáticamente por fallos de red o rotación de tokens en segundo plano
+        setIsLoaded(true);
+      }
     });
 
     let removeResumeListener: (() => void) | undefined;
     if (Capacitor.isNativePlatform()) {
       const stateListenerPromise = CapApp.addListener("appStateChange", async (state) => {
-        if (state.isActive) {
+        if (state.isActive && !explicitSignOutRef.current) {
           try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
+              cachedTokenRef.current = session.access_token;
               setSpUser(session.user);
+              persistCachedSession(session.user, session.access_token);
             } else {
               const { data: refreshed } = await supabase.auth.refreshSession();
               if (refreshed?.session?.user) {
+                cachedTokenRef.current = refreshed.session.access_token;
                 setSpUser(refreshed.session.user);
+                persistCachedSession(refreshed.session.user, refreshed.session.access_token);
               }
             }
           } catch {}
@@ -58,6 +153,7 @@ export function useFirebaseAuth(): UseFirebaseAuth {
     }
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
       if (removeResumeListener) removeResumeListener();
     };
@@ -80,18 +176,29 @@ export function useFirebaseAuth(): UseFirebaseAuth {
     isSignedIn: !!spUser,
     userId: spUser?.id ?? null,
     getToken: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) return session.access_token;
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          cachedTokenRef.current = session.access_token;
+          persistCachedSession(session.user, session.access_token);
+          return session.access_token;
+        }
         const { data: refreshed } = await supabase.auth.refreshSession();
-        return refreshed?.session?.access_token ?? null;
-      } catch {
-        return null;
-      }
+        if (refreshed?.session?.access_token) {
+          cachedTokenRef.current = refreshed.session.access_token;
+          persistCachedSession(refreshed.session.user, refreshed.session.access_token);
+          return refreshed.session.access_token;
+        }
+      } catch {}
+      return cachedTokenRef.current || getInitialCachedUser().accessToken || null;
     },
     user,
     signOut: async () => {
-      await supabase.auth.signOut();
+      explicitSignOutRef.current = true;
+      cachedTokenRef.current = null;
+      clearCachedSession();
+      setSpUser(null);
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
     },
   };
 }

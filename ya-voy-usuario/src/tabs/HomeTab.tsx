@@ -341,11 +341,11 @@ export default function HomeTab({
                           : "hover:shadow-md cursor-pointer active:scale-[0.99] shadow-sm"
                       }`}>
                       
-                      <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 bg-slate-100 relative border border-slate-100">
+                      <div className="w-24 rounded-2xl overflow-hidden shrink-0 bg-slate-100 relative border border-slate-100 flex items-center justify-center min-h-[4.25rem]">
                         {p.imagen_url ? (
-                          <img src={imgUrl(p.imagen_url, 200)} alt={p.nombre} className="w-full h-full object-cover" loading="lazy" />
+                          <img src={imgUrl(p.imagen_url, 240)} alt={p.nombre} className="w-full h-auto max-h-24 object-contain" loading="lazy" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>
+                          <div className="w-20 h-20 flex items-center justify-center text-3xl">🍽️</div>
                         )}
                         {p.agotado && (
                           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -391,11 +391,11 @@ export default function HomeTab({
                         pausado ? "opacity-75" : ""
                       }`}>
                       <button onClick={() => onOpenNegocio(n)} className="flex items-center gap-3.5 flex-1 min-w-0 text-left">
-                        <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 relative bg-slate-100 border border-slate-100">
+                        <div className="w-20 rounded-2xl overflow-hidden shrink-0 relative bg-slate-100 border border-slate-100 flex items-center justify-center min-h-[3.75rem]">
                           {n.imagen_url ? (
-                            <img src={imgUrl(n.imagen_url, 160)} alt={n.nombre} className="w-full h-full object-cover" loading="lazy" />
+                            <img src={imgUrl(n.imagen_url, 200)} alt={n.nombre} className="w-full h-auto max-h-20 object-contain" loading="lazy" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-3xl">🏪</div>
+                            <div className="w-16 h-16 flex items-center justify-center text-3xl">🏪</div>
                           )}
                           {pausado && (
                             <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-2xl">

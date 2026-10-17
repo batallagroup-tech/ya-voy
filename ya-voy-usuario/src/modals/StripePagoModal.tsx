@@ -4,7 +4,7 @@ import { X, CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { loadStripe } from "@stripe/stripe-js";
 import { crearPedido } from "../lib/api";
-import { GRAD } from "../lib/constants";
+import { GRAD, API } from "../lib/constants";
 
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "";
 
@@ -34,6 +34,16 @@ export default function StripePagoModal({ clientSecret, pedidoData, token, onSuc
     return () => { cancelled = true; };
   }, [clientSecret]);
 
+  const handleClose = () => {
+    if (pedidoData?.pedidoId) {
+      fetch(API + "/api/usuario/pedidos/" + pedidoData.pedidoId + "/borrador", {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + token },
+      }).catch(() => {});
+    }
+    onClose();
+  };
+
   const handlePagar = async () => {
     if (!stripeInstance || !cardElement) return;
     setLoading(true);
@@ -45,7 +55,15 @@ export default function StripePagoModal({ clientSecret, pedidoData, token, onSuc
       });
       if (error) { toast.error(error.message || "Error en el pago"); return; }
       if (paymentIntent?.status === "succeeded") {
-        await crearPedido({ ...pedidoData, paymentIntentId: paymentIntent.id }, token);
+        if (pedidoData?.pedidoId) {
+          await fetch(API + "/api/usuario/pedidos/" + pedidoData.pedidoId + "/confirmar-pago", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+            body: JSON.stringify({ paymentIntentId: paymentIntent.id }),
+          });
+        } else {
+          await crearPedido({ ...pedidoData, paymentIntentId: paymentIntent.id }, token);
+        }
         toast.success("¡Pago exitoso! Pedido enviado.");
         onSuccess();
       }
@@ -60,7 +78,7 @@ export default function StripePagoModal({ clientSecret, pedidoData, token, onSuc
         className="bg-white w-full rounded-t-3xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-black text-slate-900">Pago con tarjeta</h3>
-          <button onClick={onClose}><X size={22} className="text-slate-400" /></button>
+          <button onClick={handleClose}><X size={22} className="text-slate-400" /></button>
         </div>
         <div className="text-center pb-1">
           <p className="font-black text-2xl text-slate-900">${String((pedidoData?.total || 0).toFixed(2))} <span className="text-sm font-bold text-slate-400">MXN</span></p>

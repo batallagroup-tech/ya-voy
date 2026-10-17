@@ -7,8 +7,8 @@ param(
 
 $apps = @(
     "ya-voy-usuario\android\app\build.gradle",
-    "ya-voy-restaurante-v2\android\app\build.gradle",
-    "ya-voy-repartidor-v2\android\app\build.gradle"
+    "ya-voy-restaurante\android\app\build.gradle",
+    "ya-voy-repartidor\android\app\build.gradle"
 )
 
 foreach ($rel in $apps) {

@@ -2,15 +2,19 @@ import { useEffect, useRef } from "react";
 import { API } from "../lib/constants";
 
 type PedidoUpdateHandler = (pedido: any) => void;
+type NuevoMensajeHandler = (payload: any) => void;
 
 export function usePedidosWS(
   userId: string | null | undefined,
   getToken: () => Promise<string | null>,
-  onUpdate: PedidoUpdateHandler
+  onUpdate: PedidoUpdateHandler,
+  onMensaje?: NuevoMensajeHandler
 ) {
   const handlerRef  = useRef(onUpdate);
+  const msgHandlerRef = useRef(onMensaje);
   const getTokenRef = useRef(getToken);
   handlerRef.current  = onUpdate;
+  msgHandlerRef.current = onMensaje;
   getTokenRef.current = getToken;
 
   useEffect(() => {
@@ -43,7 +47,11 @@ export function usePedidosWS(
       ws.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data);
-          if (msg.tipo === "pedido_update") handlerRef.current(msg.data);
+          if ((msg.tipo === "pedido_update" || msg.tipo === "pedido_actualizado") && (msg.data || msg.pedido)) {
+            handlerRef.current(msg.data || msg.pedido);
+          } else if (msg.tipo === "nuevo_mensaje" && msgHandlerRef.current) {
+            msgHandlerRef.current(msg);
+          }
         } catch {}
       };
 

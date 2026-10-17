@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { motion } from "motion/react";
-import { ShoppingBag, ArrowLeft, ShoppingCart, Star, Plus, Minus, Clock, MapPin, Sparkles } from "lucide-react";
+import { ShoppingBag, ArrowLeft, ShoppingCart, Star, Plus, Minus, Clock, MapPin } from "lucide-react";
 import { GRAD } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
 import type { Negocio, Producto } from "../types";
@@ -47,6 +48,9 @@ export default function NegocioScreen({
 }: Props) {
   const costoEnvioBase = negocio.costo_envio_base || 35;
   const estaFueraDeServicio = negocio.esta_abierto === false || negocio.aceptando_pedidos === false;
+  const [heroWide, setHeroWide] = useState<boolean>(true);
+  const [wideProdIds, setWideProdIds] = useState<Record<string, boolean>>({});
+  const heroSrc = (negocio as any).banner_url || negocio.imagen_url;
 
   return (
     <motion.div 
@@ -56,12 +60,18 @@ export default function NegocioScreen({
       className="fixed inset-0 bg-slate-50 z-50 flex flex-col overflow-hidden">
       
       {/* Hero Image */}
-      <div className="h-52 relative shrink-0" style={{ background: GRAD }}>
-        {negocio.imagen_url ? (
+      <div className={`${heroSrc ? (heroWide ? "aspect-video max-h-60" : "h-56") : "h-48"} w-full relative shrink-0 overflow-hidden`} style={{ background: GRAD }}>
+        {heroSrc ? (
           <img 
-            src={imgUrl(negocio.imagen_url, 800)} 
+            src={imgUrl(heroSrc, 900)} 
             alt={negocio.nombre}
-            className="w-full h-full object-cover" 
+            onLoad={e => {
+              const img = e.currentTarget;
+              if (img.naturalWidth && img.naturalHeight) {
+                setHeroWide(img.naturalWidth / img.naturalHeight > 1.25);
+              }
+            }}
+            className={`w-full h-full ${heroWide ? "object-cover" : "object-contain bg-black/25"}`} 
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -69,7 +79,7 @@ export default function NegocioScreen({
           </div>
         )}
         
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
 
         <button 
           onClick={onClose}
@@ -164,14 +174,14 @@ export default function NegocioScreen({
             const itemsEnCarrito = cart.filter(i => i.productoId === p.id);
             const cantidadTotal = itemsEnCarrito.reduce((a, i) => a + i.cantidad, 0);
             const itemSimple = itemsEnCarrito.find(i => !Array.isArray(i.opciones) || i.opciones.length === 0);
+            const isWide = wideProdIds[p.id] === true;
 
             return (
               <div 
                 key={p.id} 
                 onClick={() => {
                   if (p.agotado || estaFueraDeServicio) return;
-                  if (tieneOpciones) onOpenProducto(p);
-                  else onAddToCart(p);
+                  onOpenProducto(p);
                 }}
                 className={`bg-white rounded-3xl border border-slate-100 p-3.5 flex items-center gap-3.5 shadow-sm transition-all ${
                   (p.agotado || estaFueraDeServicio)
@@ -179,12 +189,21 @@ export default function NegocioScreen({
                     : "hover:shadow-md cursor-pointer active:scale-[0.99]"
                 }`}>
                 
-                <div className="w-20 h-20 bg-slate-100 rounded-2xl shrink-0 overflow-hidden relative border border-slate-100">
+                <div className={`${isWide ? "w-28 aspect-video" : "w-20 h-20 aspect-square"} bg-slate-100 rounded-2xl shrink-0 overflow-hidden relative border border-slate-100`}>
                   {p.imagen_url ? (
                     <img 
-                      src={imgUrl(p.imagen_url, 200)} 
+                      src={imgUrl(p.imagen_url, 320)} 
                       alt={p.nombre}
-                      className="w-full h-full object-cover" 
+                      onLoad={e => {
+                        const img = e.currentTarget;
+                        if (img.naturalWidth && img.naturalHeight) {
+                          const wide = img.naturalWidth / img.naturalHeight > 1.25;
+                          if (wideProdIds[p.id] !== wide) {
+                            setWideProdIds(prev => ({ ...prev, [p.id]: wide }));
+                          }
+                        }
+                      }}
+                      className="w-full h-full object-contain bg-slate-900/5" 
                       loading="lazy" 
                     />
                   ) : (

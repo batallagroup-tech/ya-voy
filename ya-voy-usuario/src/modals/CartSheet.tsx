@@ -130,11 +130,13 @@ export default function CartSheet({
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }}
+      onClick={onClose}
       className="fixed inset-0 bg-black/60 z-[60] flex items-end backdrop-blur-sm">
       <motion.div 
         initial={{ y: 350 }} 
         animate={{ y: 0 }} 
         exit={{ y: 350 }}
+        onClick={e => e.stopPropagation()}
         className="bg-white w-full rounded-t-3xl p-6 max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col">
         
         {/* Header */}

@@ -4,32 +4,37 @@ import { Preferences } from '@capacitor/preferences';
 const CapacitorStorage = {
   getItem: async (key: string): Promise<string | null> => {
     try {
-      const { value } = await Preferences.get({ key });
-      if (value !== null) return value;
       if (typeof window !== 'undefined') {
         const localVal = localStorage.getItem(key);
-        if (localVal) {
-          await Preferences.set({ key, value: localVal });
+        if (localVal !== null) {
+          Preferences.set({ key, value: localVal }).catch(() => {});
           return localVal;
         }
+      }
+      const { value } = await Preferences.get({ key });
+      if (value !== null && value !== undefined) {
+        if (typeof window !== 'undefined') {
+          try { localStorage.setItem(key, value); } catch {}
+        }
+        return value;
       }
     } catch {}
     return null;
   },
   setItem: async (key: string, value: string): Promise<void> => {
     try {
-      await Preferences.set({ key, value });
       if (typeof window !== 'undefined') {
-        localStorage.setItem(key, value);
+        try { localStorage.setItem(key, value); } catch {}
       }
+      await Preferences.set({ key, value });
     } catch {}
   },
   removeItem: async (key: string): Promise<void> => {
     try {
-      await Preferences.remove({ key });
       if (typeof window !== 'undefined') {
-        localStorage.removeItem(key);
+        try { localStorage.removeItem(key); } catch {}
       }
+      await Preferences.remove({ key });
     } catch {}
   },
 };
