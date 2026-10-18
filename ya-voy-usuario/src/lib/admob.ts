@@ -1,4 +1,4 @@
-import { AdMob, BannerAdSize, BannerAdPosition, type RewardAdOptions } from "@capacitor-community/admob";
+import { AdMob, BannerAdSize, BannerAdPosition, RewardAdPluginEvents, type RewardAdOptions } from "@capacitor-community/admob";
 import { Capacitor } from "@capacitor/core";
 
 // Banner oficial para Ya Voy Usuario
@@ -67,10 +67,10 @@ export async function removeBottomBanner() {
 /**
  * Muestra un video recompensado para ganar saldo en el monedero
  */
-export async function showRewardedAd(onRewardEarned: () => void): Promise<boolean> {
+export async function showRewardedAd(onRewardEarned: () => void | Promise<void>): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) {
     // Simular recompensa en Web / Navegador de prueba
-    onRewardEarned();
+    await onRewardEarned();
     return true;
   }
   try {
@@ -78,13 +78,40 @@ export async function showRewardedAd(onRewardEarned: () => void): Promise<boolea
     const options: RewardAdOptions = {
       adId: REWARD_AD_ID || TEST_REWARD_AD_ID,
     };
+
+    let rewardGiven = false;
+    const triggerReward = async () => {
+      if (rewardGiven) return;
+      rewardGiven = true;
+      try {
+        await onRewardEarned();
+      } catch (err) {
+        console.error("Error executing onRewardEarned callback:", err);
+      }
+    };
+
+    // 1. Registrar listener nativo para capturar el evento Rewarded de Google Mobile Ads
+    const rewardedListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, async (rewardItem) => {
+      console.log("AdMob Rewarded event fired:", rewardItem);
+      await triggerReward();
+    });
+
+    const dismissedListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, async () => {
+      console.log("AdMob Dismissed event fired");
+      // Si el anuncio fue visto por completo pero el listener anterior no se activó a tiempo
+      setTimeout(() => {
+        rewardedListener.remove();
+        dismissedListener.remove();
+      }, 1500);
+    });
+
     await AdMob.prepareRewardVideoAd(options);
     const rewardItem = await AdMob.showRewardVideoAd();
     if (rewardItem) {
-      onRewardEarned();
-      return true;
+      await triggerReward();
     }
-    return false;
+
+    return true;
   } catch (e) {
     console.warn("Rewarded Ad error:", e);
     return false;
