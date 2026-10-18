@@ -10,6 +10,10 @@ export default class ErrorBoundary extends Component<Props, State> {
     return { error };
   }
 
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("ErrorBoundary caught:", error, errorInfo);
+  }
+
   render() {
     if (this.state.error) {
       if (this.props.fallback) return this.props.fallback;
@@ -17,7 +21,12 @@ export default class ErrorBoundary extends Component<Props, State> {
         <div className="min-h-[100dvh] flex flex-col items-center justify-center p-8 bg-slate-50 text-center">
           <p className="text-4xl mb-4">⚠️</p>
           <h1 className="text-xl font-black text-slate-800 mb-2">Algo salió mal</h1>
-          <p className="text-slate-500 text-sm mb-6">Recarga la página para continuar.</p>
+          <p className="text-slate-500 text-sm mb-4">Recarga la página para continuar.</p>
+          {this.state.error.message && (
+            <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 max-w-sm mb-6 font-mono text-left break-all">
+              {this.state.error.message}
+            </p>
+          )}
           <button onClick={() => window.location.reload()}
             className="px-6 py-3 rounded-2xl text-white font-bold text-sm"
             style={{ background: "linear-gradient(135deg,#9C0D38,#9C0D38)" }}>
