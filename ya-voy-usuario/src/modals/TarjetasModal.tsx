@@ -111,11 +111,44 @@ export default function TarjetasModal({ userId, userEmail, userName, tarjetas, o
               <X size={22} className="text-slate-400" />
             </button>
           </div>
-          <div id="stripe-setup-element" className="min-h-[200px]" />
-          <button onClick={confirmarTarjeta} disabled={guardando} style={{ background: GRAD }}
-            className="w-full py-4 text-white font-black rounded-2xl flex items-center justify-center gap-2 disabled:opacity-60">
-            {guardando ? <Loader2 className="animate-spin" size={20} /> : <CreditCard size={20} />}
-            {guardando ? "Guardando..." : "Guardar tarjeta"}
+          {/* Contenedor del elemento de Stripe con animación de carga */}
+          <div className="relative min-h-[220px]">
+            {!setupCard && (
+              <div className="absolute inset-0 bg-slate-50/95 rounded-2xl border border-slate-200/80 flex flex-col items-center justify-center p-6 text-center space-y-3 z-10 animate-pulse">
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-[#9C0D38] shadow-sm">
+                  <Loader2 size={28} className="animate-spin text-[#9C0D38]" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-slate-800">Un momento, por favor...</p>
+                  <p className="text-xs font-semibold text-slate-500 mt-0.5">Cargando formulario seguro de tarjeta</p>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span>Conexión segura encriptada con Stripe</span>
+                </div>
+              </div>
+            )}
+            <div id="stripe-setup-element" className={`min-h-[200px] transition-opacity duration-300 ${!setupCard ? "opacity-0 pointer-events-none" : "opacity-100"}`} />
+          </div>
+
+          <button onClick={confirmarTarjeta} disabled={guardando || !setupCard} style={{ background: GRAD }}
+            className="w-full py-4 text-white font-black rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.99] transition-all shadow-md">
+            {guardando ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                <span>Guardando tarjeta...</span>
+              </>
+            ) : !setupCard ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                <span>Cargando formulario seguro...</span>
+              </>
+            ) : (
+              <>
+                <CreditCard size={20} />
+                <span>Guardar tarjeta</span>
+              </>
+            )}
           </button>
           <p className="text-center text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
             ⚠️ Al guardar tu tarjeta se realizará un cargo temporal de $1 MXN para verificarla. Este cargo se revierte automáticamente en 1-7 días hábiles.

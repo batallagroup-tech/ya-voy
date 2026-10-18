@@ -733,9 +733,10 @@ export default function App() {
 
   // ── Pedir de nuevo (Reordenar en 1 clic) ──────────────────────────────────
   const handlePedirDeNuevo = async (p: any) => {
-    const negocio = negocios.find((n: any) => n.id === (p.negocio_id || p.negocioId)) || { 
+    const negocio: Negocio = negocios.find((n: any) => n.id === (p.negocio_id || p.negocioId)) || { 
       id: p.negocio_id || p.negocioId, 
       nombre: p.negocio_nombre || "Restaurante", 
+      tipo: "restaurante",
       imagen_url: p.negocio_imagen 
     };
     setNegocioSeleccionado(negocio);
