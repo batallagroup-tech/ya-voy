@@ -361,7 +361,22 @@ export default function HomeTab({
                             <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 shrink-0">⭐</span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400 truncate mt-0.5">{p.negocio_nombre}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <p className="text-xs text-slate-400 truncate">{p.negocio_nombre}</p>
+                          {onToggleFavorito && p.negocio_id && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const negocio = negocios.find(n => n.id === p.negocio_id);
+                                if (negocio) onToggleFavorito(negocio);
+                              }}
+                              className="shrink-0 p-0.5 text-slate-300 hover:text-rose-500 active:scale-90 transition-transform cursor-pointer"
+                              title={favoritosIds.has(p.negocio_id) ? "Quitar restaurante de favoritos" : "Guardar restaurante en favoritos"}>
+                              <Heart size={12} className={favoritosIds.has(p.negocio_id) ? "fill-rose-500 text-rose-500" : "text-slate-300 hover:text-rose-400"} />
+                            </button>
+                          )}
+                        </div>
                         <p className="font-black text-base mt-1 text-rose-600">${Number(p.precio).toFixed(2)}</p>
                       </div>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
-import { Search, ChevronRight, Star, X, Clock, SlidersHorizontal, MapPin, Sparkles } from "lucide-react";
+import { Search, ChevronRight, Star, X, Clock, SlidersHorizontal, MapPin, Sparkles, Heart } from "lucide-react";
 import { GRAD, API } from "../lib/constants";
 import { imgUrl } from "../lib/cloudinary";
 import type { Negocio } from "../types";
@@ -32,7 +32,7 @@ function guardarBusqueda(q: string) {
 
 function borrarHistorial() { localStorage.removeItem(KEY); }
 
-type FiltroTipo = "todos" | "comida" | "tienda";
+type FiltroTipo = "todos" | "favoritos" | "comida" | "tienda";
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371;
@@ -45,10 +45,12 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 interface Props {
   negocios: Negocio[];
   userLocation: [number, number] | null;
+  favoritosIds?: Set<string>;
+  onToggleFavorito?: (n: Negocio) => void;
   onOpenNegocio: (n: Negocio) => void;
 }
 
-export default function ExplorarTab({ negocios, userLocation, onOpenNegocio }: Props) {
+export default function ExplorarTab({ negocios, userLocation, favoritosIds = new Set(), onToggleFavorito, onOpenNegocio }: Props) {
   const [search, setSearch] = useState("");
   const [historial, setHistorial] = useState<string[]>(getHistorial);
   const [focused, setFocused] = useState(false);
@@ -80,6 +82,7 @@ export default function ExplorarTab({ negocios, userLocation, onOpenNegocio }: P
 
   const filtrados = base
     .filter(n => {
+      if (filtroTipo === "favoritos") return favoritosIds.has(n.id);
       if (filtroTipo === "todos") return true;
       const rawTipo = (n.tipo || 'restaurante').toLowerCase().trim();
       if (filtroTipo === "comida") {
@@ -170,7 +173,21 @@ export default function ExplorarTab({ negocios, userLocation, onOpenNegocio }: P
       {/* Filter Chips */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
         <SlidersHorizontal size={14} className="text-slate-400 shrink-0" />
-        {(["todos", "comida", "tienda"] as FiltroTipo[]).map(tipo => (
+        
+        {/* Chip Favoritos */}
+        <button 
+          onClick={() => setFiltroTipo(v => v === "favoritos" ? "todos" : "favoritos")}
+          className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black border transition-all ${
+            filtroTipo === "favoritos"
+              ? "text-white border-transparent shadow-sm"
+              : "border-slate-200 text-slate-600 bg-white hover:bg-slate-50"
+          }`}
+          style={filtroTipo === "favoritos" ? { background: GRAD } : {}}>
+          <Heart size={13} className={filtroTipo === "favoritos" ? "fill-white text-white" : "text-rose-500 fill-rose-500"} />
+          <span>Favoritos {favoritosIds.size > 0 ? `(${favoritosIds.size})` : ""}</span>
+        </button>
+
+        {(["todos", "comida", "tienda"] as const).map(tipo => (
           <button 
             key={tipo} 
             onClick={() => setFiltroTipo(tipo)}
@@ -220,47 +237,85 @@ export default function ExplorarTab({ negocios, userLocation, onOpenNegocio }: P
       <div className="space-y-3">
         {filtrados.map(n => {
           const pausado = n.aceptando_pedidos === false;
+          const esFav = favoritosIds.has(n.id);
           return (
-            <button 
+            <div 
               key={n.id} 
-              onClick={() => onOpenNegocio(n)}
-              className={`w-full bg-white rounded-3xl border border-slate-100 p-3.5 flex items-center gap-3.5 text-left shadow-sm hover:shadow-md transition-all active:scale-[0.99] ${
+              className={`w-full bg-white rounded-3xl border border-slate-100 p-3.5 flex items-center gap-3 text-left shadow-sm hover:shadow-md transition-all ${
                 pausado ? "opacity-75" : ""
               }`}>
-              <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 relative bg-slate-100 border border-slate-100">
-                {n.imagen_url ? (
-                  <img src={imgUrl(n.imagen_url, 120)} alt={n.nombre} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>
-                )}
-                {pausado && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-2xl">
-                    <span className="text-white text-[8px] font-black">PAUSADO</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="font-black text-slate-900 text-sm truncate">{n.nombre}</p>
-                {pausado ? (
-                  <p className="text-xs font-bold text-yellow-700 mt-0.5">Pausado temporalmente</p>
-                ) : (
-                  <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                    <span className="capitalize">{n.tipo}</span>
-                    <span>·</span>
-                    <div className="flex items-center gap-0.5">
-                      <Star size={11} className="text-yellow-500 fill-yellow-500" />
-                      <span className="font-bold text-slate-700">{Number(n.rating || 0).toFixed(1)}</span>
+              <button 
+                onClick={() => onOpenNegocio(n)}
+                className="flex items-center gap-3.5 flex-1 min-w-0 text-left cursor-pointer">
+                <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 relative bg-slate-100 border border-slate-100">
+                  {n.imagen_url ? (
+                    <img src={imgUrl(n.imagen_url, 120)} alt={n.nombre} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>
+                  )}
+                  {pausado && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-2xl">
+                      <span className="text-white text-[8px] font-black">PAUSADO</span>
                     </div>
-                  </div>
-                )}
-                {n.direccion && <p className="text-[10px] text-slate-400 truncate mt-0.5">{n.direccion}</p>}
-              </div>
-              <ChevronRight size={18} className="text-slate-300 shrink-0" />
-            </button>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-slate-900 text-sm truncate">{n.nombre}</p>
+                  {pausado ? (
+                    <p className="text-xs font-bold text-yellow-700 mt-0.5">Pausado temporalmente</p>
+                  ) : (
+                    <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                      <span className="capitalize">{n.tipo}</span>
+                      <span>·</span>
+                      <div className="flex items-center gap-0.5">
+                        <Star size={11} className="text-yellow-500 fill-yellow-500" />
+                        <span className="font-bold text-slate-700">{Number(n.rating || 0).toFixed(1)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {n.direccion && <p className="text-[10px] text-slate-400 truncate mt-0.5">{n.direccion}</p>}
+                </div>
+              </button>
+
+              {onToggleFavorito && (
+                <button 
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onToggleFavorito(n); }}
+                  title={esFav ? "Quitar de favoritos" : "Agregar a favoritos"}
+                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-2xl bg-slate-50 hover:bg-rose-50 active:scale-90 transition-transform cursor-pointer">
+                  <Heart size={18} className={esFav ? "fill-rose-500 text-rose-500" : "text-slate-300 hover:text-rose-400"} />
+                </button>
+              )}
+
+              <button
+                onClick={() => onOpenNegocio(n)}
+                className="shrink-0 text-slate-300 hover:text-slate-500 p-1">
+                <ChevronRight size={18} />
+              </button>
+            </div>
           );
         })}
       </div>
+
+      {/* Empty State de Favoritos */}
+      {filtroTipo === "favoritos" && filtrados.length === 0 && (
+        <div className="text-center py-14 bg-white rounded-3xl border border-slate-100 p-6">
+          <div className="w-16 h-16 rounded-3xl bg-rose-50 text-rose-500 flex items-center justify-center mx-auto mb-3 shadow-inner">
+            <Heart size={32} className="stroke-[1.5]" />
+          </div>
+          <p className="font-black text-sm text-slate-800">Aún no tienes favoritos</p>
+          <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+            Toca el corazón ❤️ en cualquier restaurante para guardarlo en tus favoritos y encontrarlo aquí rápidamente.
+          </p>
+          <button
+            onClick={() => setFiltroTipo("todos")}
+            className="mt-4 px-4 py-2 rounded-xl text-xs font-black text-white active:scale-95 transition-transform"
+            style={{ background: GRAD }}>
+            Ver todos los restaurantes
+          </button>
+        </div>
+      )}
 
       {/* Resultados de Productos de la Búsqueda */}
       {resultados && resultados.productos.length > 0 && (

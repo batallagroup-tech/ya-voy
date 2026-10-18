@@ -42,6 +42,7 @@ const SoporteModal     = lazy(() => import("./modals/SoporteModal"));
 const RatingModal      = lazy(() => import("./modals/RatingModal"));
 const CancelarModal    = lazy(() => import("./modals/CancelarModal"));
 const DeleteConfirmModal = lazy(() => import("./modals/DeleteConfirmModal"));
+const FavoritosModal  = lazy(() => import("./modals/FavoritosModal"));
 const HomeTab          = lazy(() => import("./tabs/HomeTab"));
 const ExplorarTab      = lazy(() => import("./tabs/ExplorarTab"));
 const PedidosTab       = lazy(() => import("./tabs/PedidosTab"));
@@ -150,6 +151,7 @@ export default function App() {
   // Favoritos
   const [favoritos, setFavoritos] = useState<Negocio[]>([]);
   const [favoritosIds, setFavoritosIds] = useState<Set<string>>(new Set());
+  const [showFavoritosModal, setShowFavoritosModal] = useState(false);
 
   // Profile
   const [fotoPerfil, setFotoPerfil] = useState("");
@@ -505,13 +507,17 @@ export default function App() {
 
   // ── Favoritos ─────────────────────────────────────────────────────────────
   const toggleFavorito = async (negocio: Negocio) => {
-    if (!userId) return;
+    if (!userId) {
+      toast.error("Inicia sesión para guardar tus favoritos");
+      return;
+    }
     const token = await getToken();
     if (!token) return;
     const esFav = favoritosIds.has(negocio.id);
     if (esFav) {
       setFavoritosIds(prev => { const s = new Set(prev); s.delete(negocio.id); return s; });
       setFavoritos(prev => prev.filter(n => n.id !== negocio.id));
+      toast("Eliminado de favoritos", { icon: "💔" });
       removeFavorito(userId, negocio.id, token).catch(() => {
         setFavoritosIds(prev => new Set([...prev, negocio.id]));
         setFavoritos(prev => [...prev, negocio]);
@@ -519,6 +525,7 @@ export default function App() {
     } else {
       setFavoritosIds(prev => new Set([...prev, negocio.id]));
       setFavoritos(prev => [...prev, negocio]);
+      toast.success(`${negocio.nombre} agregado a tus favoritos ❤️`);
       addFavorito(userId, negocio.id, token).catch(() => {
         setFavoritosIds(prev => { const s = new Set(prev); s.delete(negocio.id); return s; });
         setFavoritos(prev => prev.filter(n => n.id !== negocio.id));
@@ -849,6 +856,8 @@ export default function App() {
             cart={cart}
             cartCount={cartCount}
             total={total}
+            isFavorito={favoritosIds.has(negocioSeleccionado.id)}
+            onToggleFavorito={() => toggleFavorito(negocioSeleccionado)}
             onClose={() => setNegocioSeleccionado(null)}
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}
@@ -942,6 +951,17 @@ export default function App() {
             tarjetas={tarjetas}
             onTarjetasUpdate={setTarjetas}
             onClose={() => setShowTarjetas(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showFavoritosModal && (
+          <FavoritosModal
+            favoritos={favoritos}
+            onToggleFavorito={toggleFavorito}
+            onOpenNegocio={openNegocio}
+            onClose={() => setShowFavoritosModal(false)}
           />
         )}
       </AnimatePresence>
@@ -1072,7 +1092,15 @@ export default function App() {
             /></TabErrorBoundary>
           )}
           {tab === "explorar" && (
-            <TabErrorBoundary><ExplorarTab negocios={negocios} userLocation={userLocation} onOpenNegocio={openNegocio} /></TabErrorBoundary>
+            <TabErrorBoundary>
+              <ExplorarTab 
+                negocios={negocios} 
+                userLocation={userLocation} 
+                favoritosIds={favoritosIds}
+                onToggleFavorito={toggleFavorito}
+                onOpenNegocio={openNegocio} 
+              />
+            </TabErrorBoundary>
           )}
           {tab === "pedidos" && (
             <TabErrorBoundary><PedidosTab
@@ -1106,6 +1134,8 @@ export default function App() {
               direcciones={direcciones}
               tarjetas={tarjetas}
               metodoPago={metodoPago}
+              favoritos={favoritos}
+              onShowFavoritos={() => setShowFavoritosModal(true)}
               onMetodoPagoChange={(p) => { setMetodoPago(p); localStorage.setItem("ya_voy_pago", p); }}
               onFotoChange={setFotoPerfil}
               onShowDirecciones={() => setShowDirecciones(true)}

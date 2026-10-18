@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   MapPin, Banknote, CreditCard, Bell, HelpCircle, FileText, 
   ChevronRight, LogOut, Trash2, User, Loader2, Wallet, 
-  Star, Share2, Sparkles, Pencil, Phone, Mail, X, Check 
+  Star, Share2, Sparkles, Pencil, Phone, Mail, X, Check, Heart 
 } from "lucide-react";
 import { toast } from "sonner";
 import { GRAD, API, COLOR_CARMINE } from "../lib/constants";
@@ -18,6 +18,8 @@ interface Props {
   direcciones: Direccion[];
   tarjetas: any[];
   metodoPago: string;
+  favoritos?: any[];
+  onShowFavoritos?: () => void;
   onMetodoPagoChange: (pago: string) => void;
   onFotoChange: (url: string) => void;
   onShowDirecciones: () => void;
@@ -34,6 +36,8 @@ export default function PerfilTab({
   direcciones, 
   tarjetas, 
   metodoPago, 
+  favoritos = [],
+  onShowFavoritos,
   onMetodoPagoChange, 
   onFotoChange: _onFotoChange, 
   onShowDirecciones, 
@@ -352,6 +356,23 @@ export default function PerfilTab({
           </div>
           <ChevronRight size={18} className="text-slate-300" />
         </button>
+
+        {onShowFavoritos && (
+          <button 
+            onClick={onShowFavoritos}
+            className="w-full px-4 py-4 flex items-center gap-3.5 hover:bg-slate-50 transition-colors border-b border-slate-50 cursor-pointer">
+            <div className="w-9 h-9 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 shrink-0">
+              <Heart size={18} className="fill-rose-500 text-rose-500" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-slate-900 text-xs">Mis Restaurantes Favoritos</p>
+              <p className="text-[11px] text-slate-400">
+                {favoritos.length} guardado{favoritos.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+            <ChevronRight size={18} className="text-slate-300" />
+          </button>
+        )}
 
         <div className="px-4 py-4 flex items-center gap-3.5 border-b border-slate-50">
           <div className="w-9 h-9 bg-rose-50 rounded-2xl flex items-center justify-center text-[#9C0D38] shrink-0">

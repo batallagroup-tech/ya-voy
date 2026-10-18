@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ShoppingBag, ArrowLeft, ShoppingCart, Star, Plus, Minus, Clock, MapPin } from "lucide-react";
+import { ShoppingBag, ArrowLeft, ShoppingCart, Star, Plus, Minus, Clock, MapPin, Heart } from "lucide-react";
 import { GRAD } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
 import type { Negocio, Producto } from "../types";
@@ -12,6 +12,8 @@ interface Props {
   cart: CartItem[];
   cartCount: number;
   total: number;
+  isFavorito?: boolean;
+  onToggleFavorito?: () => void;
   onClose: () => void;
   onAddToCart: (p: any) => void;
   onRemoveFromCart: (cartKey: string) => void;
@@ -40,6 +42,8 @@ export default function NegocioScreen({
   cart, 
   cartCount, 
   total, 
+  isFavorito,
+  onToggleFavorito,
   onClose, 
   onAddToCart, 
   onRemoveFromCart, 
@@ -88,21 +92,45 @@ export default function NegocioScreen({
           <ArrowLeft size={20} />
         </button>
 
-        {cartCount > 0 && !estaFueraDeServicio && (
-          <button 
-            onClick={onViewCart}
-            className="absolute top-4 right-4 bg-white/95 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2 shadow-xl border border-white/40 active:scale-95 transition-transform"
-            style={{ marginTop: "env(safe-area-inset-top)" }}>
-            <ShoppingCart size={18} className="text-rose-600" />
-            <span className="font-black text-rose-600 text-xs">{cartCount} items</span>
-          </button>
-        )}
+        <div className="absolute top-4 right-4 flex items-center gap-2" style={{ marginTop: "env(safe-area-inset-top)" }}>
+          {onToggleFavorito && (
+            <button 
+              onClick={onToggleFavorito}
+              className={`w-10 h-10 backdrop-blur-md rounded-full flex items-center justify-center border shadow-lg active:scale-90 transition-all ${
+                isFavorito 
+                  ? "bg-rose-600 border-rose-500 text-white shadow-rose-600/30" 
+                  : "bg-black/40 border-white/20 text-white hover:bg-black/60"
+              }`}
+              title={isFavorito ? "Guardado en tus favoritos" : "Agregar a favoritos"}>
+              <Heart size={20} className={isFavorito ? "fill-white text-white" : "text-white"} />
+            </button>
+          )}
+
+          {cartCount > 0 && !estaFueraDeServicio && (
+            <button 
+              onClick={onViewCart}
+              className="bg-white/95 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2 shadow-xl border border-white/40 active:scale-95 transition-transform">
+              <ShoppingCart size={18} className="text-rose-600" />
+              <span className="font-black text-rose-600 text-xs">{cartCount} items</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Info Card */}
       <div className="p-4 bg-white border-b border-slate-100 shadow-sm shrink-0">
         <div className="flex items-start justify-between gap-2">
-          <h2 className="text-xl font-black text-slate-900 leading-tight">{negocio.nombre}</h2>
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="text-xl font-black text-slate-900 leading-tight truncate">{negocio.nombre}</h2>
+            {onToggleFavorito && (
+              <button 
+                onClick={onToggleFavorito}
+                className="shrink-0 p-1.5 rounded-xl hover:bg-rose-50 active:scale-90 transition-all"
+                title={isFavorito ? "Quitar de favoritos" : "Agregar a favoritos"}>
+                <Heart size={19} className={isFavorito ? "fill-rose-500 text-rose-500" : "text-slate-300 hover:text-rose-400"} />
+              </button>
+            )}
+          </div>
           {estaFueraDeServicio && (
             <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 border border-rose-200 shrink-0 uppercase tracking-wider">
               {negocio.esta_abierto === false ? 'Cerrado' : 'Pausado'}

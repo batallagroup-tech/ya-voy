@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { X, Minus, Plus, Banknote, CreditCard, MapPin, Loader2, Trash2, Store, Calendar, Wallet, Check, Ticket, Sparkles } from "lucide-react";
+import { X, Minus, Plus, Banknote, CreditCard, MapPin, Loader2, Trash2, Store, Calendar, Wallet, Check, Ticket, Sparkles, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { GRAD, API } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
@@ -380,6 +380,16 @@ export default function CartSheet({
                   className="text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-200/80 active:scale-95 transition-all">
                   {tarjetas && tarjetas.length > 0 ? "Cambiar / Nueva tarjeta" : "+ Agregar tarjeta (real)"}
                 </button>
+              </div>
+            )}
+
+            {/* Alerta de límite de efectivo para cuentas nuevas */}
+            {metodoPago === "efectivo" && totalFinal > 400 && (
+              <div className="pt-2 border-t border-slate-200/60 flex items-start gap-2 text-amber-800 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200">
+                <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-tight">
+                  <span className="font-bold">Límite de seguridad:</span> En órdenes en efectivo de más de $400 MXN para cuentas nuevas, se requiere pago con tarjeta. Te sugerimos seleccionar tarjeta bancaria.
+                </p>
               </div>
             )}
           </div>
