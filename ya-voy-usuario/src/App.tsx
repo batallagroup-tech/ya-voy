@@ -27,7 +27,7 @@ import { usePushNotifications } from "./hooks/usePushNotifications";
 import { usePedidosWS } from "./hooks/usePedidosWS";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
 import LiveOrderBanner from "./components/LiveOrderBanner";
-import { updateLiveOrderNotification } from "./lib/liveNotifications";
+import { updateLiveOrderNotification, initLiveNotificationChannel } from "./lib/liveNotifications";
 
 // Code splitting — se cargan solo cuando se necesitan
 const NegocioScreen    = lazy(() => import("./screens/NegocioScreen"));
@@ -172,6 +172,7 @@ export default function App() {
   const [codigoOpciones, setCodigoOpciones] = useState<string[]>([]);
   const [codigoConfirmado, setCodigoConfirmado] = useState(false);
   const [repUbicacion, setRepUbicacion] = useState<{ lat: number; lng: number } | null>(null);
+  const repPollIntervalRef = useRef<any>(null);
   const [esperandoTimer, setEsperandoTimer] = useState<number | null>(null);
   const [chatNoLeidos, setChatNoLeidos] = useState<Record<string, number>>({});
 
@@ -262,6 +263,7 @@ export default function App() {
     document.documentElement.classList.toggle("dark", dark);
     setStatusBarLight();
     initAdMob();
+    initLiveNotificationChannel();
   }, []);
 
   // ── Banner publicitario en pantalla de rastreo ───────────────────────────
@@ -431,6 +433,7 @@ export default function App() {
         if (prev && prev !== p.status) {
           if (p.status === "en_camino") playSound("enCamino");
           if (p.status === "esperando_cliente") playSound("llegando");
+          updateLiveOrderNotification(p);
         }
         prevPedidosStatusRef.current[p.id] = p.status;
       });
@@ -505,6 +508,12 @@ export default function App() {
   const total = cart.reduce((a, i) => a + i.precio * i.cantidad, 0);
   const cartCount = cart.reduce((a, i) => a + i.cantidad, 0);
 
+  const cartProductIds = useMemo(() => new Set(cart.map(c => c.productoId)), [cart]);
+  const sugerenciasCart = useMemo(() => {
+    const pool = (productos && productos.length > 0) ? productos : productosFeed;
+    return pool.filter(p => !cartProductIds.has(p.id) && (p.disponible ?? true)).slice(0, 8);
+  }, [productos, productosFeed, cartProductIds]);
+
   // ── Favoritos ─────────────────────────────────────────────────────────────
   const toggleFavorito = async (negocio: Negocio) => {
     if (!userId) {
@@ -559,8 +568,8 @@ export default function App() {
   };
 
   // ── Payment ───────────────────────────────────────────────────────────────
-  const handlePedir = async (extras: { cuponAplicado: any; tipoEntrega: string; programadoPara: string | null; walletMonto: number }) => {
-    const { cuponAplicado, tipoEntrega, programadoPara, walletMonto } = extras;
+  const handlePedir = async (extras: { cuponAplicado: any; tipoEntrega: string; programadoPara: string | null; walletMonto: number; notas?: string }) => {
+    const { cuponAplicado, tipoEntrega, programadoPara, walletMonto, notas } = extras;
     if (!cart.length || !userId) return;
 
     // Multi-restaurante: agrupar items por negocioId y crear pedidos separados
@@ -587,7 +596,7 @@ export default function App() {
           negocioId: nid,
           items: itemsGrupo,
           total: subtotalGrupo + (esPrimero ? envioEfectivo + propina - (cuponAplicado?.descuento || 0) - walletMonto : 0),
-          notas: "",
+          notas: notas || "",
           metodoPago,
           propina: esPrimero ? propina : 0,
           cuponCodigo: esPrimero ? cuponAplicado?.codigo || null : null,
@@ -677,27 +686,76 @@ export default function App() {
     setTab("pedidos");
   };
 
-  // ── WebSocket ubicación ───────────────────────────────────────────────────
+  // ── WebSocket y Polling híbrido de ubicación del repartidor ────────────────
   const iniciarPollUbicacion = async (repartidorId: string) => {
+    detenerPollUbicacion();
     const token = await getToken();
     const wsUrl = API.replace("http://", "ws://").replace("https://", "wss://")
       + "/ws/ubicacion?repartidorId=" + repartidorId + "&rol=cliente"
       + (token ? "&token=" + encodeURIComponent(token) : "");
-    const ws = new WebSocket(wsUrl);
-    ws.onmessage = (e) => {
+    try {
+      const ws = new WebSocket(wsUrl);
+      ws.onmessage = (e) => {
+        try {
+          const { lat, lng } = JSON.parse(e.data);
+          if (lat && lng) setRepUbicacion({ lat: Number(lat), lng: Number(lng) });
+        } catch {}
+      };
+      ws.onerror = () => {};
+      (window as any).__repWs = ws;
+    } catch {}
+
+    // Polling HTTP continuo como seguro de alta fidelidad si la conexión móvil suspende WS
+    const fetchHttpUbicacion = async () => {
       try {
-        const { lat, lng } = JSON.parse(e.data);
-        if (lat && lng) setRepUbicacion({ lat: Number(lat), lng: Number(lng) });
+        const res = await fetch(`${API}/api/repartidor/${repartidorId}/ubicacion`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.lat_actual && data.lng_actual) {
+            setRepUbicacion({ lat: Number(data.lat_actual), lng: Number(data.lng_actual) });
+          }
+        }
       } catch {}
     };
-    ws.onerror = () => {};
-    (window as any).__repWs = ws;
+    fetchHttpUbicacion();
+    repPollIntervalRef.current = setInterval(fetchHttpUbicacion, 4000);
   };
 
   const detenerPollUbicacion = () => {
+    if (repPollIntervalRef.current) {
+      clearInterval(repPollIntervalRef.current);
+      repPollIntervalRef.current = null;
+    }
     const ws = (window as any).__repWs;
     if (ws) { ws.close(); delete (window as any).__repWs; }
     setRepUbicacion(null);
+  };
+
+  // ── Pedir de nuevo (Reordenar en 1 clic) ──────────────────────────────────
+  const handlePedirDeNuevo = async (p: any) => {
+    const negocio = negocios.find((n: any) => n.id === (p.negocio_id || p.negocioId)) || { 
+      id: p.negocio_id || p.negocioId, 
+      nombre: p.negocio_nombre || "Restaurante", 
+      imagen_url: p.negocio_imagen 
+    };
+    setNegocioSeleccionado(negocio);
+    calcularEnvio(negocio);
+    try {
+      const prods = await fetch(API + `/api/usuario/negocios/${p.negocio_id || p.negocioId}/productos`).then(r => r.json()).catch(() => []);
+      setProductos(Array.isArray(prods) ? prods : []);
+    } catch {}
+    const carritoNuevo: CartItem[] = (p.items || []).map((it: any) => ({
+      cartKey: `${it.nombre}-${Date.now()}-${Math.random()}`,
+      productoId: it.id || it.productoId || it.nombre,
+      nombre: it.nombre,
+      precio: it.precio,
+      precioBase: it.precio,
+      cantidad: it.cantidad || 1,
+      negocioId: p.negocio_id || p.negocioId,
+    }));
+    setCart(carritoNuevo);
+    setShowCart(true);
+    toast.success("¡Pedido anterior cargado en tu carrito!");
   };
 
   // ── Handlers menores ──────────────────────────────────────────────────────
@@ -893,6 +951,7 @@ export default function App() {
             propina={propina}
             walletBalance={walletBalance}
             tarjetas={tarjetas}
+            sugerencias={sugerenciasCart}
             onManageCards={() => setShowTarjetas(true)}
             onPropinaChange={(p) => { setPropina(p); localStorage.setItem("ya_voy_propina", String(p)); }}
             onAddToCart={addToCart}
@@ -1089,6 +1148,7 @@ export default function App() {
               onAddToCart={addToCart}
               onProductoClick={setProductoSeleccionado}
               onToggleFavorito={toggleFavorito}
+              onPedirDeNuevo={handlePedirDeNuevo}
             /></TabErrorBoundary>
           )}
           {tab === "explorar" && (

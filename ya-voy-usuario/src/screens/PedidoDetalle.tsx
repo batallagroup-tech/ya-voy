@@ -13,9 +13,43 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-function MapUpdater({ lat, lng }: { lat: number; lng: number }) {
+const motoIcon = L.divIcon({
+  className: "moto-marker-icon",
+  html: `
+    <div style="position: relative; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;">
+      <div style="position: absolute; inset: 0; border-radius: 50%; background: rgba(225, 29, 72, 0.35); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+      <div style="position: relative; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #e11d48, #9c0d38); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.35); border: 2.5px solid #ffffff; font-size: 17px;">
+        🛵
+      </div>
+    </div>
+  `,
+  iconSize: [42, 42],
+  iconAnchor: [21, 21],
+});
+
+const casaIcon = L.divIcon({
+  className: "casa-marker-icon",
+  html: `
+    <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
+      <div style="width: 30px; height: 30px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(0,0,0,0.3); border: 2px solid #ffffff; font-size: 15px;">
+        🏠
+      </div>
+    </div>
+  `,
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
+});
+
+function MapLiveUpdater({ repLat, repLng, destLat, destLng }: { repLat: number; repLng: number; destLat?: number | null; destLng?: number | null }) {
   const map = useMap();
-  useEffect(() => { map.setView([lat, lng], map.getZoom()); }, [lat, lng]);
+  useEffect(() => {
+    if (destLat && destLng) {
+      const bounds = L.latLngBounds([ [repLat, repLng], [destLat, destLng] ]);
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    } else {
+      map.panTo([repLat, repLng], { animate: true, duration: 1 });
+    }
+  }, [repLat, repLng, destLat, destLng, map]);
   return null;
 }
 
@@ -193,12 +227,29 @@ export default function PedidoDetalle({
             )}
 
             {repUbicacion && (
-              <div className="rounded-2xl overflow-hidden border border-rose-200 shadow-inner" style={{ height: 180 }}>
-                <MapContainer center={[repUbicacion.lat, repUbicacion.lng]} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false}>
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <Marker position={[repUbicacion.lat, repUbicacion.lng]} />
-                  <MapUpdater lat={repUbicacion.lat} lng={repUbicacion.lng} />
-                </MapContainer>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Moto en camino en vivo</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-semibold">GPS activo</span>
+                </div>
+                <div className="rounded-2xl overflow-hidden border border-rose-200 shadow-md" style={{ height: 210 }}>
+                  <MapContainer center={[repUbicacion.lat, repUbicacion.lng]} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false}>
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <Marker position={[repUbicacion.lat, repUbicacion.lng]} icon={motoIcon} />
+                    {pedido.lat_entrega && pedido.lng_entrega ? (
+                      <Marker position={[Number(pedido.lat_entrega), Number(pedido.lng_entrega)]} icon={casaIcon} />
+                    ) : null}
+                    <MapLiveUpdater 
+                      repLat={repUbicacion.lat} 
+                      repLng={repUbicacion.lng} 
+                      destLat={pedido.lat_entrega ? Number(pedido.lat_entrega) : null} 
+                      destLng={pedido.lng_entrega ? Number(pedido.lng_entrega) : null} 
+                    />
+                  </MapContainer>
+                </div>
               </div>
             )}
           </div>

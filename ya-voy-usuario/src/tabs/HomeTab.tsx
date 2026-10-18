@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
-import { ShoppingBag, Utensils, Store, Package, Star, Plus, Heart, Map, List, MapPin, Sparkles, Flame } from "lucide-react";
+import { ShoppingBag, Utensils, Store, Package, Star, Plus, Heart, Map, List, MapPin, Sparkles, Flame, RotateCcw } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -64,6 +64,7 @@ interface Props {
   onAddToCart: (p: Producto) => void;
   onProductoClick: (p: Producto) => void;
   onToggleFavorito: (n: Negocio) => void;
+  onPedirDeNuevo?: (p: any) => void;
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -91,7 +92,8 @@ export default function HomeTab({
   onOpenNegocio, 
   onAddToCart, 
   onProductoClick, 
-  onToggleFavorito 
+  onToggleFavorito,
+  onPedirDeNuevo
 }: Props) {
   const [vistaLista, setVistaLista] = useState(true);
 
@@ -128,6 +130,13 @@ export default function HomeTab({
   })();
 
   const negMapaData = negociosFiltrados.filter(n => n.lat && n.lng);
+
+  // Pedidos recientes entregados para "Pedir de nuevo" en 1 toque
+  const pedidosEntregados = useMemo(() => {
+    return pedidos
+      .filter(p => p.status === "entregado" && Array.isArray((p as any).items) && (p as any).items.length > 0)
+      .slice(0, 4);
+  }, [pedidos]);
 
   return (
     <motion.div 
@@ -178,6 +187,43 @@ export default function HomeTab({
 
       {categoria !== "envio" && (
         <>
+          {/* Volver a pedir / Pedir de nuevo en 1 clic */}
+          {pedidosEntregados.length > 0 && onPedirDeNuevo && (
+            <div>
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <RotateCcw size={14} className="text-rose-600" />
+                <p className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Pedir de nuevo</p>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
+                {pedidosEntregados.map((p: any) => {
+                  const itemsStr = (p.items || []).map((it: any) => `${it.cantidad || 1}× ${it.nombre}`).join(", ");
+                  return (
+                    <div
+                      key={p.id}
+                      className="shrink-0 w-64 bg-white rounded-2xl p-3 border border-slate-200/90 shadow-2xs flex flex-col justify-between hover:border-rose-300 transition-all">
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="font-black text-xs text-slate-800 truncate">{p.negocio_nombre || "Restaurante"}</span>
+                          <span className="font-black text-xs text-rose-700 shrink-0">${Number(p.total).toFixed(2)}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mb-3">
+                          {itemsStr || "Platillos seleccionados"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onPedirDeNuevo(p)}
+                        className="w-full py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-transform"
+                        style={{ background: GRAD }}>
+                        <RotateCcw size={13} strokeWidth={2.5} /> Pedir de nuevo
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Frecuentes / Ya pedí aquí */}
           {frecuentes.length > 0 && (
             <div>

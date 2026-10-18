@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { X, Minus, Plus, Banknote, CreditCard, MapPin, Loader2, Trash2, Store, Calendar, Wallet, Check, Ticket, Sparkles, AlertCircle } from "lucide-react";
+import { X, Minus, Plus, Banknote, CreditCard, MapPin, Loader2, Trash2, Store, Calendar, Wallet, Check, Ticket, Sparkles, AlertCircle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { GRAD, API } from "../lib/constants";
 import type { CartItem } from "../lib/constants";
 import type { Direccion } from "../components/DireccionesScreen";
+import type { Producto } from "../types";
+import { imgUrl } from "../lib/cloudinary";
 
 interface CuponAplicado { codigo: string; descuento: number; tipo: string; valor: number; }
 
@@ -13,6 +15,7 @@ export interface PedidoExtras {
   tipoEntrega: "domicilio" | "pickup";
   programadoPara: string | null;
   walletMonto: number;
+  notas?: string;
 }
 
 interface Props {
@@ -28,6 +31,7 @@ interface Props {
   propina: number;
   walletBalance: number;
   tarjetas?: any[];
+  sugerencias?: Producto[];
   onManageCards?: () => void;
   onPropinaChange: (p: number) => void;
   onAddToCart: (item: any) => void;
@@ -52,6 +56,7 @@ export default function CartSheet({
   propina, 
   walletBalance, 
   tarjetas,
+  sugerencias,
   onManageCards,
   onPropinaChange, 
   onAddToCart, 
@@ -72,6 +77,7 @@ export default function CartSheet({
   const [fechaProgramada, setFechaProgramada] = useState("");
   const [horaProgramada, setHoraProgramada] = useState("");
   const [usarWallet, setUsarWallet] = useState(false);
+  const [notas, setNotas] = useState("");
 
   const walletAplicado = usarWallet ? Math.min(walletBalance, total + (tipoEntrega === "domicilio" ? costoEnvio : 0) + propina) : 0;
   const envioEfectivo = tipoEntrega === "pickup" ? 0 : costoEnvio;
@@ -245,6 +251,61 @@ export default function CartSheet({
               </span>
             </div>
           ))}
+        </div>
+
+        {/* Sugerencias / Complementos rápidos */}
+        {sugerencias && sugerencias.length > 0 && (
+          <div className="mb-4 bg-rose-50/50 border border-rose-100/80 rounded-2xl p-3">
+            <div className="flex items-center gap-1.5 mb-2.5">
+              <Sparkles size={14} className="text-rose-600" />
+              <p className="text-[11px] font-black text-rose-800 uppercase tracking-wider">¿Acompañas tu orden con algo más?</p>
+            </div>
+            <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
+              {sugerencias.slice(0, 6).map(prod => (
+                <div key={prod.id} className="shrink-0 w-32 bg-white rounded-xl p-2 border border-rose-100 flex flex-col justify-between shadow-2xs">
+                  <div>
+                    <div className="w-full h-16 rounded-lg overflow-hidden bg-slate-100 mb-1.5">
+                      {prod.imagen_url ? (
+                        <img src={imgUrl(prod.imagen_url, 150)} alt={prod.nombre} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl">🍽️</div>
+                      )}
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-800 line-clamp-1 leading-tight">{prod.nombre}</p>
+                    <p className="text-[10px] font-black text-rose-700 mt-0.5">${Number(prod.precio).toFixed(2)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onAddToCart(prod);
+                      toast.success(`Agregado: ${prod.nombre}`);
+                    }}
+                    className="mt-2 w-full py-1.5 rounded-lg text-[10px] font-black text-white flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                    style={{ background: GRAD }}>
+                    <Plus size={11} strokeWidth={3} /> Agregar
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Notas e instrucciones especiales */}
+        <div className="mb-4 bg-slate-50 border border-slate-200/80 rounded-2xl p-3 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-slate-700">
+              <FileText size={14} className="text-rose-600" />
+              <span className="text-[11px] font-black uppercase tracking-wider">Notas o instrucciones (opcional)</span>
+            </div>
+            <span className="text-[10px] text-slate-400 font-semibold">{notas.length}/200</span>
+          </div>
+          <textarea
+            value={notas}
+            onChange={e => setNotas(e.target.value.slice(0, 200))}
+            placeholder="Ej. salsa aparte, sin cebolla, timbre blanco o dejar en caseta..."
+            rows={2}
+            className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-rose-400 resize-none font-medium leading-relaxed"
+          />
         </div>
 
         {/* Cupón */}
@@ -470,6 +531,11 @@ export default function CartSheet({
                   <span>Total final</span>
                   <span>${totalFinal.toFixed(2)}</span>
                 </div>
+                {notas.trim() && (
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-[11px] text-slate-600">
+                    <span className="font-bold text-slate-700">Instrucciones: </span>{notas.trim()}
+                  </div>
+                )}
               </div>
               <p className="text-[11px] text-slate-400 text-center">
                 {metodoPago === "tarjeta" && totalFinal > 0 ? "Se procesará de forma segura con Stripe" : "Pagas en efectivo al recibir tu comida"}
@@ -483,7 +549,7 @@ export default function CartSheet({
                 <button 
                   onClick={() => { 
                     setShowConfirm(false); 
-                    onPedir({ cuponAplicado, tipoEntrega, programadoPara, walletMonto: walletAplicado }); 
+                    onPedir({ cuponAplicado, tipoEntrega, programadoPara, walletMonto: walletAplicado, notas: notas.trim() }); 
                   }} 
                   disabled={loading} 
                   style={{ background: GRAD }}

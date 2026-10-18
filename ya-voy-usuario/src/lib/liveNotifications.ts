@@ -47,17 +47,25 @@ export async function updateLiveOrderNotification(pedido: Pedido) {
         title: "🍳 Tu pedido se está preparando",
         body: `${pedido.negocio_nombre || "El restaurante"} está preparando tus platillos.`,
       },
-      en_camino: {
-        title: "🛵 ¡Tu repartidor va en camino!",
-        body: `Tu repartidor lleva tu pedido. Tiempo est: ~10 min.`,
-      },
       listo: {
         title: "📦 Pedido listo para entrega",
-        body: "Tu pedido está listo y empaquetado.",
+        body: "Tu pedido está listo y empaquetado esperando al repartidor.",
+      },
+      en_camino: {
+        title: "🛵 ¡Tu repartidor va en camino!",
+        body: `Tu repartidor lleva tu pedido de ${pedido.negocio_nombre || "comida"}.`,
+      },
+      esperando_cliente: {
+        title: "📍 ¡Tu repartidor está afuera!",
+        body: `Tu repartidor ha llegado a tu domicilio. ¡Sal a recibir tu orden!`,
       },
       entregado: {
         title: "🎉 ¡Pedido entregado!",
         body: "¡Buen provecho! Gracias por pedir con Ya Voy.",
+      },
+      cancelado: {
+        title: "❌ Pedido Cancelado",
+        body: `Tu pedido en ${pedido.negocio_nombre || "el restaurante"} fue cancelado.`,
       },
     };
 
