@@ -89,7 +89,7 @@ export default function StripePagoModal({ clientSecret, pedidoData, token, onSuc
           {loading ? <Loader2 className="animate-spin" size={20} /> : <CreditCard size={20} />}
           {loading ? "Procesando..." : "Pagar ahora"}
         </button>
-        <p className="text-center text-xs text-slate-400">Pago seguro procesado por Stripe</p>
+        <p className="text-center text-xs text-slate-400">Pago 100% seguro con cifrado bancario SSL</p>
       </motion.div>
     </motion.div>
   );

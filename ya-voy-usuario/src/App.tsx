@@ -266,13 +266,9 @@ export default function App() {
     initLiveNotificationChannel();
   }, []);
 
-  // ── Banner publicitario en pantalla de rastreo ───────────────────────────
+  // Limpiar cualquier banner flotante previo para garantizar vista despejada
   useEffect(() => {
-    if (pedidoDetalle) {
-      showBottomBanner(20);
-    } else {
-      hideBottomBanner();
-    }
+    hideBottomBanner();
   }, [pedidoDetalle]);
 
   // ── Android back button ───────────────────────────────────────────────────
@@ -1150,6 +1146,9 @@ export default function App() {
               onProductoClick={setProductoSeleccionado}
               onToggleFavorito={toggleFavorito}
               onPedirDeNuevo={handlePedirDeNuevo}
+              onRefresh={async () => {
+                await Promise.all([loadNegocios(), loadProductosFeed()]);
+              }}
             /></TabErrorBoundary>
           )}
           {tab === "explorar" && (

@@ -5,7 +5,8 @@ import { Capacitor } from "@capacitor/core";
 const BANNER_AD_ID = "ca-app-pub-3849768825456219/7317936592";
 const TEST_BANNER_AD_ID = "ca-app-pub-3940256099942544/6300978111"; // Google Test ID
 
-// Video Recompensado de prueba / producción
+// Video Recompensado oficial para Ya Voy Usuario (Monedero Ya Voy)
+const REWARD_AD_ID = "ca-app-pub-3849768825456219/2967190013";
 const TEST_REWARD_AD_ID = "ca-app-pub-3940256099942544/5224354917";
 
 let isInitialized = false;
@@ -64,18 +65,18 @@ export async function removeBottomBanner() {
 }
 
 /**
- * Muestra un video recompensado para ganar descuento de envío
+ * Muestra un video recompensado para ganar saldo en el monedero
  */
-export async function showRewardedDiscount(onRewardEarned: () => void): Promise<boolean> {
+export async function showRewardedAd(onRewardEarned: () => void): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) {
-    // Simular recompensa en Web / Navegador
+    // Simular recompensa en Web / Navegador de prueba
     onRewardEarned();
     return true;
   }
   try {
     await initAdMob();
     const options: RewardAdOptions = {
-      adId: TEST_REWARD_AD_ID,
+      adId: REWARD_AD_ID || TEST_REWARD_AD_ID,
     };
     await AdMob.prepareRewardVideoAd(options);
     const rewardItem = await AdMob.showRewardVideoAd();
@@ -89,3 +90,5 @@ export async function showRewardedDiscount(onRewardEarned: () => void): Promise<
     return false;
   }
 }
+
+export const showRewardedDiscount = showRewardedAd;

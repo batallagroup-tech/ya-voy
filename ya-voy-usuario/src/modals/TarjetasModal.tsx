@@ -67,7 +67,7 @@ export default function TarjetasModal({ userId, userEmail, userName, tarjetas, o
         throw new Error(data.error || "No se pudo iniciar el registro de tarjeta");
       }
       const stripe = await loadStripe(STRIPE_PK);
-      if (!stripe) throw new Error("No se pudo cargar Stripe. Verifica tu conexión.");
+      if (!stripe) throw new Error("No se pudo iniciar la conexión segura. Verifica tu conexión a internet.");
       setSetupStripe(stripe);
       setSetupClientSecret(data.clientSecret);
       setTimeout(() => {
@@ -111,7 +111,7 @@ export default function TarjetasModal({ userId, userEmail, userName, tarjetas, o
               <X size={22} className="text-slate-400" />
             </button>
           </div>
-          {/* Contenedor del elemento de Stripe con animación de carga */}
+          {/* Contenedor del elemento con animación de carga */}
           <div className="relative min-h-[220px]">
             {!setupCard && (
               <div className="absolute inset-0 bg-slate-50/95 rounded-2xl border border-slate-200/80 flex flex-col items-center justify-center p-6 text-center space-y-3 z-10 animate-pulse">
@@ -124,7 +124,7 @@ export default function TarjetasModal({ userId, userEmail, userName, tarjetas, o
                 </div>
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  <span>Conexión segura encriptada con Stripe</span>
+                  <span>Conexión segura con cifrado bancario internacional</span>
                 </div>
               </div>
             )}
@@ -153,7 +153,7 @@ export default function TarjetasModal({ userId, userEmail, userName, tarjetas, o
           <p className="text-center text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
             ⚠️ Al guardar tu tarjeta se realizará un cargo temporal de $1 MXN para verificarla. Este cargo se revierte automáticamente en 1-7 días hábiles.
           </p>
-          <p className="text-center text-xs text-slate-400">Pago seguro procesado por Stripe</p>
+          <p className="text-center text-xs text-slate-400">Pago 100% seguro con cifrado bancario SSL</p>
         </motion.div>
       </motion.div>
     );

@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "motion/react";
-import { ShoppingBag, Utensils, Store, Package, Star, Plus, Heart, Map, List, MapPin, Sparkles, Flame, RotateCcw } from "lucide-react";
+import { ShoppingBag, Utensils, Store, Package, Star, Plus, Heart, Map, List, MapPin, Sparkles, Flame, RotateCcw, Loader2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -65,6 +65,7 @@ interface Props {
   onProductoClick: (p: Producto) => void;
   onToggleFavorito: (n: Negocio) => void;
   onPedirDeNuevo?: (p: any) => void;
+  onRefresh?: () => Promise<void> | void;
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -93,9 +94,68 @@ export default function HomeTab({
   onAddToCart, 
   onProductoClick, 
   onToggleFavorito,
-  onPedirDeNuevo
+  onPedirDeNuevo,
+  onRefresh
 }: Props) {
   const [vistaLista, setVistaLista] = useState(true);
+  const [pullY, setPullY] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const isPulling = useRef(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    isPulling.current = true;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isPulling.current || isRefreshing) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+    if (diff > 0) {
+      const resistance = Math.min(diff * 0.4, 75);
+      setPullY(resistance);
+    } else {
+      setPullY(0);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!isPulling.current) return;
+    isPulling.current = false;
+    if (pullY >= 42 && onRefresh && !isRefreshing) {
+      setIsRefreshing(true);
+      setPullY(45);
+      try {
+        await onRefresh();
+      } catch (e) {
+        console.error("Refresh error:", e);
+      } finally {
+        setTimeout(() => {
+          setIsRefreshing(false);
+          setPullY(0);
+        }, 350);
+      }
+    } else {
+      setPullY(0);
+    }
+  };
+
+  const handleManualRefresh = async () => {
+    if (!onRefresh || isRefreshing) return;
+    setIsRefreshing(true);
+    setPullY(45);
+    try {
+      await onRefresh();
+    } catch (e) {
+      console.error("Manual refresh error:", e);
+    } finally {
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setPullY(0);
+      }, 350);
+    }
+  };
 
   const mapCenter: [number, number] = (direccionPrincipal?.lat && direccionPrincipal?.lng)
     ? [direccionPrincipal.lat, direccionPrincipal.lng]
@@ -295,12 +355,61 @@ export default function HomeTab({
                 </button>
               ))}
             </div>
-            <button 
-              onClick={() => setVistaLista(v => !v)}
-              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 active:scale-90 transition-all">
-              {vistaLista ? <Map size={18} /> : <List size={18} />}
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {onRefresh && (
+                <button 
+                  type="button"
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing}
+                  title="Recargar catálogo"
+                  className={`w-9 h-9 flex items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 active:scale-90 transition-all ${isRefreshing ? "text-[#9C0D38] border-rose-300" : ""}`}>
+                  <RotateCcw size={16} className={isRefreshing ? "animate-spin text-[#9C0D38]" : ""} />
+                </button>
+              )}
+              <button 
+                onClick={() => setVistaLista(v => !v)}
+                className="w-9 h-9 flex items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 active:scale-90 transition-all">
+                {vistaLista ? <Map size={18} /> : <List size={18} />}
+              </button>
+            </div>
           </div>
+
+          {/* Círculo de recargar animado / Pull-to-refresh */}
+          {(pullY > 6 || isRefreshing) && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -10 }}
+              className="flex flex-col items-center justify-center py-2 -mb-1">
+              <div 
+                className={`w-11 h-11 rounded-full bg-white shadow-lg border flex items-center justify-center transition-all ${
+                  isRefreshing 
+                    ? "border-rose-400 text-[#9C0D38]" 
+                    : pullY >= 42 
+                    ? "border-[#9C0D38] text-[#9C0D38] scale-110 shadow-rose-900/10" 
+                    : "border-slate-200 text-slate-600"
+                }`}>
+                {isRefreshing ? (
+                  <Loader2 size={22} className="animate-spin text-[#9C0D38]" />
+                ) : (
+                  <RotateCcw 
+                    size={20} 
+                    style={{ transform: `rotate(${Math.min(pullY * 7, 360)}deg)` }} 
+                    className="transition-transform duration-75 text-[#9C0D38]"
+                  />
+                )}
+              </div>
+              <span className="text-[11px] font-black text-slate-600 mt-1 bg-white/95 px-3 py-0.5 rounded-full border border-slate-100 shadow-xs">
+                {isRefreshing ? "Recargando platillos..." : pullY >= 42 ? "¡Suelta para recargar!" : "Desliza hacia abajo para recargar"}
+              </span>
+            </motion.div>
+          )}
+
+          <div 
+            onTouchStart={handleTouchStart} 
+            onTouchMove={handleTouchMove} 
+            onTouchEnd={handleTouchEnd}
+            className="space-y-4">
 
           {/* Vista de Mapa */}
           {!vistaLista && (
@@ -498,6 +607,7 @@ export default function HomeTab({
               </div>
             )
           )}
+          </div>
         </>
       )}
     </motion.div>

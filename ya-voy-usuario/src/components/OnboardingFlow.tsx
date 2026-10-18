@@ -233,7 +233,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
               <div className="space-y-3 mb-4">
                 {[
                   { id: "efectivo", label: "Efectivo", desc: "Paga al repartidor al recibir", icon: Banknote },
-                  { id: "tarjeta", label: "Tarjeta de Débito / Crédito", desc: "Pago en línea 100% seguro via Stripe", icon: CreditCard },
+                  { id: "tarjeta", label: "Tarjeta de Débito / Crédito", desc: "Pago en línea 100% seguro con cifrado bancario", icon: CreditCard },
                 ].map(({ id, label, desc, icon: Icon }) => (
                   <button key={id} onClick={() => { setPago(id); setCardError(""); }}
                     className={`w-full p-4 rounded-2xl flex items-center gap-4 text-left transition-all ${pago === id ? "bg-white" : "bg-white/20 backdrop-blur border border-white/30"}`}>
@@ -253,7 +253,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
               {pago === "tarjeta" && (
                 <div className="bg-white/20 backdrop-blur rounded-2xl p-4 mb-4 flex items-center gap-3">
                   <CreditCard size={20} className="text-white shrink-0" />
-                  <p className="text-white text-xs">Tu tarjeta se guarda de forma encriptada y segura via Stripe al momento de realizar tu primer pedido.</p>
+                  <p className="text-white text-xs">Tu tarjeta se guarda de forma encriptada y segura con estándares bancarios al realizar tu primer pedido.</p>
                 </div>
               )}
 
@@ -286,7 +286,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   {pago === "efectivo" ? <Banknote size={16} className="text-white" /> : <CreditCard size={16} className="text-white" />}
-                  <p className="text-white text-xs">{pago === "efectivo" ? "Pago en efectivo" : "Tarjeta (vía Stripe)"}</p>
+                  <p className="text-white text-xs">{pago === "efectivo" ? "Pago en efectivo" : "Tarjeta de débito/crédito protegida"}</p>
                 </div>
               </div>
 

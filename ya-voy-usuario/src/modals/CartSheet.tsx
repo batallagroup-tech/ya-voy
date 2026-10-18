@@ -538,7 +538,7 @@ export default function CartSheet({
                 )}
               </div>
               <p className="text-[11px] text-slate-400 text-center">
-                {metodoPago === "tarjeta" && totalFinal > 0 ? "Se procesará de forma segura con Stripe" : "Pagas en efectivo al recibir tu comida"}
+                {metodoPago === "tarjeta" && totalFinal > 0 ? "Se procesará de forma segura con cifrado bancario" : "Pagas en efectivo al recibir tu comida"}
               </p>
               <div className="flex gap-3 pt-1">
                 <button 

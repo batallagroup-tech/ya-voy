@@ -4,11 +4,12 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   MapPin, Banknote, CreditCard, Bell, HelpCircle, FileText, 
   ChevronRight, LogOut, Trash2, User, Loader2, Wallet, 
-  Star, Share2, Sparkles, Pencil, Phone, Mail, X, Check, Heart 
+  Star, Share2, Sparkles, Pencil, Phone, Mail, X, Check, Heart, PlayCircle 
 } from "lucide-react";
 import { toast } from "sonner";
 import { GRAD, API, COLOR_CARMINE } from "../lib/constants";
 import { supabase } from "../lib/supabase";
+import { showRewardedAd } from "../lib/admob";
 import type { Direccion } from "../components/DireccionesScreen";
 
 interface Props {
@@ -75,6 +76,8 @@ export default function PerfilTab({
   const [editNombre, setEditNombre] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+  const [videosHoy, setVideosHoy] = useState(0);
+  const [viendoVideo, setViendoVideo] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -82,6 +85,10 @@ export default function PerfilTab({
       if (!token) return;
       const h = { Authorization: "Bearer " + token };
       fetch(API + "/api/usuario/wallet/" + userId, { headers: h }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {});
+      fetch(API + "/api/usuario/wallet/recompensa-video/status/" + userId, { headers: h })
+        .then(r => r.json())
+        .then(d => { if (typeof d.videosHoy === "number") setVideosHoy(d.videosHoy); })
+        .catch(() => {});
       fetch(API + "/api/usuario/puntos/" + userId, { headers: h }).then(r => r.json()).then(d => setPuntos(Number(d.puntos || 0))).catch(() => {});
       fetch(API + "/api/usuario/referral/" + userId, { headers: h }).then(r => r.json()).then(d => {
         if (d.code) {
@@ -202,6 +209,43 @@ export default function PerfilTab({
     } else {
       await navigator.clipboard.writeText(texto);
       toast.success("Código copiado al portapapeles");
+    }
+  };
+
+  const handleVerVideoRecompensa = async () => {
+    if (videosHoy >= 5) {
+      toast.info("Has alcanzado el límite de 5 videos por hoy. ¡Vuelve mañana!");
+      return;
+    }
+    setViendoVideo(true);
+    try {
+      const rewarded = await showRewardedAd(async () => {
+        const token = await getToken();
+        if (!token) return;
+        const res = await fetch(API + "/api/usuario/wallet/recompensa-video", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token,
+          },
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          setWalletBalance(data.nuevoBalance);
+          setVideosHoy(data.videosHoy);
+          toast.success(`🎉 ¡Ganaste +$${Number(data.montoAcreditado).toFixed(2)} MXN en tu monedero!`);
+        } else {
+          toast.error(data.error || "No se pudo acreditar la recompensa");
+        }
+      });
+
+      if (!rewarded) {
+        toast.info("El video no terminó de reproducirse o no hubo anuncio disponible.");
+      }
+    } catch {
+      toast.error("Error al cargar el video publicitario");
+    } finally {
+      setViendoVideo(false);
     }
   };
 
@@ -596,6 +640,45 @@ export default function PerfilTab({
                 <p className="text-xs uppercase tracking-wider font-bold opacity-80">Saldo Disponible</p>
                 <p className="text-3xl font-black mt-1">${walletBalance.toFixed(2)} <span className="text-sm font-bold">MXN</span></p>
                 <p className="text-[11px] opacity-90 mt-1">Usa tu saldo directamente al pagar tus pedidos</p>
+              </div>
+
+              {/* Tarjeta de Recompensas por Video */}
+              <div className="p-3.5 bg-gradient-to-br from-rose-50 to-amber-50 rounded-2xl border border-rose-200/80 shadow-2xs">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-[#9C0D38]" />
+                    <span className="text-xs font-black text-slate-900">Gana saldo viendo videos</span>
+                  </div>
+                  <span className="text-[10px] font-black text-[#9C0D38] bg-rose-100 px-2 py-0.5 rounded-full">
+                    {videosHoy}/5 hoy
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 mb-2.5 leading-snug">
+                  Ve un video corto y suma <strong>+$0.25 MXN</strong> a tu monedero para tus pedidos.
+                </p>
+                <button
+                  onClick={handleVerVideoRecompensa}
+                  disabled={viendoVideo || videosHoy >= 5}
+                  className="w-full py-2.5 px-3 rounded-xl text-xs font-black text-white flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale cursor-pointer"
+                  style={{ background: GRAD }}
+                >
+                  {viendoVideo ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Cargando video...</span>
+                    </>
+                  ) : videosHoy >= 5 ? (
+                    <>
+                      <Check size={14} />
+                      <span>¡Completaste tus 5 videos de hoy!</span>
+                    </>
+                  ) : (
+                    <>
+                      <PlayCircle size={15} />
+                      <span>Ver video (+ $0.25 MXN)</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* Movimientos */}
