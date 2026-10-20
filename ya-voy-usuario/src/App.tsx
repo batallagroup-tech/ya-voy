@@ -156,7 +156,30 @@ export default function App() {
   // Profile
   const [fotoPerfil, setFotoPerfil] = useState("");
   const [avatarError, setAvatarError] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletBalance, setWalletBalance] = useState<number>(() => {
+    try {
+      const cached = localStorage.getItem("ya_voy_wallet_balance");
+      return cached ? Number(cached) : 0;
+    } catch { return 0; }
+  });
+
+  const updateWalletBalance = useCallback((newBal: number) => {
+    setWalletBalance(newBal);
+    try {
+      localStorage.setItem("ya_voy_wallet_balance", String(newBal));
+      if (userId) localStorage.setItem("ya_voy_wallet_balance_" + userId, String(newBal));
+    } catch {}
+  }, [userId]);
+
+  useEffect(() => {
+    const handleWalletEvent = (e: any) => {
+      if (typeof e.detail === "number") {
+        setWalletBalance(e.detail);
+      }
+    };
+    window.addEventListener("ya-voy:wallet-update", handleWalletEvent);
+    return () => window.removeEventListener("ya-voy:wallet-update", handleWalletEvent);
+  }, []);
 
   // Location
   const [userLocation, setUserLocation] = useState<[number, number] | null>(() => {
@@ -234,7 +257,7 @@ export default function App() {
         if (d.telefono) localStorage.setItem("ya_voy_phone", d.telefono);
       }).catch(() => {});
       getFavoritos(userId, token).then(data => { setFavoritos(data); setFavoritosIds(new Set(data.map((n: Negocio) => n.id))); }).catch(() => {});
-      fetch(API + "/api/usuario/wallet/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {});
+      fetch(API + "/api/usuario/wallet/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => updateWalletBalance(Number(d.balance || 0))).catch(() => {});
       fetch(API + "/api/stripe/payment-methods/" + userId, { headers: { Authorization: "Bearer " + token } }).then(r => r.json()).then(d => { if (Array.isArray(d.cards)) setTarjetas(d.cards); }).catch(() => {});
       getPedidos(userId, token, 0).then((data: any) => { if (Array.isArray(data)) setPedidos(data); }).catch(() => {});
     });

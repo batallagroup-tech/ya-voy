@@ -16,8 +16,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // VERSIONING: incrementar versionCode con cada subida a Play Store (nunca retroceder)
         // versionName: seguir semver "MAYOR.MENOR.PARCHE"
-        versionCode 36
-        versionName "1.2.5"
+        versionCode 37
+        versionName "1.2.6"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'

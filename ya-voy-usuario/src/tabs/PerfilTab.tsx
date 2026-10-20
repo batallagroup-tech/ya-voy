@@ -20,6 +20,8 @@ interface Props {
   tarjetas: any[];
   metodoPago: string;
   favoritos?: any[];
+  walletBalance?: number;
+  onWalletBalanceChange?: (bal: number) => void;
   onShowFavoritos?: () => void;
   onMetodoPagoChange: (pago: string) => void;
   onFotoChange: (url: string) => void;
@@ -38,6 +40,8 @@ export default function PerfilTab({
   tarjetas, 
   metodoPago, 
   favoritos = [],
+  walletBalance: propWalletBalance,
+  onWalletBalanceChange,
   onShowFavoritos,
   onMetodoPagoChange, 
   onFotoChange: _onFotoChange, 
@@ -52,7 +56,25 @@ export default function PerfilTab({
   const [notificaciones, setNotificaciones] = useState(() => localStorage.getItem("ya_voy_notif") !== "0");
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("ya_voy_dark") === "1");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(0);
+    const [walletBalance, setWalletBalance] = useState<number>(() => {
+    if (typeof propWalletBalance === "number" && propWalletBalance > 0) return propWalletBalance;
+    try {
+      const cached = localStorage.getItem("ya_voy_wallet_balance_" + (userId || "")) || localStorage.getItem("ya_voy_wallet_balance");
+      return cached ? Number(cached) : 0;
+    } catch { return 0; }
+  });
+  const [movimientos, setMovimientos] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem("ya_voy_wallet_movs_" + (userId || ""));
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    if (typeof propWalletBalance === "number") {
+      setWalletBalance(propWalletBalance);
+    }
+  }, [propWalletBalance]);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [userAspectosStats, setUserAspectosStats] = useState<{ rating: number; total: number; aspectos: Record<string, number> } | null>(null);
@@ -84,7 +106,23 @@ export default function PerfilTab({
     getToken().then(token => {
       if (!token) return;
       const h = { Authorization: "Bearer " + token };
-      fetch(API + "/api/usuario/wallet/" + userId, { headers: h }).then(r => r.json()).then(d => setWalletBalance(Number(d.balance || 0))).catch(() => {});
+      fetch(API + "/api/usuario/wallet/" + userId, { headers: h })
+        .then(r => r.json())
+        .then(d => {
+          const bal = Number(d.balance || 0);
+          setWalletBalance(bal);
+          onWalletBalanceChange?.(bal);
+          try {
+            localStorage.setItem("ya_voy_wallet_balance_" + userId, String(bal));
+            localStorage.setItem("ya_voy_wallet_balance", String(bal));
+          } catch {}
+          if (Array.isArray(d.movimientos)) {
+            setMovimientos(d.movimientos);
+            try {
+              localStorage.setItem("ya_voy_wallet_movs_" + userId, JSON.stringify(d.movimientos));
+            } catch {}
+          }
+        }).catch(() => {});
       fetch(API + "/api/usuario/wallet/recompensa-video/status/" + userId, { headers: h })
         .then(r => r.json())
         .then(d => { if (typeof d.videosHoy === "number") setVideosHoy(d.videosHoy); })
@@ -231,20 +269,39 @@ export default function PerfilTab({
             headers,
           });
           const data = await res.json().catch(() => ({}));
-          if (res.ok && data.ok) {
-            setWalletBalance(Number(data.nuevoBalance));
-            setVideosHoy(Number(data.videosHoy));
-            toast.success(`🎉 ¡Recompensa obtenida! +$${Number(data.montoAcreditado || 0.25).toFixed(2)} MXN a tu monedero`);
-          } else {
-            // Optimistic fallback si la API está respondiendo con retardo
-            setWalletBalance(b => b + 0.25);
-            setVideosHoy(v => v + 1);
-            toast.success("🎉 ¡Recompensa obtenida! +$0.25 MXN a tu monedero");
-          }
+          const nuevoMonto = res.ok && data.ok ? Number(data.nuevoBalance) : (walletBalance + 0.25);
+          const nuevoVideosHoy = res.ok && data.ok ? Number(data.videosHoy) : (videosHoy + 1);
+
+          setWalletBalance(nuevoMonto);
+          setVideosHoy(nuevoVideosHoy);
+          onWalletBalanceChange?.(nuevoMonto);
+          try {
+            localStorage.setItem("ya_voy_wallet_balance_" + userId, String(nuevoMonto));
+            localStorage.setItem("ya_voy_wallet_balance", String(nuevoMonto));
+          } catch {}
+          window.dispatchEvent(new CustomEvent("ya-voy:wallet-update", { detail: nuevoMonto }));
+
+          const nuevoMov = {
+            id: 'video_' + Date.now(),
+            tipo: 'credito',
+            monto: 0.25,
+            concepto: 'Recompensa video publicitario (AdMob)',
+            created_at: new Date().toISOString()
+          };
+          setMovimientos(prev => {
+            const next = [nuevoMov, ...prev.filter((m: any) => m.id !== nuevoMov.id)].slice(0, 20);
+            try { localStorage.setItem("ya_voy_wallet_movs_" + userId, JSON.stringify(next)); } catch {}
+            return next;
+          });
+
+          toast.success("🎉 ¡Recompensa obtenida! +$0.25 MXN a tu monedero");
         } catch (callErr) {
           console.error("Error acreditando recompensa:", callErr);
-          setWalletBalance(b => b + 0.25);
+          const fallback = walletBalance + 0.25;
+          setWalletBalance(fallback);
           setVideosHoy(v => v + 1);
+          onWalletBalanceChange?.(fallback);
+          try { localStorage.setItem("ya_voy_wallet_balance_" + userId, String(fallback)); } catch {}
           toast.success("🎉 ¡Recompensa obtenida! +$0.25 MXN a tu monedero");
         }
       });
