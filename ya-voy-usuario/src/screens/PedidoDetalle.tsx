@@ -99,6 +99,17 @@ export default function PedidoDetalle({
   onCancelar,
   onCalificar
 }: Props) {
+
+  const compartirPorWhatsApp = () => {
+    const texto = `¡Hola! Pedí comida de *${pedido.negocio_nombre || "Ya Voy"}* por la app Ya Voy.\n\n🔑 *Palabra secreta de entrega:* *${pedido.codigo_entrega || ''}*\n💰 *Total:* ${Number(pedido.total || 0).toFixed(2)}\n\nPor favor dale esta palabra al repartidor cuando toque la puerta para recibir el pedido!`;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+    try {
+      window.open(url, "_system");
+    } catch {
+      window.location.href = url;
+    }
+  };
+
   const pasoActual = STATUS_IDX[pedido.status] ?? -1;
   const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
 
@@ -302,7 +313,12 @@ export default function PedidoDetalle({
             <div className="bg-rose-50 border-2 border-rose-400 rounded-2xl py-4 px-4 mb-2 shadow-inner">
               <p className="text-3xl font-black tracking-widest text-rose-800 uppercase">{pedido.codigo_entrega}</p>
             </div>
-            <p className="text-[10px] text-slate-400">Por seguridad, solo muéstrala en tu pantalla.</p>
+            <p className="text-[10px] text-slate-400 mb-3">Por seguridad, solo muéstrala en tu pantalla.</p>
+            <button
+              onClick={compartirPorWhatsApp}
+              className="w-full py-2.5 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm">
+              <span>📲 Compartir código por WhatsApp</span>
+            </button>
           </div>
         )}
 

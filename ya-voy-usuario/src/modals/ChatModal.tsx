@@ -12,6 +12,14 @@ interface Props {
   onMensajesLeidos: (pedidoId: string) => void;
 }
 
+const CHIPS_CLIENTE = [
+  "🚪 Ya voy bajando",
+  "📦 Déjalo en la puerta",
+  "🔔 Toca el timbre",
+  "🏠 Estoy afuera esperándote",
+  "🔑 Código listo",
+];
+
 export default function ChatModal({ pedidoId, userId, onClose, onMensajesLeidos }: Props) {
   const { getToken } = useFirebaseAuth();
   const [mensajes, setMensajes] = useState<any[]>([]);
@@ -19,9 +27,30 @@ export default function ChatModal({ pedidoId, userId, onClose, onMensajesLeidos 
   const [enviando, setEnviando] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<any>(null);
+  const prevMsgCountRef = useRef(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const playPopSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(450, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.22, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.08);
+      if (navigator?.vibrate) navigator.vibrate(30);
+    } catch {}
   };
 
   const cargar = async () => {
@@ -32,6 +61,13 @@ export default function ChatModal({ pedidoId, userId, onClose, onMensajesLeidos 
       });
       const data = await res.json();
       if (Array.isArray(data)) {
+        if (data.length > prevMsgCountRef.current) {
+          const ultimo = data[data.length - 1];
+          if (prevMsgCountRef.current > 0 && ultimo?.remitente_tipo !== "cliente") {
+            playPopSound();
+          }
+          prevMsgCountRef.current = data.length;
+        }
         setMensajes(data);
         setTimeout(scrollToBottom, 100);
       }
@@ -52,10 +88,8 @@ export default function ChatModal({ pedidoId, userId, onClose, onMensajesLeidos 
     return () => clearInterval(pollRef.current);
   }, [pedidoId]);
 
-  const enviar = async () => {
-    if (!texto.trim() || !userId) return;
-    const msgTexto = texto.trim();
-    setTexto("");
+  const enviarTextoDirecto = async (msgTexto: string) => {
+    if (!msgTexto.trim() || !userId) return;
     setEnviando(true);
     try {
       const token = await getToken();
@@ -65,11 +99,18 @@ export default function ChatModal({ pedidoId, userId, onClose, onMensajesLeidos 
         body: JSON.stringify({ pedidoId, remitenteId: userId, remitenteTipo: "cliente", texto: msgTexto }),
       });
       await cargar();
-    } catch { 
-      toast.error("No se pudo enviar el mensaje"); 
-    } finally { 
-      setEnviando(false); 
+    } catch {
+      toast.error("No se pudo enviar el mensaje");
+    } finally {
+      setEnviando(false);
     }
+  };
+
+  const enviar = async () => {
+    if (!texto.trim()) return;
+    const msg = texto.trim();
+    setTexto("");
+    await enviarTextoDirecto(msg);
   };
 
   return (
@@ -109,7 +150,7 @@ export default function ChatModal({ pedidoId, userId, onClose, onMensajesLeidos 
             <div className="text-center text-slate-400 text-xs py-12">
               <MessageSquare size={36} className="mx-auto mb-2 opacity-25" />
               <p className="font-bold">Escribe instrucciones o detalles para tu entrega</p>
-              <p className="text-[11px] mt-0.5">Ej: "Es el portón negro con timbre blanco"</p>
+              <p className="text-[11px] mt-0.5">O toca uno de los mensajes rápidos abajo</p>
             </div>
           ) : (
             mensajes.map(m => {
@@ -135,8 +176,22 @@ export default function ChatModal({ pedidoId, userId, onClose, onMensajesLeidos 
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Quick Replies Chips */}
+        <div className="px-3 pt-2 pb-1 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+          {CHIPS_CLIENTE.map(chip => (
+            <button
+              key={chip}
+              type="button"
+              disabled={enviando}
+              onClick={() => enviarTextoDirecto(chip)}
+              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 border border-slate-200 text-[11px] font-bold text-slate-700 whitespace-nowrap active:scale-95 transition-all shrink-0">
+              {chip}
+            </button>
+          ))}
+        </div>
+
         {/* Input Bar */}
-        <div className="p-3 border-t border-slate-100 bg-white shrink-0 flex items-center gap-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
+        <div className="p-3 bg-white shrink-0 flex items-center gap-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}>
           <input 
             value={texto} 
             onChange={e => setTexto(e.target.value)}
