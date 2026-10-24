@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Star, X, Loader2, Sparkles, Utensils, Bike } from "lucide-react";
+import { Star, X, Loader2, Sparkles, Utensils, Bike, HeartHandshake } from "lucide-react";
 import { toast } from "sonner";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { GRAD, API } from "../lib/constants";
+import { playPurchaseChime } from "../lib/haptics";
 
 interface Props {
   pedido: any;
@@ -55,6 +56,7 @@ export default function RatingModal({ pedido, onClose, onRatingEnviado }: Props)
   const [fraseRest, setFraseRest] = useState("");
   const [fraseRep, setFraseRep] = useState("");
   const [comentario, setComentario] = useState("");
+  const [propina, setPropina] = useState<number>(0);
   const [enviando, setEnviando] = useState(false);
 
   const enviar = async () => {
@@ -83,9 +85,24 @@ export default function RatingModal({ pedido, onClose, onRatingEnviado }: Props)
       if (!res.ok) {
         throw new Error(data.error || "No se pudo registrar la calificación");
       }
-      toast.success("¡Muchas gracias por calificar!");
+
+      // Si seleccionó propina, registrarla
+      if (propina > 0) {
+        try {
+          await fetch(API + "/api/usuario/pedidos/" + pedido.id + "/propina", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ monto: propina }),
+          });
+          playPurchaseChime();
+          toast.success(`¡Gracias! Se agregaron $${propina} MXN de propina para tu repartidor.`);
+        } catch {}
+      } else {
+        toast.success("¡Muchas gracias por calificar!");
+      }
+
       if (onRatingEnviado) {
-        onRatingEnviado(pedido.id, { rating_restaurante: ratingRest, rating_repartidor: ratingRep });
+        onRatingEnviado(pedido.id, { rating_restaurante: ratingRest, rating_repartidor: ratingRep, propina });
       }
       onClose();
     } catch (e: any) {
@@ -188,6 +205,34 @@ export default function RatingModal({ pedido, onClose, onRatingEnviado }: Props)
           )}
         </div>
 
+        {/* Sección de Propina al Repartidor */}
+        <div className="bg-rose-50/60 rounded-2xl p-4 border border-rose-100">
+          <div className="flex items-center gap-2 mb-2">
+            <HeartHandshake size={16} className="text-[#9C0D38]" />
+            <span className="font-black text-slate-800 text-xs uppercase tracking-wider">
+              Propina voluntaria para el repartidor
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-600 mb-3">
+            El 100% de tu propina va directo a tu repartidor. ¡Incentiva su esfuerzo!
+          </p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {[0, 10, 15, 20, 30].map(m => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setPropina(m)}
+                className={`py-2 rounded-xl text-xs font-black transition-all ${
+                  propina === m
+                    ? "bg-[#9C0D38] text-white shadow-md scale-105"
+                    : "bg-white text-slate-700 border border-slate-200 hover:border-rose-300"
+                }`}>
+                {m === 0 ? "Sin tip" : `$${m}`}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Comentario adicional */}
         <div>
           <textarea
@@ -207,7 +252,7 @@ export default function RatingModal({ pedido, onClose, onRatingEnviado }: Props)
             className="w-full py-4 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all disabled:opacity-50" 
             style={{ background: GRAD }}>
             {enviando ? <Loader2 size={18} className="animate-spin" /> : null}
-            Enviar Calificación
+            Enviar Calificación {propina > 0 ? `(+$${propina})` : ""}
           </button>
           <button 
             onClick={onClose} 

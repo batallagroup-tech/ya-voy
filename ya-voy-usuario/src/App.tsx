@@ -10,7 +10,7 @@ import { initAdMob, showBottomBanner, hideBottomBanner } from "./lib/admob";
 import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed, getFavoritos, addFavorito, removeFavorito } from "./lib/api";
 import { logEvent } from "./lib/analytics";
 import { setStatusBarLight, setStatusBarDark } from "./lib/statusBar";
-import { hapticSuccess, hapticError, hapticLight } from "./lib/haptics";
+import { hapticSuccess, hapticError, hapticLight, playPurchaseChime } from "./lib/haptics";
 import { GRAD, API } from "./lib/constants";
 import { auth } from "./lib/firebase";
 import type { CartItem } from "./lib/constants";
@@ -692,7 +692,7 @@ export default function App() {
         }
       }
 
-      hapticSuccess();
+      playPurchaseChime();
       logEvent("pedido_creado", { esMulti, programado: !!programadoPara, wallet: walletMonto > 0 });
       setCart([]); setShowCart(false); setNegocioSeleccionado(null);
       // Recargar wallet por si se usó saldo

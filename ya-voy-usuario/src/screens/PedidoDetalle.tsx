@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { ArrowLeft, MapPin, MessageSquare, Clock, Star, Bike, CheckCircle2, ShieldAlert, Sparkles } from "lucide-react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
-import { useEffect, useMemo } from "react";
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
+import { useState, useEffect, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { STATUS_COLOR, STATUS_LABEL, GRAD } from "../lib/constants";
@@ -100,6 +100,25 @@ export default function PedidoDetalle({
   onCalificar
 }: Props) {
   const pasoActual = STATUS_IDX[pedido.status] ?? -1;
+  const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
+
+  useEffect(() => {
+    if (!repUbicacion?.lat || !repUbicacion?.lng || !pedido.lat_entrega || !pedido.lng_entrega) return;
+    const startLat = repUbicacion.lat;
+    const startLng = repUbicacion.lng;
+    const endLat = Number(pedido.lat_entrega);
+    const endLng = Number(pedido.lng_entrega);
+
+    fetch(`https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`)
+      .then((r) => r.json())
+      .then((d) => {
+        const coords = d?.routes?.[0]?.geometry?.coordinates;
+        if (Array.isArray(coords)) {
+          setRouteCoords(coords.map((c: [number, number]) => [c[1], c[0]]));
+        }
+      })
+      .catch(() => {});
+  }, [repUbicacion?.lat, repUbicacion?.lng, pedido.lat_entrega, pedido.lng_entrega]);
 
   const etaMin = useMemo(() => {
     if (pedido.status !== "en_camino" || !repUbicacion || !pedido.lat_entrega || !pedido.lng_entrega) return null;
@@ -233,7 +252,7 @@ export default function PedidoDetalle({
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Moto en camino en vivo</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-semibold">GPS activo</span>
+                  {etaMin !== null ? <span className="px-2 py-0.5 rounded-full bg-rose-100 text-[#9C0D38] border border-rose-200 text-[10px] font-black animate-pulse">⏱️ Llega en ~{etaMin} min</span> : <span className="text-[10px] text-slate-400 font-semibold">GPS activo</span>}
                 </div>
                 <div className="rounded-2xl overflow-hidden border border-rose-200 shadow-md" style={{ height: 210 }}>
                   <MapContainer center={[repUbicacion.lat, repUbicacion.lng]} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false}>
@@ -242,6 +261,9 @@ export default function PedidoDetalle({
                     {pedido.lat_entrega && pedido.lng_entrega ? (
                       <Marker position={[Number(pedido.lat_entrega), Number(pedido.lng_entrega)]} icon={casaIcon} />
                     ) : null}
+                    {routeCoords.length > 0 && (
+                      <Polyline positions={routeCoords} color="#9C0D38" weight={4.5} opacity={0.85} lineCap="round" lineJoin="round" />
+                    )}
                     <MapLiveUpdater 
                       repLat={repUbicacion.lat} 
                       repLng={repUbicacion.lng} 
