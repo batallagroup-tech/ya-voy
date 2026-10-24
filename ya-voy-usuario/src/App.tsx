@@ -20,6 +20,7 @@ import type { Negocio, Producto, Pedido, AppConfig } from "./types";
 import LoginScreen from "./components/LoginScreen";
 import SplashScreen from "./components/SplashScreen";
 import ServerWarmup from "./components/ServerWarmup";
+import ConnectionBanner from "./components/ConnectionBanner";
 import OnboardingFlow from "./components/OnboardingFlow";
 import DireccionesScreen, { type Direccion } from "./components/DireccionesScreen";
 import { TabErrorBoundary } from "./components/ErrorBoundary";
@@ -43,6 +44,7 @@ const RatingModal      = lazy(() => import("./modals/RatingModal"));
 const CancelarModal    = lazy(() => import("./modals/CancelarModal"));
 const DeleteConfirmModal = lazy(() => import("./modals/DeleteConfirmModal"));
 const FavoritosModal  = lazy(() => import("./modals/FavoritosModal"));
+const UpdateModal     = lazy(() => import("./modals/UpdateModal"));
 const HomeTab          = lazy(() => import("./tabs/HomeTab"));
 const ExplorarTab      = lazy(() => import("./tabs/ExplorarTab"));
 const PedidosTab       = lazy(() => import("./tabs/PedidosTab"));
@@ -52,6 +54,10 @@ function PageLoader() {
   return (
     <div className="flex-1 flex items-center justify-center">
       <Loader2 size={28} className="animate-spin text-rose-400" />
+      {/* Modal de actualizacion disponible con Google Play */}
+      <Suspense fallback={null}>
+        <UpdateModal />
+      </Suspense>
     </div>
   );
 }
@@ -909,11 +915,7 @@ export default function App() {
     <div className="h-[100dvh] overflow-hidden bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors">
       <Toaster position="top-center" toastOptions={{ style: { marginTop: "50px" } }} />
       <ServerWarmup />
-      {!isOnline && (
-        <div className="fixed top-0 left-0 right-0 z-[100] bg-slate-800 text-white text-center text-xs font-bold py-2 flex items-center justify-center gap-2">
-          <span>📵</span> Sin conexión — revisa tu internet
-        </div>
-      )}
+      <ConnectionBanner />
 
       <Suspense fallback={null}>
       {esperandoTimer !== null && (
@@ -1327,6 +1329,10 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* Modal de actualizacion disponible con Google Play */}
+      <Suspense fallback={null}>
+        <UpdateModal />
+      </Suspense>
     </div>
   );
 }
