@@ -1,64 +1,189 @@
 {
   "project_info": {
-    "project_number": "1059622854909",
-    "project_id": "ya-voy-d2fbd",
-    "storage_bucket": "ya-voy-d2fbd.firebasestorage.app"
+    "project_number": "659976052588",
+    "project_id": "ya-voy-b451d",
+    "storage_bucket": "ya-voy-b451d.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1059622854909:android:d4ea77c6b7add410905e94",
+        "mobilesdk_app_id": "1:659976052588:android:49310fb645db34016ddd49",
         "android_client_info": {
           "package_name": "com.batallagroup.yavoy.repartidor"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyARndyqJoo2ZGnxHPvX7kMVkLLEs8wvbWI"
+          "current_key": "AIzaSyBEWz3RpoOx_QIpocR52ymO325E_wSThfE"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1059622854909:android:13d3fd182d50fb36905e94",
+        "mobilesdk_app_id": "1:659976052588:android:2934102593d1ea9b6ddd49",
         "android_client_info": {
           "package_name": "com.batallagroup.yavoy.restaurante"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyARndyqJoo2ZGnxHPvX7kMVkLLEs8wvbWI"
+          "current_key": "AIzaSyBEWz3RpoOx_QIpocR52ymO325E_wSThfE"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1059622854909:android:3d6ed7ba83d7de41905e94",
+        "mobilesdk_app_id": "1:659976052588:android:8f2175ca1e2f97236ddd49",
         "android_client_info": {
           "package_name": "com.batallagroup.yavoy.usuario"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "659976052588-baakepa0vrh694v9jbmt5pd7odeij1fg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.batallagroup.yavoy.usuario",
+            "certificate_hash": "c81603535214cc3a7d6252b1401681b2d360459e"
+          }
+        },
+        {
+          "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyARndyqJoo2ZGnxHPvX7kMVkLLEs8wvbWI"
+          "current_key": "AIzaSyBEWz3RpoOx_QIpocR52ymO325E_wSThfE"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659976052588:android:5ec98c32f4f02e086ddd49",
+        "android_client_info": {
+          "package_name": "mx.batallagroup.yavoy.repartidor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEWz3RpoOx_QIpocR52ymO325E_wSThfE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659976052588:android:07d2f7b5baf4fa056ddd49",
+        "android_client_info": {
+          "package_name": "mx.batallagroup.yavoy.restaurante"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEWz3RpoOx_QIpocR52ymO325E_wSThfE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659976052588:android:3f2873bef0254df66ddd49",
+        "android_client_info": {
+          "package_name": "mx.batallagroup.yavoy.usuario"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEWz3RpoOx_QIpocR52ymO325E_wSThfE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "659976052588-09gu7dsc4j42julaflquhocv70ee3h39.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

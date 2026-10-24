@@ -91,7 +91,8 @@ export async function updateLiveOrderNotification(pedido: Pedido) {
           autoCancel: false,
           extra: { pedidoId: pedido.id, status: pedido.status },
           largeIcon: "ic_launcher_round",
-          smallIcon: "ic_launcher_foreground",
+          smallIcon: "ic_stat_notification",
+          iconColor: "#9C0D38",
         },
       ],
     });
