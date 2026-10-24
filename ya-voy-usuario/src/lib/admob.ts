@@ -73,6 +73,9 @@ export async function showRewardedAd(onRewardEarned: () => void | Promise<void>)
     await onRewardEarned();
     return true;
   }
+  let rewardedListener: any = null;
+  let dismissedListener: any = null;
+  let failedListener: any = null;
   try {
     await initAdMob();
     const options: RewardAdOptions = {
@@ -91,30 +94,33 @@ export async function showRewardedAd(onRewardEarned: () => void | Promise<void>)
     };
 
     // 1. Registrar listener nativo para capturar el evento Rewarded de Google Mobile Ads
-    const rewardedListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, async (rewardItem) => {
+    rewardedListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, async (rewardItem) => {
       console.log("AdMob Rewarded event fired:", rewardItem);
       await triggerReward();
     });
 
-    const dismissedListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, async () => {
+    dismissedListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
       console.log("AdMob Dismissed event fired");
-      // Si el anuncio fue visto por completo pero el listener anterior no se activó a tiempo
-      setTimeout(() => {
-        rewardedListener.remove();
-        dismissedListener.remove();
-      }, 1500);
+    });
+
+    failedListener = await AdMob.addListener(RewardAdPluginEvents.FailedToShow, (err) => {
+      console.warn("AdMob FailedToShow:", err);
     });
 
     await AdMob.prepareRewardVideoAd(options);
     const rewardItem = await AdMob.showRewardVideoAd();
-    if (rewardItem) {
+    if (rewardItem && (rewardItem.amount > 0 || rewardItem.type)) {
       await triggerReward();
     }
 
-    return true;
+    return rewardGiven;
   } catch (e) {
     console.warn("Rewarded Ad error:", e);
     return false;
+  } finally {
+    try { rewardedListener?.remove(); } catch {}
+    try { dismissedListener?.remove(); } catch {}
+    try { failedListener?.remove(); } catch {}
   }
 }
 

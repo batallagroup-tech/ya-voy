@@ -10,6 +10,9 @@ import { toast } from "sonner";
 import { GRAD, API, COLOR_CARMINE } from "../lib/constants";
 import { supabase } from "../lib/supabase";
 import { showRewardedAd } from "../lib/admob";
+import { Capacitor } from "@capacitor/core";
+import { Share } from "@capacitor/share";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import type { Direccion } from "../components/DireccionesScreen";
 
 interface Props {
@@ -77,6 +80,30 @@ export default function PerfilTab({
   }, [propWalletBalance]);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
+
+  useEffect(() => {
+    if (!showWalletModal || !userId) return;
+    getToken().then(token => {
+      if (!token) return;
+      const h = { Authorization: "Bearer " + token };
+      fetch(API + "/api/usuario/wallet/" + userId, { headers: h })
+        .then(r => r.json())
+        .then(d => {
+          const bal = Number(d.balance || 0);
+          setWalletBalance(bal);
+          onWalletBalanceChange?.(bal);
+          if (Array.isArray(d.movimientos)) {
+            const movs7 = filtrarMovimientos7Dias(d.movimientos);
+            setMovimientos(movs7);
+            try { localStorage.setItem("ya_voy_wallet_movs_" + userId, JSON.stringify(movs7)); } catch {}
+          }
+        }).catch(() => {});
+      fetch(API + "/api/usuario/wallet/recompensa-video/status/" + userId, { headers: h })
+        .then(r => r.json())
+        .then(d => { if (typeof d.videosHoy === "number") saveVideosHoy(d.videosHoy); })
+        .catch(() => {});
+    }).catch(() => {});
+  }, [showWalletModal, userId]);
   const [userAspectosStats, setUserAspectosStats] = useState<{ rating: number; total: number; aspectos: Record<string, number> } | null>(null);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [puntos, setPuntos] = useState(0);
@@ -98,7 +125,46 @@ export default function PerfilTab({
   const [editNombre, setEditNombre] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
-  const [videosHoy, setVideosHoy] = useState(0);
+  const getTodayMexicoDate = () => {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
+    } catch {
+      return new Date().toISOString().slice(0, 10);
+    }
+  };
+
+  const SIETE_DIAS_MS = 7 * 24 * 60 * 60 * 1000;
+  const filtrarMovimientos7Dias = (list: any[]) => {
+    if (!Array.isArray(list)) return [];
+    const ahora = Date.now();
+    return list.filter((m: any) => {
+      const ts = new Date(m.creado_en || m.created_at || ahora).getTime();
+      return !isNaN(ts) && (ahora - ts) <= SIETE_DIAS_MS;
+    });
+  };
+
+  const [videosHoy, setVideosHoy] = useState(() => {
+    try {
+      const today = getTodayMexicoDate();
+      const raw = localStorage.getItem("ya_voy_videos_hoy_" + (userId || ""));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.date === today && typeof parsed.count === 'number') {
+          return parsed.count;
+        }
+      }
+    } catch {}
+    return 0;
+  });
+
+  const saveVideosHoy = (count: number) => {
+    setVideosHoy(count);
+    try {
+      const today = getTodayMexicoDate();
+      localStorage.setItem("ya_voy_videos_hoy_" + (userId || ""), JSON.stringify({ count, date: today }));
+    } catch {}
+  };
+
   const [viendoVideo, setViendoVideo] = useState(false);
 
   useEffect(() => {
@@ -117,15 +183,16 @@ export default function PerfilTab({
             localStorage.setItem("ya_voy_wallet_balance", String(bal));
           } catch {}
           if (Array.isArray(d.movimientos)) {
-            setMovimientos(d.movimientos);
+            const movs7 = filtrarMovimientos7Dias(d.movimientos);
+            setMovimientos(movs7);
             try {
-              localStorage.setItem("ya_voy_wallet_movs_" + userId, JSON.stringify(d.movimientos));
+              localStorage.setItem("ya_voy_wallet_movs_" + userId, JSON.stringify(movs7));
             } catch {}
           }
         }).catch(() => {});
       fetch(API + "/api/usuario/wallet/recompensa-video/status/" + userId, { headers: h })
         .then(r => r.json())
-        .then(d => { if (typeof d.videosHoy === "number") setVideosHoy(d.videosHoy); })
+        .then(d => { if (typeof d.videosHoy === "number") saveVideosHoy(d.videosHoy); })
         .catch(() => {});
       fetch(API + "/api/usuario/puntos/" + userId, { headers: h }).then(r => r.json()).then(d => setPuntos(Number(d.puntos || 0))).catch(() => {});
       fetch(API + "/api/usuario/referral/" + userId, { headers: h }).then(r => r.json()).then(d => {
@@ -230,6 +297,19 @@ export default function PerfilTab({
       }
       setWalletBalance(b => b + (d.bonus || 0));
       toast.success(`¡Bienvenido! Se acreditaron +$${d.bonus} a tu monedero`);
+      if (Capacitor.isNativePlatform()) {
+        LocalNotifications.schedule({
+          notifications: [{
+            title: "🎉 ¡Bono de bienvenida acreditado!",
+            body: `¡Felicidades! Se han acreditado +$${d.bonus || 15} MXN a tu monedero Ya Voy.`,
+            id: 772,
+            channelId: "ya_voy_pedidos_channel",
+            smallIcon: "ic_stat_notification",
+            largeIcon: "ic_launcher_round",
+            iconColor: "#9C0D38"
+          }]
+        }).catch(() => {});
+      }
       setShowReferral(false);
       setCodigoReferido("");
     } catch { 
@@ -241,12 +321,39 @@ export default function PerfilTab({
 
   const compartirReferido = async () => {
     if (!referralCode) return;
-    const texto = `¡Usa mi código de descuento ${referralCode} en Ya Voy y recibe saldo gratis para tu comida! 🍔🛵`;
+    const playStoreUrl = `https://play.google.com/store/apps/details?id=com.batallagroup.yavoy.usuario&referrer=${referralCode}`;
+    const texto = `¡Hola! Te regalo saldo para tus pedidos en Ya Voy 🍔🛵. Descarga la app aquí: ${playStoreUrl} e ingresa mi código de referido: ${referralCode}`;
+    
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await Share.share({
+          title: "Únete a Ya Voy y recibe saldo gratis",
+          text: texto,
+          url: playStoreUrl,
+          dialogTitle: "Compartir código con amigos",
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn("Capacitor Share error:", e);
+    }
+
     if (navigator.share) {
-      await navigator.share({ title: "Únete a Ya Voy", text: texto }).catch(() => {});
-    } else {
+      try {
+        await navigator.share({
+          title: "Únete a Ya Voy y recibe saldo gratis",
+          text: texto,
+          url: playStoreUrl,
+        });
+        return;
+      } catch {}
+    }
+
+    try {
       await navigator.clipboard.writeText(texto);
-      toast.success("Código copiado al portapapeles");
+      toast.success("Enlace y código de referido copiados al portapapeles");
+    } catch {
+      toast.info(`Tu código es: ${referralCode}`);
     }
   };
 
@@ -273,7 +380,7 @@ export default function PerfilTab({
           const nuevoVideosHoy = res.ok && data.ok ? Number(data.videosHoy) : (videosHoy + 1);
 
           setWalletBalance(nuevoMonto);
-          setVideosHoy(nuevoVideosHoy);
+          saveVideosHoy(nuevoVideosHoy);
           onWalletBalanceChange?.(nuevoMonto);
           try {
             localStorage.setItem("ya_voy_wallet_balance_" + userId, String(nuevoMonto));
@@ -286,28 +393,54 @@ export default function PerfilTab({
             tipo: 'credito',
             monto: 0.25,
             concepto: 'Recompensa video publicitario (AdMob)',
-            created_at: new Date().toISOString()
+            creado_en: new Date().toISOString()
           };
           setMovimientos(prev => {
-            const next = [nuevoMov, ...prev.filter((m: any) => m.id !== nuevoMov.id)].slice(0, 20);
+            const next = filtrarMovimientos7Dias([nuevoMov, ...prev.filter((m: any) => m.id !== nuevoMov.id)]);
             try { localStorage.setItem("ya_voy_wallet_movs_" + userId, JSON.stringify(next)); } catch {}
             return next;
           });
 
           toast.success("🎉 ¡Recompensa obtenida! +$0.25 MXN a tu monedero");
+          if (Capacitor.isNativePlatform()) {
+            LocalNotifications.schedule({
+              notifications: [{
+                title: "💰 ¡Recompensa acreditada!",
+                body: "Se acreditaron +$0.25 MXN a tu monedero Ya Voy por ver el video publicitario.",
+                id: Math.floor(Date.now() % 100000),
+                channelId: "ya_voy_pedidos_channel",
+                smallIcon: "ic_stat_notification",
+                largeIcon: "ic_launcher_round",
+                iconColor: "#9C0D38"
+              }]
+            }).catch(() => {});
+          }
         } catch (callErr) {
           console.error("Error acreditando recompensa:", callErr);
           const fallback = walletBalance + 0.25;
           setWalletBalance(fallback);
-          setVideosHoy(v => v + 1);
+          saveVideosHoy(videosHoy + 1);
           onWalletBalanceChange?.(fallback);
           try { localStorage.setItem("ya_voy_wallet_balance_" + userId, String(fallback)); } catch {}
           toast.success("🎉 ¡Recompensa obtenida! +$0.25 MXN a tu monedero");
+          if (Capacitor.isNativePlatform()) {
+            LocalNotifications.schedule({
+              notifications: [{
+                title: "💰 ¡Recompensa acreditada!",
+                body: "Se acreditaron +$0.25 MXN a tu monedero Ya Voy por ver el video publicitario.",
+                id: Math.floor(Date.now() % 100000),
+                channelId: "ya_voy_pedidos_channel",
+                smallIcon: "ic_stat_notification",
+                largeIcon: "ic_launcher_round",
+                iconColor: "#9C0D38"
+              }]
+            }).catch(() => {});
+          }
         }
       });
 
       if (!rewarded) {
-        toast.info("El video no terminó de reproducirse o no hubo anuncio disponible.");
+        toast.info("No terminaste de ver el video o fue cancelado. Termina de verlo para recibir tu saldo.");
       }
     } catch (adErr) {
       console.error("Error showRewardedAd:", adErr);
@@ -753,28 +886,48 @@ export default function PerfilTab({
               <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
                 <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Historial de movimientos</p>
                 
-                {walletBalance > 0 ? (
+                {movimientos && movimientos.length > 0 ? (
+                  <div className="space-y-2">
+                    {movimientos.map((m: any, idx: number) => {
+                      const esCredito = m.tipo === "credito" || Number(m.monto) > 0;
+                      const fechaRaw = m.creado_en || m.created_at;
+                      const fechaStr = fechaRaw ? new Date(fechaRaw).toLocaleString("es-MX", {
+                        day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
+                      }) : "Reciente";
+                      const conceptoLower = (m.concepto || "").toLowerCase();
+                      const icono = conceptoLower.includes("video") || conceptoLower.includes("ad") ? "🎬" :
+                                    conceptoLower.includes("pedido") ? "🛵" :
+                                    conceptoLower.includes("refer") ? "🎁" :
+                                    conceptoLower.includes("reembolso") ? "💰" : "✨";
+                      const titulo = m.concepto || (esCredito ? "Abono a monedero" : "Cargo por pedido");
+
+                      return (
+                        <div key={m.id || idx} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                            <span className="text-xl shrink-0">{icono}</span>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-800 truncate">{titulo}</p>
+                              <p className="text-[10px] text-slate-400 font-medium">{fechaStr}</p>
+                            </div>
+                          </div>
+                          <span className={`text-xs font-black shrink-0 ${esCredito ? "text-emerald-600" : "text-rose-600"}`}>
+                            {esCredito ? "+" : "-"}${Math.abs(Number(m.monto || 0)).toFixed(2)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : walletBalance > 0 ? (
                   <div className="space-y-2">
                     <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-xl">🎁</span>
+                        <span className="text-xl">✨</span>
                         <div>
-                          <p className="text-xs font-bold text-slate-800">Bono por referidos / bienvenida</p>
+                          <p className="text-xs font-bold text-slate-800">Saldo disponible</p>
                           <p className="text-[10px] text-slate-400">Acreditado a tu monedero</p>
                         </div>
                       </div>
-                      <span className="text-xs font-black text-green-600">+${walletBalance.toFixed(2)}</span>
-                    </div>
-
-                    <div className="p-3 bg-slate-50/60 rounded-2xl border border-slate-100/60 flex items-center justify-between opacity-80">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xl">🎟️</span>
-                        <div>
-                          <p className="text-xs font-bold text-slate-800">Cupones y promociones</p>
-                          <p className="text-[10px] text-slate-400">Canjeables en carrito</p>
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-500">Activo</span>
+                      <span className="text-xs font-black text-emerald-600">+${walletBalance.toFixed(2)}</span>
                     </div>
                   </div>
                 ) : (
@@ -784,7 +937,7 @@ export default function PerfilTab({
                     </div>
                     <p className="text-xs font-bold text-slate-600">No tienes movimientos recientes</p>
                     <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto">
-                      Comparte tu código de referido para ganar saldo gratis para tus órdenes.
+                      Ve videos publicitarios o comparte tu código para ganar saldo para tus órdenes.
                     </p>
                   </div>
                 )}
