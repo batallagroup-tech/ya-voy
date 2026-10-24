@@ -1,3 +1,4 @@
+import { App as CapApp } from "@capacitor/app";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { supabase } from "./lib/supabase";
@@ -302,7 +303,8 @@ export default function App() {
 
   // ── Android back button ───────────────────────────────────────────────────
   useEffect(() => {
-    const handleBack = () => {
+        let lastBackPress = 0;
+    const backHandler = () => {
       if (confirmReplaceCart) { setConfirmReplaceCart(null); return; }
       if (showDeleteConfirm) { setShowDeleteConfirm(false); return; }
       if (showCancelar)      { setShowCancelar(false); return; }
@@ -316,11 +318,21 @@ export default function App() {
       if (showCart)          { setShowCart(false); return; }
       if (negocioSeleccionado) { setNegocioSeleccionado(null); return; }
       if (tab !== "home")    { setTab("home"); return; }
-      // En home sin nada abierto: salir de la app
-      (navigator as any).app?.exitApp?.();
+      
+      const now = Date.now();
+      if (now - lastBackPress < 2000) {
+        CapApp.exitApp();
+      } else {
+        lastBackPress = now;
+        toast.info("Presiona atrás otra vez para salir");
+      }
     };
-    document.addEventListener("backbutton", handleBack);
-    return () => document.removeEventListener("backbutton", handleBack);
+    const backListenerPromise = CapApp.addListener("backButton", backHandler);
+    document.addEventListener("backbutton", backHandler);
+    return () => {
+      backListenerPromise.then(l => l.remove()).catch(() => {});
+      document.removeEventListener("backbutton", backHandler);
+    };
   }, [confirmReplaceCart, showDeleteConfirm, showCancelar, showRating, showSoporte, showTarjetas,
       showChatPedido, showStripeModal, pedidoDetalle, productoSeleccionado,
       showCart, negocioSeleccionado, tab]);
