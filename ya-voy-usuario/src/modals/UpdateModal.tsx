@@ -6,8 +6,8 @@ import { App as CapApp } from "@capacitor/app";
 import { GRAD, API } from "../lib/constants";
 
 // Código de versión local de esta compilación
-export const CURRENT_APP_VERSION_CODE = 45;
-export const CURRENT_APP_VERSION_NAME = "1.3.4";
+export const CURRENT_APP_VERSION_CODE = 46;
+export const CURRENT_APP_VERSION_NAME = "1.3.5";
 
 interface VersionInfo {
   latestVersionCode: number;
