@@ -8,6 +8,7 @@ import { imgUrl } from "../lib/cloudinary";
 
 interface Props {
   negocio: Negocio;
+  costoEnvioCalculado?: number;
   productos: Producto[];
   cart: CartItem[];
   cartCount: number;
@@ -38,6 +39,7 @@ function HorarioHoy({ horarios }: { horarios?: Negocio['horarios'] }) {
 
 export default function NegocioScreen({ 
   negocio, 
+  costoEnvioCalculado,
   productos, 
   cart, 
   cartCount, 
@@ -50,7 +52,8 @@ export default function NegocioScreen({
   onViewCart, 
   onOpenProducto 
 }: Props) {
-  const costoEnvioBase = negocio.costo_envio_base || 35;
+  const dynamicMin = Number(localStorage.getItem("ya_voy_envio_minimo") || 20);
+  const costoEnvioBase = costoEnvioCalculado ?? negocio.costo_envio ?? negocio.costo_envio_base ?? dynamicMin;
   const estaFueraDeServicio = negocio.esta_abierto === false || negocio.aceptando_pedidos === false;
   const [heroWide, setHeroWide] = useState<boolean>(true);
   const [wideProdIds, setWideProdIds] = useState<Record<string, boolean>>({});

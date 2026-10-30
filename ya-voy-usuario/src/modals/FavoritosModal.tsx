@@ -100,7 +100,7 @@ export default function FavoritosModal({ favoritos, onToggleFavorito, onOpenNego
                         </span>
                       ) : (
                         <span className="text-[10px] text-slate-400">
-                          Envío ${n.costo_envio ?? n.costo_envio_base ?? 35}
+                          Envío ${n.costo_envio ?? n.costo_envio_base ?? Number(localStorage.getItem("ya_voy_envio_minimo") || 20)}
                         </span>
                       )}
                     </div>

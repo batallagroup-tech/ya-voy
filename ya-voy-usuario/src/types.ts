@@ -82,6 +82,8 @@ export interface Pedido {
   negocio_imagen?: string;
   cliente_id: string;
   repartidor_id?: string;
+  repartidor_nombre?: string;
+  repartidor_telefono?: string;
   repartidor_rating?: number;
   repartidor_vehiculo?: string;
   items: PedidoItem[];

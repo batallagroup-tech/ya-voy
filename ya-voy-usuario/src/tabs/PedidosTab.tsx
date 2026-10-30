@@ -89,24 +89,56 @@ export default function PedidosTab({
 
   const pedirDeNuevo = async (p: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    const negocio = negocios.find((n: any) => n.id === p.negocio_id) || { id: p.negocio_id, nombre: p.negocio_nombre, imagen_url: p.negocio_imagen };
+    const nid = p.negocio_id || p.negocioId;
+    const negocio = negocios.find((n: any) => n.id === nid) || { id: nid, nombre: p.negocio_nombre, imagen_url: p.negocio_imagen };
     onSetNegocioSeleccionado(negocio);
     calcularEnvio(negocio);
-    const prods = await fetch(API + `/api/usuario/negocios/${p.negocio_id}/productos`).then(r => r.json()).catch(() => []);
-    onSetProductos(Array.isArray(prods) ? prods : []);
-    const carritoNuevo: CartItem[] = (p.items || []).map((it: any) => ({
-      cartKey: `${it.nombre}-${Date.now()}-${Math.random()}`,
-      productoId: it.id || it.nombre,
-      nombre: it.nombre,
-      precio: it.precio,
-      precioBase: it.precio,
-      cantidad: it.cantidad || 1,
-      negocioId: p.negocio_id,
-    }));
+    const prods = await fetch(API + `/api/usuario/negocios/${nid}/productos`).then(r => r.json()).catch(() => []);
+    const catalogoActual = Array.isArray(prods) ? prods : [];
+    onSetProductos(catalogoActual);
+
+    const carritoNuevo: CartItem[] = [];
+    let omitidos = 0;
+    for (const it of (p.items || [])) {
+      const pid = it.productoId || it.id || it.nombre;
+      const prodVigente = catalogoActual.length > 0
+        ? catalogoActual.find((pr: any) => pr.id === pid || pr.nombre === it.nombre)
+        : undefined;
+      if (prodVigente && (prodVigente.agotado || prodVigente.disponible === false)) {
+        omitidos++;
+        continue;
+      }
+      const opciones = Array.isArray(it.opciones) ? it.opciones : undefined;
+      const extrasTotal = (opciones || []).reduce((a: number, o: any) => a + (Number(o.precio) || 0), 0);
+      const precioBase = prodVigente ? Number(prodVigente.precio) : Number(it.precioBase ?? (Number(it.precio) - extrasTotal));
+      const precioFinal = prodVigente ? (precioBase + extrasTotal) : Number(it.precio);
+      const finalProdId = prodVigente?.id || pid;
+      const cartKey = opciones?.length
+        ? `${finalProdId}-${opciones.map((o: any) => o.nombre).sort().join("-")}`
+        : `${finalProdId}-${Date.now()}-${Math.random()}`;
+      carritoNuevo.push({
+        cartKey,
+        productoId: finalProdId,
+        nombre: prodVigente?.nombre || it.nombre,
+        precio: precioFinal,
+        precioBase,
+        cantidad: it.cantidad || 1,
+        negocioId: nid,
+        opciones,
+      });
+    }
+    if (carritoNuevo.length === 0) {
+      toast.error("Los platillos de este pedido están agotados actualmente");
+      return;
+    }
     onSetCart(carritoNuevo);
     onSetShowCart(true);
     onSetTab("home");
-    toast.success("Pedido anterior cargado al carrito");
+    if (omitidos > 0) {
+      toast.info(`Pedido cargado (${omitidos} platillo${omitidos > 1 ? "s" : ""} agotado${omitidos > 1 ? "s" : ""} omitido${omitidos > 1 ? "s" : ""})`);
+    } else {
+      toast.success("Pedido anterior cargado al carrito");
+    }
   };
 
   return (

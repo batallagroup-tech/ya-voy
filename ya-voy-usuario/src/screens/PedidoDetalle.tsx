@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
-import { ArrowLeft, MapPin, MessageSquare, Clock, Star, Bike, CheckCircle2, ShieldAlert, Sparkles } from "lucide-react";
+import { ArrowLeft, MapPin, MessageSquare, Clock, Star, Bike, CheckCircle2, ShieldAlert, Sparkles, Phone } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { STATUS_COLOR, STATUS_LABEL, GRAD } from "../lib/constants";
@@ -112,6 +112,8 @@ export default function PedidoDetalle({
 
   const pasoActual = STATUS_IDX[pedido.status] ?? -1;
   const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
+  const lastOsrmFetchRef = useRef<{ time: number; lat: number; lng: number } | null>(null);
+  const repTelefono = (pedido as any).repartidor_telefono || (pedido as any).repartidor_phone || (pedido as any).telefono_repartidor || "";
 
   useEffect(() => {
     if (!repUbicacion?.lat || !repUbicacion?.lng || !pedido.lat_entrega || !pedido.lng_entrega) return;
@@ -119,6 +121,16 @@ export default function PedidoDetalle({
     const startLng = repUbicacion.lng;
     const endLat = Number(pedido.lat_entrega);
     const endLng = Number(pedido.lng_entrega);
+
+    const now = Date.now();
+    const last = lastOsrmFetchRef.current;
+    if (last) {
+      const elapsedMs = now - last.time;
+      const movedKm = haversineKm(last.lat, last.lng, startLat, startLng);
+      // Throttle OSRM: mínimo 30s o movimiento > 100 metros (0.1 km)
+      if (elapsedMs < 30000 && movedKm < 0.1) return;
+    }
+    lastOsrmFetchRef.current = { time: now, lat: startLat, lng: startLng };
 
     fetch(`https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`)
       .then((r) => r.json())
@@ -288,18 +300,36 @@ export default function PedidoDetalle({
           </div>
         )}
 
-        {/* Botón de Chat con Repartidor */}
+        {/* Botón de Chat y Contacto Directo con Repartidor */}
         {["en_camino", "esperando_cliente"].includes(pedido.status) && (
-          <button 
-            onClick={() => onAbrirChat(pedido.id)}
-            className="relative w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 border-2 border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-[0.99] transition-all shadow-sm">
-            <MessageSquare size={18} /> Chatear con el repartidor
-            {(chatNoLeidos[pedido.id] || 0) > 0 && (
-              <span className="absolute top-3 right-4 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-black flex items-center justify-center animate-bounce">
-                {chatNoLeidos[pedido.id]}
-              </span>
+          <div className="space-y-2">
+            <button 
+              onClick={() => onAbrirChat(pedido.id)}
+              className="relative w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 border-2 border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-[0.99] transition-all shadow-sm">
+              <MessageSquare size={18} /> Chatear con el repartidor
+              {(chatNoLeidos[pedido.id] || 0) > 0 && (
+                <span className="absolute top-3 right-4 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-black flex items-center justify-center animate-bounce">
+                  {chatNoLeidos[pedido.id]}
+                </span>
+              )}
+            </button>
+            {repTelefono && (
+              <div className="grid grid-cols-2 gap-2">
+                <a
+                  href={`tel:${repTelefono.replace(/\D/g, "")}`}
+                  className="py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 active:scale-95 transition-all shadow-2xs">
+                  <Phone size={15} className="text-rose-600" /> Llamar al repartidor
+                </a>
+                <a
+                  href={`https://wa.me/52${repTelefono.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(`Hola, soy el cliente de tu pedido #${pedido.id.slice(-6).toUpperCase()} en Ya Voy.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 active:scale-95 transition-all shadow-2xs">
+                  <span>💬 WhatsApp repartidor</span>
+                </a>
+              </div>
             )}
-          </button>
+          </div>
         )}
 
         {/* Código de Verificación al Llegar */}

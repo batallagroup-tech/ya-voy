@@ -8,7 +8,7 @@ import { Toaster, toast } from "sonner";
 import { Stripe, PaymentSheetEventsEnum } from "@capacitor-community/stripe";
 import { Capacitor } from "@capacitor/core";
 import { initAdMob, showBottomBanner, hideBottomBanner } from "./lib/admob";
-import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed, getFavoritos, addFavorito, removeFavorito } from "./lib/api";
+import { syncUsuario, getNegocios, getProductos, crearPedido, getPedidos, getProductosFeed, getFavoritos, addFavorito, removeFavorito, addDireccion } from "./lib/api";
 import { logEvent } from "./lib/analytics";
 import { setStatusBarLight, setStatusBarDark } from "./lib/statusBar";
 import { hapticSuccess, hapticError, hapticLight, playPurchaseChime } from "./lib/haptics";
@@ -148,7 +148,12 @@ export default function App() {
 
   // Payment
   const [metodoPago, setMetodoPago] = useState(() => localStorage.getItem("ya_voy_pago") || "efectivo");
-  const [costoEnvio, setCostoEnvio] = useState(35);
+  const [costoEnvio, setCostoEnvio] = useState<number>(() => {
+    try {
+      const cached = localStorage.getItem("ya_voy_envio_minimo");
+      return cached ? Number(cached) : 20;
+    } catch { return 20; }
+  });
   const [costoEnvioLoading, setCostoEnvioLoading] = useState(false);
   const [tiempoEstimado, setTiempoEstimado] = useState("");
   const [propina, setPropina] = useState(() => { const v = Number(localStorage.getItem("ya_voy_propina")); return isNaN(v) || v < 0 ? 0 : v; });
@@ -311,6 +316,8 @@ export default function App() {
       if (showRating)        { setShowRating(false); return; }
       if (showSoporte)       { setShowSoporte(false); return; }
       if (showTarjetas)      { setShowTarjetas(false); return; }
+      if (showFavoritosModal) { setShowFavoritosModal(false); return; }
+      if (showDirecciones)   { setShowDirecciones(false); recargarDirecciones(); return; }
       if (showChatPedido)    { setShowChatPedido(null); return; }
       if (showStripeModal)   { setShowStripeModal(false); setStripePaymentData(null); return; }
       if (pedidoDetalle)     { setPedidoDetalle(null); return; }
@@ -334,7 +341,7 @@ export default function App() {
       document.removeEventListener("backbutton", backHandler);
     };
   }, [confirmReplaceCart, showDeleteConfirm, showCancelar, showRating, showSoporte, showTarjetas,
-      showChatPedido, showStripeModal, pedidoDetalle, productoSeleccionado,
+      showFavoritosModal, showDirecciones, showChatPedido, showStripeModal, pedidoDetalle, productoSeleccionado,
       showCart, negocioSeleccionado, tab]);
 
 
@@ -349,6 +356,18 @@ export default function App() {
         if (pedidoActualizado.status === "esperando_cliente") playSound("llegando");
       }
       prevPedidosStatusRef.current[pedidoActualizado.id] = pedidoActualizado.status;
+
+      if (pedidoActualizado.status === "en_camino" && pedidoActualizado.repartidor_id) {
+        iniciarPollUbicacion(pedidoActualizado.repartidor_id);
+      } else if (["entregado", "cancelado"].includes(pedidoActualizado.status)) {
+        detenerPollUbicacion();
+        setEsperandoTimer(null);
+      }
+
+      if (pedidoActualizado.status === "esperando_cliente") {
+        const desde = pedidoActualizado.esperando_desde ? new Date(pedidoActualizado.esperando_desde).getTime() : Date.now();
+        setEsperandoTimer(Math.max(0, 600 - Math.floor((Date.now() - desde) / 1000)));
+      }
 
       setPedidos(prev => {
         const existe = prev.find(p => p.id === pedidoActualizado.id);
@@ -401,6 +420,21 @@ export default function App() {
 
   // ── Data load ─────────────────────────────────────────────────────────────
   useEffect(() => {
+    // Cargar config global inmediatamente en mount para envios dinamicos
+    fetch(API + "/api/config")
+      .then(r => r.json())
+      .then(d => {
+        setAppConfig(d);
+        if (d.envio_minimo) {
+          const min = Number(d.envio_minimo);
+          if (!isNaN(min) && min > 0) {
+            setCostoEnvio(prev => (prev == null || prev === 35 || prev === 20 ? min : prev));
+            try { localStorage.setItem("ya_voy_envio_minimo", String(min)); } catch {}
+          }
+        }
+      })
+      .catch(() => {});
+
     loadProductosFeed();
     loadNegocios();
   }, []);
@@ -412,7 +446,7 @@ export default function App() {
 
   const loadNegocios = async (loc?: [number, number] | null) => {
     if (negocios.length === 0) setLoading(true);
-    const coords = loc ?? userLocation ?? (direccionPrincipal?.lat != null && direccionPrincipal?.lng != null ? [direccionPrincipal.lat, direccionPrincipal.lng] : null);
+    const coords = loc ?? (direccionPrincipal?.lat != null && direccionPrincipal?.lng != null ? [Number(direccionPrincipal.lat), Number(direccionPrincipal.lng)] as [number, number] : null) ?? userLocation;
     try {
       const data = await getNegocios(coords?.[0], coords?.[1]);
       if (Array.isArray(data)) setNegocios(data as Negocio[]);
@@ -425,7 +459,7 @@ export default function App() {
 
   const loadProductosFeed = async (loc?: [number, number] | null) => {
     if (productosFeed.length === 0) setLoading(true);
-    const coords = loc ?? userLocation ?? (direccionPrincipal?.lat != null && direccionPrincipal?.lng != null ? [direccionPrincipal.lat, direccionPrincipal.lng] : null);
+    const coords = loc ?? (direccionPrincipal?.lat != null && direccionPrincipal?.lng != null ? [Number(direccionPrincipal.lat), Number(direccionPrincipal.lng)] as [number, number] : null) ?? userLocation;
     try {
       const data = await getProductosFeed(coords?.[0], coords?.[1]);
       if (Array.isArray(data)) setProductosFeed(data as Producto[]);
@@ -529,6 +563,8 @@ export default function App() {
         if (exists) return prev.map(i => i.cartKey === cartKey ? { ...i, cantidad: i.cantidad + 1 } : i);
         return [...prev, { cartKey, productoId: p.id, nombre: p.nombre, precio: precioFinal, precioBase: Number(p.precio), cantidad: 1, negocioId: pNegocioId, opciones: opcionesSeleccionadas }];
       });
+      const neg = negocios.find(n => n.id === pNegocioId) || negocioSeleccionado;
+      if (neg) calcularEnvio(neg);
     }
     toast.success(`${p.nombre} agregado`);
   };
@@ -547,9 +583,14 @@ export default function App() {
 
   const cartProductIds = useMemo(() => new Set(cart.map(c => c.productoId)), [cart]);
   const sugerenciasCart = useMemo(() => {
-    const pool = (productos && productos.length > 0) ? productos : productosFeed;
-    return pool.filter(p => !cartProductIds.has(p.id) && (p.disponible ?? true)).slice(0, 8);
-  }, [productos, productosFeed, cartProductIds]);
+    const targetNegocioId = cart[0]?.negocioId || (cart[0] as any)?.negocio_id || negocioSeleccionado?.id;
+    const pool = (productos && productos.length > 0 && (!targetNegocioId || productos[0]?.negocio_id === targetNegocioId))
+      ? productos
+      : productosFeed;
+    return pool
+      .filter(p => (!targetNegocioId || p.negocio_id === targetNegocioId) && !cartProductIds.has(p.id) && (p.disponible ?? true) && !p.agotado)
+      .slice(0, 8);
+  }, [productos, productosFeed, cartProductIds, cart, negocioSeleccionado?.id]);
 
   // ── Favoritos ─────────────────────────────────────────────────────────────
   const toggleFavorito = async (negocio: Negocio) => {
@@ -587,11 +628,16 @@ export default function App() {
     catch (e: any) { console.error("openNegocio productos:", e.message); }
   };
 
-  const calcularEnvio = async (negocioOverride?: any) => {
-    const negocioRef = negocioOverride ?? negocioSeleccionado;
-    if (!negocioRef?.lat || !negocioRef?.lng) { setCostoEnvio(35); return; }
-    const loc = userLocation || (direccionPrincipal?.lat && direccionPrincipal?.lng ? [direccionPrincipal.lat, direccionPrincipal.lng] as [number, number] : null);
-    if (!loc) { setCostoEnvio(35); return; }
+  const calcularEnvio = async (negocioOverride?: any, dirOverride?: Direccion | null) => {
+    const negObj = typeof negocioOverride === "string"
+      ? negocios.find(n => n.id === negocioOverride)
+      : negocioOverride;
+    const negocioRef = negObj ?? negocioSeleccionado ?? (cart.length > 0 ? negocios.find(n => n.id === (cart[0].negocioId || (cart[0] as any).negocio_id)) : null);
+    const fallbackEnvio = Number(appConfig.envio_minimo || localStorage.getItem("ya_voy_envio_minimo") || 20);
+    if (!negocioRef?.lat || !negocioRef?.lng) { setCostoEnvio(fallbackEnvio); return; }
+    const targetDir = dirOverride ?? direccionPrincipal;
+    const loc = (targetDir?.lat != null && targetDir?.lng != null ? [Number(targetDir.lat), Number(targetDir.lng)] as [number, number] : null) || userLocation;
+    if (!loc) { setCostoEnvio(fallbackEnvio); return; }
     setCostoEnvioLoading(true);
     try {
       const res = await fetch(API + "/api/stripe/calcular-envio", {
@@ -604,10 +650,33 @@ export default function App() {
     } catch (e: any) { console.error("calcularEnvio:", e.message); } finally { setCostoEnvioLoading(false); }
   };
 
+  useEffect(() => {
+    if (direccionPrincipal?.lat != null && direccionPrincipal?.lng != null) {
+      calcularEnvio(undefined, direccionPrincipal);
+    }
+  }, [direccionPrincipal?.id, direccionPrincipal?.lat, direccionPrincipal?.lng]);
+
   // ── Payment ───────────────────────────────────────────────────────────────
-  const handlePedir = async (extras: { cuponAplicado: any; tipoEntrega: string; programadoPara: string | null; walletMonto: number; notas?: string }) => {
+  const handlePedir = async (extras: { cuponAplicado: any; tipoEntrega: string; programadoPara: string | null; walletMonto: number; notas?: string; pagoConBillete?: string }) => {
     const { cuponAplicado, tipoEntrega, programadoPara, walletMonto, notas } = extras;
     if (!cart.length || !userId) return;
+
+    if (tipoEntrega === "domicilio") {
+      const tieneDir = Boolean(
+        direccionPrincipal &&
+        direccionPrincipal.direccion?.trim() &&
+        direccionPrincipal.lat != null &&
+        direccionPrincipal.lng != null &&
+        !isNaN(Number(direccionPrincipal.lat)) &&
+        !isNaN(Number(direccionPrincipal.lng))
+      );
+      if (!tieneDir) {
+        toast.error("Selecciona o agrega una dirección de entrega");
+        setShowCart(false);
+        setShowDirecciones(true);
+        return;
+      }
+    }
 
     // Multi-restaurante: agrupar items por negocioId y crear pedidos separados
     const grupos = cart.reduce((acc, item) => {
@@ -770,30 +839,66 @@ export default function App() {
 
   // ── Pedir de nuevo (Reordenar en 1 clic) ──────────────────────────────────
   const handlePedirDeNuevo = async (p: any) => {
-    const negocio: Negocio = negocios.find((n: any) => n.id === (p.negocio_id || p.negocioId)) || { 
-      id: p.negocio_id || p.negocioId, 
+    const nid = p.negocio_id || p.negocioId;
+    const negocio: Negocio = negocios.find((n: any) => n.id === nid) || { 
+      id: nid, 
       nombre: p.negocio_nombre || "Restaurante", 
       tipo: "restaurante",
       imagen_url: p.negocio_imagen 
     };
     setNegocioSeleccionado(negocio);
     calcularEnvio(negocio);
+    let catalogoActual: Producto[] = [];
     try {
-      const prods = await fetch(API + `/api/usuario/negocios/${p.negocio_id || p.negocioId}/productos`).then(r => r.json()).catch(() => []);
-      setProductos(Array.isArray(prods) ? prods : []);
+      const prods = await fetch(API + `/api/usuario/negocios/${nid}/productos`).then(r => r.json()).catch(() => []);
+      if (Array.isArray(prods)) {
+        catalogoActual = prods;
+        setProductos(prods);
+      } else {
+        setProductos([]);
+      }
     } catch {}
-    const carritoNuevo: CartItem[] = (p.items || []).map((it: any) => ({
-      cartKey: `${it.nombre}-${Date.now()}-${Math.random()}`,
-      productoId: it.id || it.productoId || it.nombre,
-      nombre: it.nombre,
-      precio: it.precio,
-      precioBase: it.precio,
-      cantidad: it.cantidad || 1,
-      negocioId: p.negocio_id || p.negocioId,
-    }));
+    const carritoNuevo: CartItem[] = [];
+    let omitidos = 0;
+    for (const it of (p.items || [])) {
+      const pid = it.productoId || it.id || it.nombre;
+      const prodVigente = catalogoActual.length > 0
+        ? catalogoActual.find((pr: any) => pr.id === pid || pr.nombre === it.nombre)
+        : undefined;
+      if (prodVigente && (prodVigente.agotado || prodVigente.disponible === false)) {
+        omitidos++;
+        continue;
+      }
+      const opciones = Array.isArray(it.opciones) ? it.opciones : undefined;
+      const extrasTotal = (opciones || []).reduce((a: number, o: any) => a + (Number(o.precio) || 0), 0);
+      const precioBase = prodVigente ? Number(prodVigente.precio) : Number(it.precioBase ?? (Number(it.precio) - extrasTotal));
+      const precioFinal = prodVigente ? (precioBase + extrasTotal) : Number(it.precio);
+      const finalProdId = prodVigente?.id || pid;
+      const cartKey = opciones?.length
+        ? `${finalProdId}-${opciones.map((o: any) => o.nombre).sort().join("-")}`
+        : `${finalProdId}-${Date.now()}-${Math.random()}`;
+      carritoNuevo.push({
+        cartKey,
+        productoId: finalProdId,
+        nombre: prodVigente?.nombre || it.nombre,
+        precio: precioFinal,
+        precioBase,
+        cantidad: it.cantidad || 1,
+        negocioId: nid,
+        opciones,
+      });
+    }
+    if (carritoNuevo.length === 0) {
+      toast.error("Los platillos de este pedido están agotados actualmente");
+      return;
+    }
     setCart(carritoNuevo);
     setShowCart(true);
-    toast.success("¡Pedido anterior cargado en tu carrito!");
+    if (omitidos > 0) {
+      toast.info(`Se cargó tu pedido (${omitidos} platillo${omitidos > 1 ? "s" : ""} agotado${omitidos > 1 ? "s" : ""} omitido${omitidos > 1 ? "s" : ""})`);
+    } else {
+      toast.success("¡Pedido anterior cargado en tu carrito!");
+    }
   };
 
   // ── Handlers menores ──────────────────────────────────────────────────────
@@ -804,6 +909,57 @@ export default function App() {
     if (location) { localStorage.setItem("ya_voy_location", JSON.stringify(location)); setUserLocation(location); }
     localStorage.setItem("ya_voy_pago", pago);
     setMetodoPago(pago);
+
+    if (address && address.trim()) {
+      const lat = location ? location[0] : 19.9342;
+      const lng = location ? location[1] : -97.9612;
+      const tempDir: Direccion = {
+        id: Date.now().toString(),
+        label: "Casa",
+        icono: "casa",
+        direccion: address.trim(),
+        lat,
+        lng,
+        principal: true,
+      };
+      const desmarcadas = direcciones.map(d => ({ ...d, principal: false }));
+      const nuevasDirs = [...desmarcadas, tempDir];
+      setDirecciones(nuevasDirs);
+      localStorage.setItem("ya_voy_direcciones", JSON.stringify(nuevasDirs));
+      calcularEnvio(undefined, tempDir);
+
+      if (userId) {
+        getToken().then(token => {
+          if (!token) return;
+          addDireccion({
+            userId,
+            label: "Casa",
+            icono: "casa",
+            direccion: address.trim(),
+            lat,
+            lng,
+            principal: true,
+            esPrincipal: true,
+          }, token).then((saved: any) => {
+            if (saved && saved.id) {
+              const finalDir: Direccion = {
+                id: saved.id,
+                label: saved.label || "Casa",
+                icono: (saved.icono || "casa") as Direccion["icono"],
+                direccion: saved.direccion || address.trim(),
+                lat: saved.lat ?? lat,
+                lng: saved.lng ?? lng,
+                principal: true,
+              };
+              const updatedDirs = [...desmarcadas, finalDir];
+              setDirecciones(updatedDirs);
+              localStorage.setItem("ya_voy_direcciones", JSON.stringify(updatedDirs));
+            }
+          }).catch(() => {});
+        });
+      }
+    }
+
     setShowOnboarding(false);
     loadNegocios(location);
     loadProductosFeed(location);
@@ -812,6 +968,16 @@ export default function App() {
         await supabase.auth.updateUser({
           data: { full_name: realName, phone: phone }
         });
+        if (userId) {
+          getToken().then(token => {
+            if (!token) return;
+            fetch(API + "/api/usuario/perfil/" + userId, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+              body: JSON.stringify({ nombre: realName, telefono: phone }),
+            }).catch(() => {});
+          });
+        }
       }
     } catch {}
   };
@@ -823,8 +989,12 @@ export default function App() {
       setDirecciones(arr);
       const prin = arr.find((x: any) => x.principal) || arr[0];
       if (prin?.lat != null && prin?.lng != null) {
-        loadNegocios([Number(prin.lat), Number(prin.lng)]);
-        loadProductosFeed([Number(prin.lat), Number(prin.lng)]);
+        const newLoc: [number, number] = [Number(prin.lat), Number(prin.lng)];
+        setUserLocation(newLoc);
+        localStorage.setItem("ya_voy_location", JSON.stringify(newLoc));
+        loadNegocios(newLoc);
+        loadProductosFeed(newLoc);
+        calcularEnvio(undefined, prin);
       }
     } catch {}
   };
@@ -836,13 +1006,18 @@ export default function App() {
       getToken().then(token => {
         if (!token) return;
         getDirecciones(userId, token).then(data => {
+          if (!Array.isArray(data) || data.length === 0) return;
           const mapped = data.map((d: any) => ({ id: d.id, label: d.label, icono: d.icono, direccion: d.direccion, lat: d.lat, lng: d.lng, principal: d.principal }));
           setDirecciones(mapped);
           localStorage.setItem("ya_voy_direcciones", JSON.stringify(mapped));
           const prin = mapped.find((x: any) => x.principal) || mapped[0];
           if (prin?.lat != null && prin?.lng != null) {
-            loadNegocios([Number(prin.lat), Number(prin.lng)]);
-            loadProductosFeed([Number(prin.lat), Number(prin.lng)]);
+            const newLoc: [number, number] = [Number(prin.lat), Number(prin.lng)];
+            setUserLocation(newLoc);
+            localStorage.setItem("ya_voy_location", JSON.stringify(newLoc));
+            loadNegocios(newLoc);
+            loadProductosFeed(newLoc);
+            calcularEnvio(undefined, prin);
           }
         }).catch(() => {});
       });
@@ -912,10 +1087,12 @@ export default function App() {
           });
         }
         if (d.lat && d.lng) {
-          const loc: [number, number] = [d.lat, d.lng];
+          const loc: [number, number] = [Number(d.lat), Number(d.lng)];
           setUserLocation(loc);
           localStorage.setItem("ya_voy_location", JSON.stringify(loc));
           loadNegocios(loc);
+          loadProductosFeed(loc);
+          calcularEnvio(undefined, d);
         }
         setShowDirecciones(false);
       }}
@@ -944,6 +1121,7 @@ export default function App() {
         {negocioSeleccionado && (
           <NegocioScreen
             negocio={negocioSeleccionado}
+            costoEnvioCalculado={costoEnvio}
             productos={productos}
             cart={cart}
             cartCount={cartCount}
@@ -953,7 +1131,7 @@ export default function App() {
             onClose={() => setNegocioSeleccionado(null)}
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}
-            onViewCart={() => setShowCart(true)}
+            onViewCart={() => { calcularEnvio(negocioSeleccionado); setShowCart(true); }}
             onOpenProducto={setProductoSeleccionado}
           />
         )}
@@ -981,12 +1159,14 @@ export default function App() {
             onMetodoPagoChange={(p) => { setMetodoPago(p); localStorage.setItem("ya_voy_pago", p); }}
             direccionPrincipal={direccionPrincipal}
             loading={loading}
-            negocioId={negocioSeleccionado?.id}
+            negocioId={negocioSeleccionado?.id || cart[0]?.negocioId || (cart[0] as any)?.negocio_id}
             propina={propina}
             walletBalance={walletBalance}
             tarjetas={tarjetas}
             sugerencias={sugerenciasCart}
             onManageCards={() => setShowTarjetas(true)}
+            onOpenDirecciones={() => { setShowCart(false); setShowDirecciones(true); }}
+            onSelectProducto={(p) => setProductoSeleccionado(p)}
             onPropinaChange={(p) => { setPropina(p); localStorage.setItem("ya_voy_propina", String(p)); }}
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}
@@ -1108,7 +1288,7 @@ export default function App() {
       </AnimatePresence>
       </Suspense>
       <AnimatePresence>
-        {pedidoActivo && (
+        {pedidoActivo && !pedidoDetalle && !showCart && !negocioSeleccionado && esperandoTimer === null && (
           <LiveOrderBanner
             pedido={pedidoActivo}
             onOpenPedido={(p) => {
@@ -1136,7 +1316,7 @@ export default function App() {
           </button>
           <div className="flex items-center gap-2">
             {cartCount > 0 && (
-              <button onClick={() => setShowCart(true)} className="relative p-2.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 active:scale-90 transition-transform">
+              <button onClick={() => { calcularEnvio(negocioSeleccionado?.id || cart[0]?.negocioId || (cart[0] as any)?.negocio_id); setShowCart(true); }} className="relative p-2.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 active:scale-90 transition-transform">
                 <ShoppingCart size={20} />
                 <span className="absolute -top-1 -right-1 w-5 h-5 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md" style={{ background: GRAD }}>{cartCount}</span>
               </button>

@@ -56,18 +56,22 @@ export default function StripePagoModal({ clientSecret, pedidoData, token, onSuc
       if (error) { toast.error(error.message || "Error en el pago"); return; }
       if (paymentIntent?.status === "succeeded") {
         if (pedidoData?.pedidoId) {
-          await fetch(API + "/api/usuario/pedidos/" + pedidoData.pedidoId + "/confirmar-pago", {
+          const res = await fetch(API + "/api/usuario/pedidos/" + pedidoData.pedidoId + "/confirmar-pago", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
             body: JSON.stringify({ paymentIntentId: paymentIntent.id }),
           });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "Error al confirmar el pago del pedido");
+          }
         } else {
           await crearPedido({ ...pedidoData, paymentIntentId: paymentIntent.id }, token);
         }
         toast.success("¡Pago exitoso! Pedido enviado.");
         onSuccess();
       }
-    } catch { toast.error("Ocurrió un error al procesar el pago. Intenta nuevamente."); }
+    } catch (e: any) { toast.error(e?.message || "Ocurrió un error al procesar el pago. Intenta nuevamente."); }
     finally { setLoading(false); }
   };
 

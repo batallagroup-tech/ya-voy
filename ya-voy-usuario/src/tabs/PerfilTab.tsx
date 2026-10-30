@@ -376,8 +376,11 @@ export default function PerfilTab({
             headers,
           });
           const data = await res.json().catch(() => ({}));
-          const nuevoMonto = res.ok && data.ok ? Number(data.nuevoBalance) : (walletBalance + 0.25);
-          const nuevoVideosHoy = res.ok && data.ok ? Number(data.videosHoy) : (videosHoy + 1);
+          if (!res.ok || !data.ok) {
+            throw new Error(data.error || "No se pudo acreditar la recompensa en el servidor");
+          }
+          const nuevoMonto = Number(data.nuevoBalance);
+          const nuevoVideosHoy = Number(data.videosHoy ?? (videosHoy + 1));
 
           setWalletBalance(nuevoMonto);
           saveVideosHoy(nuevoVideosHoy);
@@ -415,27 +418,9 @@ export default function PerfilTab({
               }]
             }).catch(() => {});
           }
-        } catch (callErr) {
+        } catch (callErr: any) {
           console.error("Error acreditando recompensa:", callErr);
-          const fallback = walletBalance + 0.25;
-          setWalletBalance(fallback);
-          saveVideosHoy(videosHoy + 1);
-          onWalletBalanceChange?.(fallback);
-          try { localStorage.setItem("ya_voy_wallet_balance_" + userId, String(fallback)); } catch {}
-          toast.success("🎉 ¡Recompensa obtenida! +$0.25 MXN a tu monedero");
-          if (Capacitor.isNativePlatform()) {
-            LocalNotifications.schedule({
-              notifications: [{
-                title: "💰 ¡Recompensa acreditada!",
-                body: "Se acreditaron +$0.25 MXN a tu monedero Ya Voy por ver el video publicitario.",
-                id: Math.floor(Date.now() % 100000),
-                channelId: "ya_voy_pedidos_channel",
-                smallIcon: "ic_stat_notification",
-                largeIcon: "ic_launcher_round",
-                iconColor: "#9C0D38"
-              }]
-            }).catch(() => {});
-          }
+          toast.error(callErr?.message || "No se pudo acreditar la recompensa. Verifica tu conexión.");
         }
       });
 

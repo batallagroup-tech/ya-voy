@@ -131,7 +131,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
     } else {
       navigator.geolocation?.getCurrentPosition(
         pos => setForm(f => ({ ...f, lat: pos.coords.latitude, lng: pos.coords.longitude })),
-        () => {}
+        () => toast.error("Activa tu GPS y permite el acceso a la ubicación")
       );
     }
   }, [showForm]);
@@ -158,18 +158,21 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
         if (userId && getToken) {
           const token = await getToken();
           if (token) {
-            const nueva = await addDireccion({ userId, label: form.label, icono: form.icono, direccion: form.direccion, lat: form.lat, lng: form.lng }, token);
-            const mapped: Direccion = { id: nueva.id, label: nueva.label, icono: nueva.icono, direccion: nueva.direccion, lat: nueva.lat, lng: nueva.lng, principal: nueva.principal };
-            syncLocal([...direcciones, mapped]);
+            const nueva = await addDireccion({ userId, label: form.label, icono: form.icono, direccion: form.direccion, lat: form.lat, lng: form.lng, principal: true }, token);
+            const mapped: Direccion = { id: nueva.id, label: nueva.label, icono: nueva.icono, direccion: nueva.direccion, lat: nueva.lat, lng: nueva.lng, principal: true };
+            const desmarcadas = direcciones.map(d => ({ ...d, principal: false }));
+            syncLocal([...desmarcadas, mapped]);
           } else {
-            const nueva: Direccion = { id: Date.now().toString(), ...form, principal: direcciones.length === 0 };
-            syncLocal([...direcciones, nueva]);
+            const desmarcadas = direcciones.map(d => ({ ...d, principal: false }));
+            const nueva: Direccion = { id: Date.now().toString(), ...form, principal: true };
+            syncLocal([...desmarcadas, nueva]);
           }
         } else {
-          const nueva: Direccion = { id: Date.now().toString(), ...form, principal: direcciones.length === 0 };
-          syncLocal([...direcciones, nueva]);
+          const desmarcadas = direcciones.map(d => ({ ...d, principal: false }));
+          const nueva: Direccion = { id: Date.now().toString(), ...form, principal: true };
+          syncLocal([...desmarcadas, nueva]);
         }
-        toast.success("Dirección guardada con éxito");
+        toast.success("Dirección guardada como principal");
       }
     } catch (e: any) { 
       console.warn("Error guardando dirección en servidor:", e);
@@ -366,7 +369,7 @@ export default function DireccionesScreen({ onBack, onSelect, userId, getToken }
                     onClick={() => { 
                       navigator.geolocation?.getCurrentPosition(pos => { 
                         handleMapClick(pos.coords.latitude, pos.coords.longitude); 
-                      }, () => {}); 
+                      }, () => toast.error("Activa tu GPS y permite el acceso a la ubicación")); 
                     }}
                     className="absolute bottom-3 right-3 z-[1000] bg-white/95 backdrop-blur-md shadow-lg rounded-2xl p-2.5 border border-slate-200 text-[#9C0D38] hover:bg-rose-50 active:scale-90 transition-all"
                     title="Mi ubicación GPS"

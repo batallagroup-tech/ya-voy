@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { X, Minus, Plus, Banknote, CreditCard, MapPin, Loader2, Trash2, Store, Calendar, Wallet, Check, Ticket, Sparkles, AlertCircle, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ export interface PedidoExtras {
   programadoPara: string | null;
   walletMonto: number;
   notas?: string;
+  pagoConBillete?: string;
 }
 
 interface Props {
@@ -33,6 +34,8 @@ interface Props {
   tarjetas?: any[];
   sugerencias?: Producto[];
   onManageCards?: () => void;
+  onOpenDirecciones?: () => void;
+  onSelectProducto?: (p: Producto) => void;
   onPropinaChange: (p: number) => void;
   onAddToCart: (item: any) => void;
   onRemoveFromCart: (id: string) => void;
@@ -58,6 +61,8 @@ export default function CartSheet({
   tarjetas,
   sugerencias,
   onManageCards,
+  onOpenDirecciones,
+  onSelectProducto,
   onPropinaChange, 
   onAddToCart, 
   onRemoveFromCart, 
@@ -78,10 +83,34 @@ export default function CartSheet({
   const [horaProgramada, setHoraProgramada] = useState("");
   const [usarWallet, setUsarWallet] = useState(false);
   const [notas, setNotas] = useState("");
+  const [pagoConBillete, setPagoConBillete] = useState<string>("Exacto");
 
-  const walletAplicado = usarWallet ? Math.min(walletBalance, total + (tipoEntrega === "domicilio" ? costoEnvio : 0) + propina) : 0;
   const envioEfectivo = tipoEntrega === "pickup" ? 0 : costoEnvio;
-  const totalFinal = Math.max(0, total + envioEfectivo + propina - (cuponAplicado?.descuento || 0) - walletAplicado);
+  const montoDespuesDeCupon = Math.max(0, total + envioEfectivo + propina - (cuponAplicado?.descuento || 0));
+  const walletAplicado = usarWallet ? Math.min(walletBalance, montoDespuesDeCupon) : 0;
+  const totalFinal = Math.max(0, montoDespuesDeCupon - walletAplicado);
+
+  useEffect(() => {
+    if (!cuponAplicado) return;
+    let cancelled = false;
+    fetch(API + "/api/usuario/cupones/validar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codigo: cuponAplicado.codigo, total: total + envioEfectivo, negocioId }),
+    })
+      .then(async r => {
+        const d = await r.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!r.ok) {
+          setCuponAplicado(null);
+          setCuponError(d.error || "El cupón ya no aplica con el monto actual");
+        } else {
+          setCuponAplicado(d);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [tipoEntrega, total, envioEfectivo, negocioId]);
 
   const programadoPara = programarParaDespues && fechaProgramada && horaProgramada
     ? `${fechaProgramada} ${horaProgramada}`
@@ -277,8 +306,16 @@ export default function CartSheet({
                   <button
                     type="button"
                     onClick={() => {
+                      let rawOps = prod.opciones as any;
+                      if (typeof rawOps === "string") {
+                        try { rawOps = JSON.parse(rawOps); } catch { rawOps = []; }
+                      }
+                      const tieneOpcionesRequeridas = Array.isArray(rawOps) && rawOps.some((g: any) => g && g.requerido);
+                      if (tieneOpcionesRequeridas && onSelectProducto) {
+                        onSelectProducto(prod);
+                        return;
+                      }
                       onAddToCart(prod);
-                      toast.success(`Agregado: ${prod.nombre}`);
                     }}
                     className="mt-2 w-full py-1.5 rounded-lg text-[10px] font-black text-white flex items-center justify-center gap-1 active:scale-95 transition-transform"
                     style={{ background: GRAD }}>
@@ -444,6 +481,37 @@ export default function CartSheet({
               </div>
             )}
 
+            {/* Selector de billete para cambio en efectivo */}
+            {metodoPago === "efectivo" && (
+              <div className="pt-2 border-t border-slate-200/60 space-y-2">
+                <p className="text-[11px] font-black text-slate-700">
+                  ¿Con qué billete pagas? (Para que el repartidor lleve cambio)
+                </p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(["Exacto", "$100", "$200", "$500"] as const).map(opcion => {
+                    const numVal = opcion === "Exacto" ? Infinity : Number(opcion.replace("$", ""));
+                    const deshabilitado = opcion !== "Exacto" && numVal < totalFinal;
+                    const activo = pagoConBillete === opcion;
+                    return (
+                      <button
+                        key={opcion}
+                        type="button"
+                        disabled={deshabilitado}
+                        onClick={() => setPagoConBillete(opcion)}
+                        className={`py-2 rounded-xl text-xs font-black border transition-all ${
+                          activo
+                            ? "text-white border-transparent shadow-xs"
+                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                        } disabled:opacity-40 disabled:cursor-not-allowed`}
+                        style={activo ? { background: GRAD } : {}}>
+                        {opcion}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Alerta de límite de efectivo para cuentas nuevas */}
             {metodoPago === "efectivo" && totalFinal > 400 && (
               <div className="pt-2 border-t border-slate-200/60 flex items-start gap-2 text-amber-800 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200">
@@ -501,6 +569,21 @@ export default function CartSheet({
         {/* Botón Principal */}
         <button 
           onClick={() => {
+            if (tipoEntrega === "domicilio") {
+              const tieneDir = Boolean(
+                direccionPrincipal &&
+                direccionPrincipal.direccion?.trim() &&
+                direccionPrincipal.lat != null &&
+                direccionPrincipal.lng != null &&
+                !isNaN(Number(direccionPrincipal.lat)) &&
+                !isNaN(Number(direccionPrincipal.lng))
+              );
+              if (!tieneDir) {
+                toast.error("Selecciona o agrega una dirección de entrega");
+                onOpenDirecciones?.();
+                return;
+              }
+            }
             if (metodoPago === "tarjeta" && totalFinal > 0 && (!tarjetas || tarjetas.length === 0)) {
               toast.info("Por favor ingresa los datos de tu tarjeta bancaria");
               onManageCards?.();
@@ -531,6 +614,12 @@ export default function CartSheet({
                   <span>Total final</span>
                   <span>${totalFinal.toFixed(2)}</span>
                 </div>
+                {metodoPago === "efectivo" && totalFinal > 0 && (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-2 text-[11px] text-emerald-800">
+                    <span className="font-bold">Pago en efectivo: </span>
+                    {pagoConBillete === "Exacto" ? "Exacto (sin cambio)" : `Con billete de ${pagoConBillete}`}
+                  </div>
+                )}
                 {notas.trim() && (
                   <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-[11px] text-slate-600">
                     <span className="font-bold text-slate-700">Instrucciones: </span>{notas.trim()}
@@ -548,8 +637,35 @@ export default function CartSheet({
                 </button>
                 <button 
                   onClick={() => { 
-                    setShowConfirm(false); 
-                    onPedir({ cuponAplicado, tipoEntrega, programadoPara, walletMonto: walletAplicado, notas: notas.trim() }); 
+                    if (tipoEntrega === "domicilio") {
+                      const tieneDir = Boolean(
+                        direccionPrincipal &&
+                        direccionPrincipal.direccion?.trim() &&
+                        direccionPrincipal.lat != null &&
+                        direccionPrincipal.lng != null &&
+                        !isNaN(Number(direccionPrincipal.lat)) &&
+                        !isNaN(Number(direccionPrincipal.lng))
+                      );
+                      if (!tieneDir) {
+                        setShowConfirm(false);
+                        toast.error("Selecciona o agrega una dirección de entrega");
+                        onOpenDirecciones?.();
+                        return;
+                      }
+                    }
+                    setShowConfirm(false);
+                    const notaCambio = metodoPago === "efectivo" && totalFinal > 0
+                      ? (pagoConBillete === "Exacto" ? "[Pago en efectivo: Exacto]" : `[Pago en efectivo con billete de ${pagoConBillete}]`)
+                      : "";
+                    const notasFinales = [notas.trim(), notaCambio].filter(Boolean).join(" | ");
+                    onPedir({
+                      cuponAplicado,
+                      tipoEntrega,
+                      programadoPara,
+                      walletMonto: walletAplicado,
+                      notas: notasFinales,
+                      pagoConBillete: metodoPago === "efectivo" ? pagoConBillete : undefined,
+                    }); 
                   }} 
                   disabled={loading} 
                   style={{ background: GRAD }}

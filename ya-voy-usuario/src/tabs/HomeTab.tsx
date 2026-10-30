@@ -103,13 +103,28 @@ export default function HomeTab({
   const touchStartY = useRef(0);
   const isPulling = useRef(false);
 
+  const getScrollTop = (el: EventTarget | null) => {
+    const htmlEl = el as HTMLElement | null;
+    const scrollParent = htmlEl?.closest(".overflow-y-auto") as HTMLElement | null;
+    return (scrollParent ? scrollParent.scrollTop : 0) || (htmlEl ? htmlEl.scrollTop : 0) || window.scrollY || document.documentElement.scrollTop || 0;
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (getScrollTop(e.currentTarget) > 0) {
+      isPulling.current = false;
+      return;
+    }
     touchStartY.current = e.touches[0].clientY;
     isPulling.current = true;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isPulling.current || isRefreshing) return;
+    if (getScrollTop(e.currentTarget) > 0) {
+      isPulling.current = false;
+      setPullY(0);
+      return;
+    }
     const currentY = e.touches[0].clientY;
     const diff = currentY - touchStartY.current;
     if (diff > 0) {
@@ -536,7 +551,19 @@ export default function HomeTab({
                       </div>
 
                       <button 
-                        onClick={e => { e.stopPropagation(); if (!p.agotado) onAddToCart(p); }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (p.agotado) return;
+                          let rawOps = p.opciones as any;
+                          if (typeof rawOps === "string") {
+                            try { rawOps = JSON.parse(rawOps); } catch { rawOps = []; }
+                          }
+                          if (Array.isArray(rawOps) && rawOps.some((g: any) => g && g.requerido)) {
+                            onProductoClick(p);
+                          } else {
+                            onAddToCart(p);
+                          }
+                        }}
                         disabled={p.agotado}
                         className="w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 text-white shadow-sm active:scale-90 transition-transform disabled:opacity-30" 
                         style={{ background: GRAD }}>
@@ -550,8 +577,9 @@ export default function HomeTab({
               <div className="space-y-3">
                 {negociosFiltrados.map(n => {
                   const pausado = n.aceptando_pedidos === false;
-                  const distKm = n.distancia_km ?? (userLocation && n.lat && n.lng
-                    ? haversineKm(userLocation[0], userLocation[1], n.lat, n.lng)
+                  const targetLoc = (direccionPrincipal?.lat != null && direccionPrincipal?.lng != null ? [direccionPrincipal.lat, direccionPrincipal.lng] : null) || userLocation;
+                  const distKm = n.distancia_km ?? (targetLoc && n.lat && n.lng
+                    ? haversineKm(targetLoc[0], targetLoc[1], n.lat, n.lng)
                     : null);
 
                   return (
@@ -590,7 +618,7 @@ export default function HomeTab({
                             {pausado ? (
                               <span className="text-[11px] font-black text-yellow-700">Pausado</span>
                             ) : (
-                              <span className="text-[11px] text-slate-500">Envío ${n.costo_envio ?? n.costo_envio_base ?? 35}</span>
+                              <span className="text-[11px] text-slate-500">Envío ${n.costo_envio ?? n.costo_envio_base ?? Number(localStorage.getItem("ya_voy_envio_minimo") || 20)}</span>
                             )}
                           </div>
                         </div>

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import { Navigation, MapPin, CreditCard, Banknote, Check, ArrowRight, Loader2, ShoppingBag } from "lucide-react";
+import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 
 L.Icon.Default.mergeOptions({
@@ -70,7 +71,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
         } catch { setAddress("Mi ubicación"); }
         setLocating(false);
       },
-      () => setLocating(false),
+      () => { setLocating(false); toast.error("Activa tu GPS y permite el acceso a la ubicación"); },
       { enableHighAccuracy: true, timeout: 8000 }
     );
   };
@@ -108,7 +109,13 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
   };
 
   const handleDone = () => {
-    onDone({ location, address: address || "Mi ubicación", pago, realName: realName.trim(), phone: phone.trim() });
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (!realName.trim() || cleanPhone.length < 10) {
+      setNameError("Por favor ingresa tu nombre completo real y tu teléfono de 10 dígitos.");
+      setStep(0);
+      return;
+    }
+    onDone({ location, address: address || "Mi ubicación", pago, realName: realName.trim(), phone: cleanPhone });
   };
 
   const steps = ["Datos", "Ubicación", "Pago", "¡Listo!"];
@@ -313,7 +320,7 @@ export default function OnboardingFlow({ userName, onDone }: OnboardingProps) {
         </AnimatePresence>
       </div>
 
-      {step < 3 && (
+      {step > 0 && step < 3 && (
         <button onClick={() => setStep(prev => Math.min(prev + 1, 3))}
           className="text-white/50 text-xs font-bold pb-4 text-center hover:text-white/80 transition-colors shrink-0">
           Omitir por ahora
